@@ -43,7 +43,7 @@ Window.AnchorPoint = Vector2.new(.5,.5)
 Window.Position = UDim2.new(.5,0,.5,0)
 
 if Device == "Phone" then
-    Window.Size = UDim2.new(.82,0,.72,0)
+    Window.Size = UDim2.new(.94,0,.86,0)
 elseif Device == "Tablet" then
     Window.Size = UDim2.new(.82,0,.82,0)
 else
@@ -82,7 +82,7 @@ Title.BackgroundTransparency = 1
 Title.Position = UDim2.fromOffset(18,0)
 Title.Size = UDim2.new(1,-120,1,0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "🦑 SquidNoMo 🎯"
+Title.Text = "ðŸ¦‘ SquidNoMo ðŸŽ¯"
 Title.TextSize = 24
 Title.TextColor3 = Color3.fromRGB(91,255,98)
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -121,14 +121,14 @@ Padding.PaddingRight = UDim.new(0,10)
 Padding.Parent = Sidebar
 
 local Tabs = {
-    "🏠 Home",
-    "🎮 Games",
-    "🛡 Guards",
-    "🕵 Detective",
-    "🌾 Farming",
-    "💎 VIP",
-    "🖥 Display",
-    "⚙ Settings"
+    "ðŸ  Home",
+    "ðŸŽ® Games",
+    "ðŸ›¡ Guards",
+    "ðŸ•µ Detective",
+    "ðŸŒ¾ Farming",
+    "ðŸ’Ž VIP",
+    "ðŸ–¥ Display",
+    "âš™ Settings"
 }
 
 for _,Name in ipairs(Tabs) do
@@ -167,7 +167,7 @@ local Floating = Instance.new("TextButton")
 Floating.Visible = false
 Floating.Size = UDim2.fromOffset(58,58)
 Floating.Position = UDim2.new(1,-75,1,-90)
-Floating.Text = "🦑"
+Floating.Text = "ðŸ¦‘"
 Floating.Font = Enum.Font.GothamBold
 Floating.TextSize = 26
 Floating.BackgroundColor3 = Color3.fromRGB(91,255,98)
@@ -189,61 +189,44 @@ Floating.MouseButton1Click:Connect(function()
     Window.Visible = true
 end)
 
-local UserInputService = game:GetService("UserInputService")
+local function UpdateDrag(Input)
+    local Delta = Input.Position - DragStart
 
-local Dragging = false
-local DragStart
-local StartPos
+    Window.Position = UDim2.new(
+        StartPosition.X.Scale,
+        StartPosition.X.Offset + Delta.X,
+        StartPosition.Y.Scale,
+        StartPosition.Y.Offset + Delta.Y
+    )
+end
 
-Header.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.Touch
-	or input.UserInputType == Enum.UserInputType.MouseButton1 then
-
-		Dragging = true
-		DragStart = input.Position
-		StartPos = Window.Position
-
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				Dragging = false
-			end
-		end)
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-	if not Dragging then
-		return
-	end
-
-	if input.UserInputType == Enum.UserInputType.Touch
-	or input.UserInputType == Enum.UserInputType.MouseMovement then
-
-		local delta = input.Position - DragStart
-
-		Window.Position = UDim2.new(
-			StartPos.X.Scale,
-			StartPos.X.Offset + delta.X,
-			StartPos.Y.Scale,
-			StartPos.Y.Offset + delta.Y
-		)
-	end
-end)
-
-print("SquidNoMo Milestone 2A Loaded")
-    end
-
-    if Input.UserInputType == Enum.UserInputType.MouseMovement
+Header.InputBegan:Connect(function(Input)
+    if Input.UserInputType == Enum.UserInputType.MouseButton1
     or Input.UserInputType == Enum.UserInputType.Touch then
 
-        local Delta = Input.Position - DragStart
+        Dragging = true
+        DragStart = Input.Position
+        StartPosition = Window.Position
 
-        Window.Position = UDim2.new(
-            StartPosition.X.Scale,
-            StartPosition.X.Offset + Delta.X,
-            StartPosition.Y.Scale,
-            StartPosition.Y.Offset + Delta.Y
-        )
+        Input.Changed:Connect(function()
+            if Input.UserInputState == Enum.UserInputState.End then
+                Dragging = false
+            end
+        end)
     end
 end)
+
+Header.InputChanged:Connect(function(Input)
+    if Input.UserInputType == Enum.UserInputType.MouseMovement
+    or Input.UserInputType == Enum.UserInputType.Touch then
+        DragInput = Input
+    end
+end)
+
+UIS.InputChanged:Connect(function(Input)
+    if Input == DragInput and Dragging then
+        UpdateDrag(Input)
+    end
+end)
+
 print("SquidNoMo Milestone 2A Loaded")
