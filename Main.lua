@@ -76,4 +76,51 @@ local MinCorner = Instance.new("UICorner")
 MinCorner.CornerRadius = UDim.new(0,8)
 MinCorner.Parent = Minimize
 
+local Sidebar = Instance.new("Frame")
+Sidebar.Name = "Sidebar"
+Sidebar.Position = UDim2.new(0,0,0,50)
+Sidebar.Size = UDim2.new(0,120,1,-50)
+Sidebar.BackgroundColor3 = Color3.fromRGB(35,35,35)
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = Window
+
+local Layout = Instance.new("UIListLayout")
+Layout.Padding = UDim.new(0,6)
+Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Layout.Parent = Sidebar
+
+local Padding = Instance.new("UIPadding")
+Padding.PaddingTop = UDim.new(0,8)
+Padding.PaddingLeft = UDim.new(0,8)
+Padding.PaddingRight = UDim.new(0,8)
+Padding.Parent = Sidebar
+
+local Pages = {
+    "🏠 Home",
+    "🎮 Games",
+    "🛡 Guards",
+    "🕵 Detective",
+    "🌾 Farming",
+    "💎 VIP",
+    "🖥 Display",
+    "⚙ Settings"
+}
+
+for i,Name in ipairs(Pages) do
+    local Button = Instance.new("TextButton")
+    Button.Name = Name
+    Button.Size = UDim2.new(1,0,0,32)
+    Button.BackgroundColor3 = i == 1 and Color3.fromRGB(91,255,98) or Color3.fromRGB(50,50,50)
+    Button.TextColor3 = i == 1 and Color3.new(0,0,0) or Color3.new(1,1,1)
+    Button.Font = Enum.Font.GothamBold
+    Button.TextSize = 13
+    Button.Text = Name
+    Button.BorderSizePixel = 0
+    Button.Parent = Sidebar
+
+    local C = Instance.new("UICorner")
+    C.CornerRadius = UDim.new(0,8)
+    C.Parent = Button
+end
+
 print("Milestone 1 Loaded")
