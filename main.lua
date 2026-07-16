@@ -6,8 +6,8 @@ local cacheBuster = "?v=" .. tick()
 local Lib = loadstring(game:HttpGet(GITHUB_BASE .. "library.lua" .. cacheBuster))()
 local UI = Lib:New("SquidNoMo")
 
--- 2. Init Modules (Capital 'S' to match Sidebar.lua)
-local Sidebar = loadstring(game:HttpGet(GITHUB_BASE .. "modules/Sidebar.lua" .. cacheBuster))()
+-- 2. Init Modules
+local Sidebar = loadstring(game:HttpGet(GITHUB_BASE .. "modules/sidebar.lua" .. cacheBuster))()
 Sidebar:Init(UI)
 
 print("SquidNoMo Initialized Successfully")
