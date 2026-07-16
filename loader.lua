@@ -1,36 +1,33 @@
--- SquidNoMo Unified Loader
+-- SquidNoMo Unified Loader (Delta Optimized)
+local Core = {}
 local Player = game:GetService("Players").LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
--- 1. Create Window
+-- Initialize UI Container
 local SG = Instance.new("ScreenGui", PlayerGui)
 SG.Name = "SquidNoMoUI"
+SG.IgnoreGuiInset = true
+
+-- Main Panel (Professional Dark Theme)
 local Main = Instance.new("Frame", SG)
-Main.Size = UDim2.new(0, 500, 0, 300)
-Main.Position = UDim2.new(0.5, -250, 0.5, -150)
-Main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Main.Active = true
-Main.Draggable = true
-Instance.new("UICorner", Main)
+Main.Size = UDim2.new(0, 700, 0, 450)
+Main.Position = UDim2.new(0.5, -350, 0.5, -225)
+Main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Main.BorderSizePixel = 0
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
 
--- 2. Sidebar
+-- Tab System (Delta uses standard instance parenting)
 local Sidebar = Instance.new("Frame", Main)
-Sidebar.Size = UDim2.new(0, 120, 1, 0)
-Sidebar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Instance.new("UICorner", Sidebar)
+Sidebar.Size = UDim2.new(0, 150, 1, 0)
+Sidebar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 
--- 3. Feature Logic
-local function AddButton(name, callback)
-    local btn = Instance.new("TextButton", Main)
-    btn.Size = UDim2.new(0, 150, 0, 40)
-    btn.Position = UDim2.new(0, 130, 0, (#Main:GetChildren() - 2) * 50)
+-- Add Tabs logic
+function Core:AddTab(name, icon)
+    local btn = Instance.new("TextButton", Sidebar)
+    btn.Size = UDim2.new(1, 0, 0, 50)
     btn.Text = name
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.MouseButton1Click:Connect(callback)
-    Instance.new("UICorner", btn)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    -- Add your Tab Switching logic here
 end
 
-AddButton("Speed 50", function() Player.Character.Humanoid.WalkSpeed = 50 end)
-AddButton("Jump 100", function() Player.Character.Humanoid.JumpPower = 100 end)
-print("SquidNoMo Loaded Unified")
+return Core
