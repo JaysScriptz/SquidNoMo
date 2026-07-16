@@ -49,27 +49,24 @@ App.Theme = {
 App.Device = "Desktop"
 
 do
+    local Camera = workspace.CurrentCamera
 
-    local Size = workspace.CurrentCamera.ViewportSize
-
-    if UserInputService.TouchEnabled then
-
-        if math.min(Size.X,Size.Y) < 700 then
-
-            App.Device = "Phone"
-
-        else
-
-            App.Device = "Tablet"
-
-        end
-
-    else
-
-        App.Device = "Desktop"
-
+    while not Camera do
+        task.wait()
+        Camera = workspace.CurrentCamera
     end
 
+    local Size = Camera.ViewportSize
+
+    if UserInputService.TouchEnabled then
+        if math.min(Size.X, Size.Y) < 700 then
+            App.Device = "Phone"
+        else
+            App.Device = "Tablet"
+        end
+    else
+        App.Device = "Desktop"
+    end
 end
 
 local ScreenGui = Instance.new("ScreenGui")
