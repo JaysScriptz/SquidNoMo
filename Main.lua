@@ -43,7 +43,7 @@ Window.AnchorPoint = Vector2.new(.5,.5)
 Window.Position = UDim2.new(.5,0,.5,0)
 
 if Device == "Phone" then
-    Window.Size = UDim2.new(.94,0,.86,0)
+    Window.Size = UDim2.new(.82,0,.72,0)
 elseif Device == "Tablet" then
     Window.Size = UDim2.new(.82,0,.82,0)
 else
