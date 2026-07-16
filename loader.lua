@@ -1,33 +1,28 @@
--- SquidNoMo Unified Loader (Delta Optimized)
-local Core = {}
-local Player = game:GetService("Players").LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
+-- SquidNoMo Rendering Fix
+local SG = game.Players.LocalPlayer.PlayerGui:FindFirstChild("SquidNoMoUI")
+if SG then SG:Destroy() end
 
--- Initialize UI Container
-local SG = Instance.new("ScreenGui", PlayerGui)
+SG = Instance.new("ScreenGui", game.Players.LocalPlayer.PlayerGui)
 SG.Name = "SquidNoMoUI"
-SG.IgnoreGuiInset = true
 
--- Main Panel (Professional Dark Theme)
+-- Main Background
 local Main = Instance.new("Frame", SG)
-Main.Size = UDim2.new(0, 700, 0, 450)
-Main.Position = UDim2.new(0.5, -350, 0.5, -225)
+Main.Size = UDim2.new(0.6, 0, 0.6, 0)
+Main.Position = UDim2.new(0.2, 0, 0.2, 0)
 Main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Main.BorderSizePixel = 0
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 8)
+Main.ZIndex = 1
 
--- Tab System (Delta uses standard instance parenting)
+-- Sidebar
 local Sidebar = Instance.new("Frame", Main)
-Sidebar.Size = UDim2.new(0, 150, 1, 0)
-Sidebar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Sidebar.Size = UDim2.new(0.2, 0, 1, 0)
+Sidebar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Sidebar.ZIndex = 2
 
--- Add Tabs logic
-function Core:AddTab(name, icon)
-    local btn = Instance.new("TextButton", Sidebar)
-    btn.Size = UDim2.new(1, 0, 0, 50)
-    btn.Text = name
-    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    -- Add your Tab Switching logic here
-end
-
-return Core
+-- Settings Text (The Fix)
+local SettingsText = Instance.new("TextLabel", Sidebar)
+SettingsText.Size = UDim2.new(1, 0, 0, 50)
+SettingsText.Text = "Settings"
+SettingsText.TextColor3 = Color3.fromRGB(0, 255, 0) -- Bright Green
+SettingsText.BackgroundTransparency = 1 -- Transparent background so it doesn't block
+SettingsText.ZIndex = 3 -- Must be higher than the background
+SettingsText.TextScaled = true -- Ensures text size adjusts correctly
