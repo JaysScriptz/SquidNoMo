@@ -1,12 +1,13 @@
 -- main.lua
-local BaseURL = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+local GITHUB_BASE = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+local cacheBuster = "?v=" .. tick()
 
--- Load the Library (The Visual Engine)
-local Library = loadstring(game:HttpGet(BaseURL .. "library.lua?v=" .. tick()))()
+-- 1. Setup UI
+local Lib = loadstring(game:HttpGet(GITHUB_BASE .. "library.lua" .. cacheBuster))()
+local UI = Lib:New("SquidNoMo")
 
--- Load the UI Window
-local UI = Library:New("SquidNoMo")
+-- 2. Init Modules (Capital 'S' to match Sidebar.lua)
+local Sidebar = loadstring(game:HttpGet(GITHUB_BASE .. "modules/Sidebar.lua" .. cacheBuster))()
+Sidebar:Init(UI)
 
--- Load the Player Features
-local Player = loadstring(game:HttpGet(BaseURL .. "modules/Sidebar.lua?v=" .. tick()))()
--- Add your tab logic here...
+print("SquidNoMo Initialized Successfully")
