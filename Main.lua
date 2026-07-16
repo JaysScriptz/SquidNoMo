@@ -30,13 +30,50 @@ local Corner = Instance.new("UICorner")
 Corner.CornerRadius = UDim.new(0, 12)
 Corner.Parent = Window
 
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1,0,0,50)
+Header.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Header.BorderSizePixel = 0
+Header.Parent = Window
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0,12)
+HeaderCorner.Parent = Header
+
 local Title = Instance.new("TextLabel")
 Title.BackgroundTransparency = 1
-Title.Size = UDim2.new(1, 0, 0, 50)
+Title.Position = UDim2.new(0,15,0,0)
+Title.Size = UDim2.new(1,-120,1,0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "SquidNoMo"
-Title.TextSize = 24
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Parent = Window
+Title.Text = "🦑 SquidNoMo"
+Title.TextSize = 22
+Title.TextColor3 = Color3.fromRGB(91,255,98)
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Header
+
+local Version = Instance.new("TextLabel")
+Version.BackgroundTransparency = 1
+Version.Position = UDim2.new(1,-95,0,0)
+Version.Size = UDim2.new(0,55,1,0)
+Version.Font = Enum.Font.Gotham
+Version.Text = "v0.0.1"
+Version.TextSize = 12
+Version.TextColor3 = Color3.fromRGB(180,180,180)
+Version.Parent = Header
+
+local Minimize = Instance.new("TextButton")
+Minimize.Position = UDim2.new(1,-40,0.5,-15)
+Minimize.Size = UDim2.new(0,30,0,30)
+Minimize.BackgroundColor3 = Color3.fromRGB(60,60,60)
+Minimize.Text = "—"
+Minimize.Font = Enum.Font.GothamBold
+Minimize.TextSize = 18
+Minimize.TextColor3 = Color3.new(1,1,1)
+Minimize.BorderSizePixel = 0
+Minimize.Parent = Header
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0,8)
+MinCorner.Parent = Minimize
 
 print("Milestone 1 Loaded")
