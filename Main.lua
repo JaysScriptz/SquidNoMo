@@ -224,9 +224,21 @@ Header.InputChanged:Connect(function(Input)
 end)
 
 UIS.InputChanged:Connect(function(Input)
-    if Input == DragInput and Dragging then
-        UpdateDrag(Input)
+    if not Dragging then
+        return
+    end
+
+    if Input.UserInputType == Enum.UserInputType.MouseMovement
+    or Input.UserInputType == Enum.UserInputType.Touch then
+
+        local Delta = Input.Position - DragStart
+
+        Window.Position = UDim2.new(
+            StartPosition.X.Scale,
+            StartPosition.X.Offset + Delta.X,
+            StartPosition.Y.Scale,
+            StartPosition.Y.Offset + Delta.Y
+        )
     end
 end)
-
 print("SquidNoMo Milestone 2A Loaded")
