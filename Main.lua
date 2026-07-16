@@ -26,6 +26,28 @@ Window.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Window.BorderSizePixel = 0
 Window.Parent = Gui
 
+local UIScale = Instance.new("UIScale")
+UIScale.Parent = Window
+
+local function UpdateScale()
+    local Camera = workspace.CurrentCamera
+    if not Camera then return end
+
+    local X = Camera.ViewportSize.X
+
+    if X < 700 then
+        UIScale.Scale = 0.82
+    elseif X < 1000 then
+        UIScale.Scale = 0.92
+    else
+        UIScale.Scale = 1
+    end
+end
+
+UpdateScale()
+
+workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateScale)
+
 local Corner = Instance.new("UICorner")
 Corner.CornerRadius = UDim.new(0, 12)
 Corner.Parent = Window
@@ -78,8 +100,8 @@ MinCorner.Parent = Minimize
 
 local Sidebar = Instance.new("ScrollingFrame")
 Sidebar.Name = "Sidebar"
-Sidebar.Position = UDim2.new(0,0,0,50)
-Sidebar.Size = UDim2.new(0,185,1,-50)
+Sidebar.Position = UDim2.new(0,0,0.085,0)
+Sidebar.Size = UDim2.new(0.20,0,0.915,0)
 Sidebar.BackgroundColor3 = Color3.fromRGB(35,35,35)
 Sidebar.BorderSizePixel = 0
 Sidebar.AutomaticCanvasSize = Enum.AutomaticSize.Y
