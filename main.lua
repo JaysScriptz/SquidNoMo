@@ -1,14 +1,12 @@
 -- main.lua
-local GITHUB_URL = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-local playerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+local BaseURL = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
 
--- Cleanup existing
-if playerGui:FindFirstChild("SquidNoMoUI") then playerGui.SquidNoMoUI:Destroy() end
+-- Load the Library (The Visual Engine)
+local Library = loadstring(game:HttpGet(BaseURL .. "library.lua?v=" .. tick()))()
 
--- Load Library
-local Lib = loadstring(game:HttpGet(GITHUB_URL .. "Library.lua?v=" .. tick()))()
-local UI = Lib:New("SquidNoMo")
+-- Load the UI Window
+local UI = Library:New("SquidNoMo")
 
--- Load Modules
-local PlayerMod = loadstring(game:HttpGet(GITHUB_URL .. "Modules/Player.lua?v=" .. tick()))()
-PlayerMod:Init(UI)
+-- Load the Player Features
+local Player = loadstring(game:HttpGet(BaseURL .. "modules/Sidebar.lua?v=" .. tick()))()
+-- Add your tab logic here...
