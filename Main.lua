@@ -79,18 +79,18 @@ MinCorner.Parent = Minimize
 local Sidebar = Instance.new("ScrollingFrame")
 Sidebar.Name = "Sidebar"
 Sidebar.Position = UDim2.new(0,0,0,50)
-Sidebar.Size = UDim2.new(0,155,1,-50)
+Sidebar.Size = UDim2.new(0,185,1,-50)
 Sidebar.BackgroundColor3 = Color3.fromRGB(35,35,35)
 Sidebar.BorderSizePixel = 0
-Sidebar.CanvasSize = UDim2.new(0,0,0,0)
-Sidebar.ScrollBarThickness = 4
 Sidebar.AutomaticCanvasSize = Enum.AutomaticSize.Y
+Sidebar.CanvasSize = UDim2.new()
+Sidebar.ScrollBarThickness = 3
 Sidebar.ScrollingDirection = Enum.ScrollingDirection.Y
 Sidebar.Parent = Window
 
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0,10)
-Corner.Parent = Sidebar
+local SideCorner = Instance.new("UICorner")
+SideCorner.CornerRadius = UDim.new(0,10)
+SideCorner.Parent = Sidebar
 
 local Layout = Instance.new("UIListLayout")
 Layout.Padding = UDim.new(0,6)
@@ -101,38 +101,46 @@ Layout.Parent = Sidebar
 local Padding = Instance.new("UIPadding")
 Padding.PaddingTop = UDim.new(0,8)
 Padding.PaddingBottom = UDim.new(0,8)
-Padding.PaddingLeft = UDim.new(0,8)
-Padding.PaddingRight = UDim.new(0,8)
+Padding.PaddingLeft = UDim.new(0,10)
+Padding.PaddingRight = UDim.new(0,10)
 Padding.Parent = Sidebar
 
 local Pages = {
-    "🏠 Home",
-    "🎮 Games",
-    "🛡 Guards",
-    "🕵 Detective",
-    "🌾 Farming",
-    "💎 VIP",
-    "🖥 Display",
-    "⚙ Settings"
+    {"🏠","Home"},
+    {"🎮","Games"},
+    {"🛡","Guards"},
+    {"🕵","Detective"},
+    {"🌾","Farming"},
+    {"💎","VIP"},
+    {"🖥","Display"},
+    {"⚙","Settings"}
 }
 
-for i, Name in ipairs(Pages) do
+for i,v in ipairs(Pages) do
+
     local Button = Instance.new("TextButton")
-    Button.Name = Name
-    Button.Size = UDim2.new(1,0,0,38)
+    Button.Name = v[2]
+    Button.Size = UDim2.new(0,125,0,34)
     Button.LayoutOrder = i
-    Button.BackgroundColor3 = i == 1 and Color3.fromRGB(91,255,98) or Color3.fromRGB(50,50,50)
-    Button.TextColor3 = i == 1 and Color3.new(0,0,0) or Color3.new(1,1,1)
+    Button.BackgroundColor3 = i == 1
+        and Color3.fromRGB(91,255,98)
+        or Color3.fromRGB(48,48,48)
+
+    Button.TextColor3 = i == 1
+        and Color3.new(0,0,0)
+        or Color3.new(1,1,1)
+
     Button.Font = Enum.Font.GothamBold
     Button.TextSize = 14
-    Button.Text = Name
+    Button.Text = v[1].." "..v[2]
     Button.BorderSizePixel = 0
     Button.AutoButtonColor = true
     Button.Parent = Sidebar
 
-    local C = Instance.new("UICorner")
-    C.CornerRadius = UDim.new(0,8)
-    C.Parent = Button
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0,8)
+    Corner.Parent = Button
+
 end
 
 print("Milestone 1 Loaded")
