@@ -54,6 +54,11 @@ Window.BackgroundColor3 = Color3.fromRGB(20,20,20)
 Window.BorderSizePixel = 0
 Window.Parent = Gui
 
+local Dragging = false
+local DragStart
+local StartPosition
+local DragInput
+
 local Corner = Instance.new("UICorner")
 Corner.CornerRadius = UDim.new(0,14)
 Corner.Parent = Window
@@ -184,4 +189,44 @@ Floating.MouseButton1Click:Connect(function()
     Window.Visible = true
 end)
 
-print("SquidNoMo Milestone 1 Loaded")
+local function UpdateDrag(Input)
+    local Delta = Input.Position - DragStart
+
+    Window.Position = UDim2.new(
+        StartPosition.X.Scale,
+        StartPosition.X.Offset + Delta.X,
+        StartPosition.Y.Scale,
+        StartPosition.Y.Offset + Delta.Y
+    )
+end
+
+Header.InputBegan:Connect(function(Input)
+    if Input.UserInputType == Enum.UserInputType.MouseButton1
+    or Input.UserInputType == Enum.UserInputType.Touch then
+
+        Dragging = true
+        DragStart = Input.Position
+        StartPosition = Window.Position
+
+        Input.Changed:Connect(function()
+            if Input.UserInputState == Enum.UserInputState.End then
+                Dragging = false
+            end
+        end)
+    end
+end)
+
+Header.InputChanged:Connect(function(Input)
+    if Input.UserInputType == Enum.UserInputType.MouseMovement
+    or Input.UserInputType == Enum.UserInputType.Touch then
+        DragInput = Input
+    end
+end)
+
+UIS.InputChanged:Connect(function(Input)
+    if Input == DragInput and Dragging then
+        UpdateDrag(Input)
+    end
+end)
+
+print("SquidNoMo Milestone 2A Loaded")
