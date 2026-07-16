@@ -189,43 +189,48 @@ Floating.MouseButton1Click:Connect(function()
     Window.Visible = true
 end)
 
-local function UpdateDrag(Input)
-    local Delta = Input.Position - DragStart
+local UserInputService = game:GetService("UserInputService")
 
-    Window.Position = UDim2.new(
-        StartPosition.X.Scale,
-        StartPosition.X.Offset + Delta.X,
-        StartPosition.Y.Scale,
-        StartPosition.Y.Offset + Delta.Y
-    )
-end
+local Dragging = false
+local DragStart
+local StartPos
 
-Header.InputBegan:Connect(function(Input)
-    if Input.UserInputType == Enum.UserInputType.MouseButton1
-    or Input.UserInputType == Enum.UserInputType.Touch then
+Header.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch
+	or input.UserInputType == Enum.UserInputType.MouseButton1 then
 
-        Dragging = true
-        DragStart = Input.Position
-        StartPosition = Window.Position
+		Dragging = true
+		DragStart = input.Position
+		StartPos = Window.Position
 
-        Input.Changed:Connect(function()
-            if Input.UserInputState == Enum.UserInputState.End then
-                Dragging = false
-            end
-        end)
-    end
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				Dragging = false
+			end
+		end)
+	end
 end)
 
-Header.InputChanged:Connect(function(Input)
-    if Input.UserInputType == Enum.UserInputType.MouseMovement
-    or Input.UserInputType == Enum.UserInputType.Touch then
-        DragInput = Input
-    end
+UserInputService.InputChanged:Connect(function(input)
+	if not Dragging then
+		return
+	end
+
+	if input.UserInputType == Enum.UserInputType.Touch
+	or input.UserInputType == Enum.UserInputType.MouseMovement then
+
+		local delta = input.Position - DragStart
+
+		Window.Position = UDim2.new(
+			StartPos.X.Scale,
+			StartPos.X.Offset + delta.X,
+			StartPos.Y.Scale,
+			StartPos.Y.Offset + delta.Y
+		)
+	end
 end)
 
-UIS.InputChanged:Connect(function(Input)
-    if not Dragging then
-        return
+print("SquidNoMo Milestone 2A Loaded")
     end
 
     if Input.UserInputType == Enum.UserInputType.MouseMovement
