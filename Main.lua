@@ -76,21 +76,31 @@ local MinCorner = Instance.new("UICorner")
 MinCorner.CornerRadius = UDim.new(0,8)
 MinCorner.Parent = Minimize
 
-local Sidebar = Instance.new("Frame")
+local Sidebar = Instance.new("ScrollingFrame")
 Sidebar.Name = "Sidebar"
 Sidebar.Position = UDim2.new(0,0,0,50)
-Sidebar.Size = UDim2.new(0,120,1,-50)
+Sidebar.Size = UDim2.new(0,155,1,-50)
 Sidebar.BackgroundColor3 = Color3.fromRGB(35,35,35)
 Sidebar.BorderSizePixel = 0
+Sidebar.CanvasSize = UDim2.new(0,0,0,0)
+Sidebar.ScrollBarThickness = 4
+Sidebar.AutomaticCanvasSize = Enum.AutomaticSize.Y
+Sidebar.ScrollingDirection = Enum.ScrollingDirection.Y
 Sidebar.Parent = Window
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0,10)
+Corner.Parent = Sidebar
 
 local Layout = Instance.new("UIListLayout")
 Layout.Padding = UDim.new(0,6)
 Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Layout.SortOrder = Enum.SortOrder.LayoutOrder
 Layout.Parent = Sidebar
 
 local Padding = Instance.new("UIPadding")
 Padding.PaddingTop = UDim.new(0,8)
+Padding.PaddingBottom = UDim.new(0,8)
 Padding.PaddingLeft = UDim.new(0,8)
 Padding.PaddingRight = UDim.new(0,8)
 Padding.Parent = Sidebar
@@ -106,16 +116,18 @@ local Pages = {
     "⚙ Settings"
 }
 
-for i,Name in ipairs(Pages) do
+for i, Name in ipairs(Pages) do
     local Button = Instance.new("TextButton")
     Button.Name = Name
-    Button.Size = UDim2.new(1,0,0,32)
+    Button.Size = UDim2.new(1,0,0,38)
+    Button.LayoutOrder = i
     Button.BackgroundColor3 = i == 1 and Color3.fromRGB(91,255,98) or Color3.fromRGB(50,50,50)
     Button.TextColor3 = i == 1 and Color3.new(0,0,0) or Color3.new(1,1,1)
     Button.Font = Enum.Font.GothamBold
-    Button.TextSize = 13
+    Button.TextSize = 14
     Button.Text = Name
     Button.BorderSizePixel = 0
+    Button.AutoButtonColor = true
     Button.Parent = Sidebar
 
     local C = Instance.new("UICorner")
