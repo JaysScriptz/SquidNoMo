@@ -10,17 +10,24 @@ local Config = loadstring(game:HttpGet(
 local Loader = {}
 
 local function Load(Path)
-    print("[Loader] Loading:", Path)
+    print("[Loader] Loading: " .. Path)
 
     local Source = game:HttpGet(Config.Repository .. Path)
 
     local Module = loadstring(Source)()
 
-    print("[Loader] Loaded:", Path)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Loaded",
+            Text = Path,
+            Duration = 2
+        })
+    end)
+
+    print("[Loader] Loaded: " .. Path)
 
     return Module
 end
-
 ----------------------------------------------------
 -- Core Modules
 ----------------------------------------------------
