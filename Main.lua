@@ -209,34 +209,482 @@ ButtonConstraint.Parent = Button
 end
 
 local HomePage = Instance.new("Frame")
-HomePage.Name="HomePage"
-HomePage.Size=UDim2.fromScale(1,1)
-HomePage.BackgroundTransparency=1
-HomePage.Parent=Content
+--------------------------------------------------
+-- HOME PAGE (PART 1)
+--------------------------------------------------
 
-local HomeTitle=Instance.new("TextLabel")
-HomeTitle.BackgroundTransparency=1
-HomeTitle.Position=UDim2.new(0,20,0,20)
-HomeTitle.Size=UDim2.new(1,-40,0,40)
-HomeTitle.Font=Enum.Font.GothamBold
-HomeTitle.Text="Home"
-HomeTitle.TextSize=30
-HomeTitle.TextColor3=Color3.fromRGB(255,255,255)
-HomeTitle.TextXAlignment=Enum.TextXAlignment.Left
-HomeTitle.Parent=HomePage
+local HomePage = Instance.new("ScrollingFrame")
+HomePage.Name = "HomePage"
+HomePage.Parent = Content
+HomePage.BackgroundTransparency = 1
+HomePage.BorderSizePixel = 0
+HomePage.Position = UDim2.new(0,0,0,0)
+HomePage.Size = UDim2.new(1,0,1,0)
+HomePage.ScrollBarThickness = 4
+HomePage.AutomaticCanvasSize = Enum.AutomaticSize.Y
+HomePage.CanvasSize = UDim2.new(0,0,0,0)
 
-local Welcome=Instance.new("TextLabel")
-Welcome.BackgroundTransparency=1
-Welcome.Position=UDim2.new(0,20,0,70)
-Welcome.Size=UDim2.new(1,-40,0,150)
-Welcome.Font=Enum.Font.Gotham
-Welcome.TextSize=18
-Welcome.TextWrapped=true
-Welcome.TextYAlignment=Enum.TextYAlignment.Top
-Welcome.TextXAlignment=Enum.TextXAlignment.Left
-Welcome.TextColor3=Color3.fromRGB(220,220,220)
-Welcome.Text="Welcome to SquidNoMo!\n\nVersion: v0.0.1\n\nThe UI framework is complete. The next milestone is building the Home and Settings pages."
-Welcome.Parent=HomePage
+local HomePadding = Instance.new("UIPadding")
+HomePadding.Parent = HomePage
+HomePadding.PaddingTop = UDim.new(0,20)
+HomePadding.PaddingBottom = UDim.new(0,20)
+HomePadding.PaddingLeft = UDim.new(0,20)
+HomePadding.PaddingRight = UDim.new(0,20)
+
+local HomeLayout = Instance.new("UIListLayout")
+HomeLayout.Parent = HomePage
+HomeLayout.Padding = UDim.new(0,18)
+HomeLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+--------------------------------------------------
+-- HERO CARD
+--------------------------------------------------
+
+local Hero = Instance.new("Frame")
+Hero.Parent = HomePage
+Hero.LayoutOrder = 1
+Hero.Size = UDim2.new(1,0,0,220)
+Hero.BackgroundColor3 = Color3.fromRGB(38,38,38)
+Hero.BorderSizePixel = 0
+
+local HeroCorner = Instance.new("UICorner")
+HeroCorner.CornerRadius = UDim.new(0,18)
+HeroCorner.Parent = Hero
+
+local HeroStroke = Instance.new("UIStroke")
+HeroStroke.Parent = Hero
+HeroStroke.Color = Color3.fromRGB(91,255,98)
+HeroStroke.Thickness = 2
+
+local HeroTitle = Instance.new("TextLabel")
+HeroTitle.Parent = Hero
+HeroTitle.BackgroundTransparency = 1
+HeroTitle.Position = UDim2.new(0,20,0,18)
+HeroTitle.Size = UDim2.new(.55,0,0,35)
+HeroTitle.Font = Enum.Font.GothamBold
+HeroTitle.Text = "Welcome to SquidNoMo!"
+HeroTitle.TextColor3 = Color3.new(1,1,1)
+HeroTitle.TextSize = 28
+HeroTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local HeroBody = Instance.new("TextLabel")
+HeroBody.Parent = Hero
+HeroBody.BackgroundTransparency = 1
+HeroBody.Position = UDim2.new(0,20,0,60)
+HeroBody.Size = UDim2.new(.55,-10,0,135)
+HeroBody.Font = Enum.Font.Gotham
+HeroBody.TextWrapped = true
+HeroBody.TextYAlignment = Enum.TextYAlignment.Top
+HeroBody.TextXAlignment = Enum.TextXAlignment.Left
+HeroBody.TextColor3 = Color3.fromRGB(225,225,225)
+HeroBody.TextSize = 16
+HeroBody.Text =
+"SquidNoMo is the ultimate all-in-one companion for the Roblox experience \"Squid Game X\", bringing powerful features together in one clean, easy-to-use interface.\n\nUse the navigation menu on the left to access every available feature."
+
+--------------------------------------------------
+-- HERO IMAGE
+--------------------------------------------------
+
+local HeroImage = Instance.new("ImageLabel")
+HeroImage.Parent = Hero
+HeroImage.BackgroundTransparency = 1
+HeroImage.AnchorPoint = Vector2.new(1,.5)
+HeroImage.Position = UDim2.new(1,-20,.5,0)
+HeroImage.Size = UDim2.new(0,180,0,180)
+HeroImage.ScaleType = Enum.ScaleType.Fit
+
+-- Replace later
+HeroImage.Image = "rbxassetid://0"
+
+local ImageCorner = Instance.new("UICorner")
+ImageCorner.CornerRadius = UDim.new(0,16)
+ImageCorner.Parent = HeroImage
+
+--------------------------------------------------
+-- SECOND ROW
+--------------------------------------------------
+
+local Row2 = Instance.new("Frame")
+Row2.Parent = HomePage
+Row2.LayoutOrder = 2
+Row2.BackgroundTransparency = 1
+Row2.Size = UDim2.new(1,0,0,140)
+
+local RowLayout = Instance.new("UIListLayout")
+RowLayout.Parent = Row2
+RowLayout.FillDirection = Enum.FillDirection.Horizontal
+RowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+RowLayout.Padding = UDim.new(0,16)
+
+--------------------------------------------------
+-- VERSION CARD
+--------------------------------------------------
+
+local VersionCard = Instance.new("Frame")
+VersionCard.Parent = Row2
+VersionCard.Size = UDim2.new(.5,-8,1,0)
+VersionCard.BackgroundColor3 = Color3.fromRGB(38,38,38)
+VersionCard.BorderSizePixel = 0
+
+local VersionCorner = Instance.new("UICorner")
+VersionCorner.CornerRadius = UDim.new(0,18)
+VersionCorner.Parent = VersionCard
+
+local VersionStroke = Instance.new("UIStroke")
+VersionStroke.Parent = VersionCard
+VersionStroke.Color = Color3.fromRGB(170,120,255)
+VersionStroke.Thickness = 2
+
+local VersionTitle = Instance.new("TextLabel")
+VersionTitle.Parent = VersionCard
+VersionTitle.BackgroundTransparency = 1
+VersionTitle.Position = UDim2.new(0,15,0,12)
+VersionTitle.Size = UDim2.new(1,-30,0,24)
+VersionTitle.Font = Enum.Font.GothamBold
+VersionTitle.Text = "Version"
+VersionTitle.TextColor3 = Color3.new(1,1,1)
+VersionTitle.TextSize = 20
+VersionTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local VersionNumber = Instance.new("TextLabel")
+VersionNumber.Parent = VersionCard
+VersionNumber.BackgroundTransparency = 1
+VersionNumber.Position = UDim2.new(0,15,0,48)
+VersionNumber.Size = UDim2.new(1,-30,0,36)
+VersionNumber.Font = Enum.Font.GothamBold
+VersionNumber.Text = "v0.0.1"
+VersionNumber.TextColor3 = Color3.fromRGB(170,120,255)
+VersionNumber.TextSize = 30
+VersionNumber.TextXAlignment = Enum.TextXAlignment.Left
+
+local BuildLabel = Instance.new("TextLabel")
+BuildLabel.Parent = VersionCard
+BuildLabel.BackgroundTransparency = 1
+BuildLabel.Position = UDim2.new(0,15,0,92)
+BuildLabel.Size = UDim2.new(1,-30,0,20)
+BuildLabel.Font = Enum.Font.Gotham
+BuildLabel.Text = "Build 1"
+BuildLabel.TextColor3 = Color3.fromRGB(220,220,220)
+BuildLabel.TextSize = 15
+BuildLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+--------------------------------------------------
+-- SERVER CARD
+--------------------------------------------------
+
+local StatsService = game:GetService("Stats")
+
+local ServerCard = Instance.new("Frame")
+ServerCard.Parent = Row2
+ServerCard.Size = UDim2.new(.5,-8,1,0)
+ServerCard.BackgroundColor3 = Color3.fromRGB(38,38,38)
+ServerCard.BorderSizePixel = 0
+
+local ServerCorner = Instance.new("UICorner")
+ServerCorner.CornerRadius = UDim.new(0,18)
+ServerCorner.Parent = ServerCard
+
+local ServerStroke = Instance.new("UIStroke")
+ServerStroke.Parent = ServerCard
+ServerStroke.Color = Color3.fromRGB(91,255,98)
+ServerStroke.Thickness = 2
+
+local ServerTitle = Instance.new("TextLabel")
+ServerTitle.Parent = ServerCard
+ServerTitle.BackgroundTransparency = 1
+ServerTitle.Position = UDim2.new(0,15,0,12)
+ServerTitle.Size = UDim2.new(1,-30,0,24)
+ServerTitle.Font = Enum.Font.GothamBold
+ServerTitle.Text = "Server"
+ServerTitle.TextColor3 = Color3.new(1,1,1)
+ServerTitle.TextSize = 20
+ServerTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local StatusDot = Instance.new("Frame")
+StatusDot.Parent = ServerCard
+StatusDot.Size = UDim2.new(0,10,0,10)
+StatusDot.Position = UDim2.new(0,18,0,48)
+StatusDot.BackgroundColor3 = Color3.fromRGB(91,255,98)
+StatusDot.BorderSizePixel = 0
+
+local DotCorner = Instance.new("UICorner")
+DotCorner.CornerRadius = UDim.new(1,0)
+DotCorner.Parent = StatusDot
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Parent = ServerCard
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0,35,0,42)
+StatusLabel.Size = UDim2.new(.6,0,0,20)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Text = "Online"
+StatusLabel.TextColor3 = Color3.fromRGB(225,225,225)
+StatusLabel.TextSize = 15
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local PingLabel = Instance.new("TextLabel")
+PingLabel.Parent = ServerCard
+PingLabel.BackgroundTransparency = 1
+PingLabel.Position = UDim2.new(0,18,0,72)
+PingLabel.Size = UDim2.new(1,-30,0,20)
+PingLabel.Font = Enum.Font.Gotham
+PingLabel.Text = "Ping: -- ms"
+PingLabel.TextColor3 = Color3.fromRGB(220,220,220)
+PingLabel.TextSize = 15
+PingLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local PlayersLabel = Instance.new("TextLabel")
+PlayersLabel.Parent = ServerCard
+PlayersLabel.BackgroundTransparency = 1
+PlayersLabel.Position = UDim2.new(0,18,0,95)
+PlayersLabel.Size = UDim2.new(1,-30,0,20)
+PlayersLabel.Font = Enum.Font.Gotham
+PlayersLabel.Text = "Players: "..#Players:GetPlayers().." / "..Players.MaxPlayers
+PlayersLabel.TextColor3 = Color3.fromRGB(220,220,220)
+PlayersLabel.TextSize = 15
+PlayersLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+task.spawn(function()
+	while task.wait(1) do
+
+		PlayersLabel.Text =
+			"Players: "..#Players:GetPlayers().." / "..Players.MaxPlayers
+
+		pcall(function()
+
+			local Ping =
+				math.floor(
+					StatsService.Network.ServerStatsItem["Data Ping"]
+				)
+
+			PingLabel.Text =
+				"Ping: "..Ping.." ms"
+
+		end)
+
+	end
+end)
+
+--------------------------------------------------
+-- LATEST CHANGES CARD
+--------------------------------------------------
+
+local ChangesCard = Instance.new("Frame")
+ChangesCard.Parent = HomePage
+ChangesCard.LayoutOrder = 3
+ChangesCard.Size = UDim2.new(1,0,0,250)
+ChangesCard.BackgroundColor3 = Color3.fromRGB(38,38,38)
+ChangesCard.BorderSizePixel = 0
+
+local ChangesCorner = Instance.new("UICorner")
+ChangesCorner.CornerRadius = UDim.new(0,18)
+ChangesCorner.Parent = ChangesCard
+
+local ChangesStroke = Instance.new("UIStroke")
+ChangesStroke.Parent = ChangesCard
+ChangesStroke.Color = Color3.fromRGB(75,170,255)
+ChangesStroke.Thickness = 2
+
+local ChangesTitle = Instance.new("TextLabel")
+ChangesTitle.Parent = ChangesCard
+ChangesTitle.BackgroundTransparency = 1
+ChangesTitle.Position = UDim2.new(0,20,0,15)
+ChangesTitle.Size = UDim2.new(1,-40,0,30)
+ChangesTitle.Font = Enum.Font.GothamBold
+ChangesTitle.Text = "Latest Changes"
+ChangesTitle.TextSize = 22
+ChangesTitle.TextColor3 = Color3.new(1,1,1)
+ChangesTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local Updates = {
+
+	"Home Dashboard completely redesigned",
+
+	"Responsive scaling improvements",
+
+	"Floating launcher added",
+
+	"Draggable floating launcher",
+
+	"Smooth minimize animation",
+
+	"Modern UI framework",
+
+	"Cleaner sidebar",
+
+	"Optimized for Delta Mobile",
+
+	"Preparing for Settings page"
+
+}
+
+for i,v in ipairs(Updates) do
+
+	local Bullet = Instance.new("TextLabel")
+	Bullet.Parent = ChangesCard
+	Bullet.BackgroundTransparency = 1
+	Bullet.Position = UDim2.new(0,25,0,45+(i*20))
+	Bullet.Size = UDim2.new(1,-40,0,18)
+	Bullet.Font = Enum.Font.Gotham
+	Bullet.Text = "• "..v
+	Bullet.TextSize = 15
+	Bullet.TextColor3 = Color3.fromRGB(225,225,225)
+	Bullet.TextXAlignment = Enum.TextXAlignment.Left
+
+end
+
+--------------------------------------------------
+-- FOOTER
+--------------------------------------------------
+
+local Footer = Instance.new("TextLabel")
+Footer.Parent = HomePage
+Footer.LayoutOrder = 4
+Footer.BackgroundTransparency = 1
+Footer.Size = UDim2.new(1,0,0,45)
+Footer.Font = Enum.Font.GothamBold
+Footer.Text = "❤ Thank you for using SquidNoMo!"
+Footer.TextSize = 18
+Footer.TextColor3 = Color3.fromRGB(235,235,235)
+Footer.TextXAlignment = Enum.TextXAlignment.Center
+
+--------------------------------------------------
+-- SPACING FIX
+--------------------------------------------------
+
+HomeLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+
+	HomePage.CanvasSize =
+		UDim2.new(
+			0,
+			0,
+			0,
+			HomeLayout.AbsoluteContentSize.Y + 20
+		)
+
+end)
+
+HomePage.CanvasSize =
+	UDim2.new(
+		0,
+		0,
+		0,
+		HomeLayout.AbsoluteContentSize.Y + 20
+)
+
+--------------------------------------------------
+-- FINAL POLISH
+--------------------------------------------------
+
+-- Hero Image Border
+local HeroImageStroke = Instance.new("UIStroke")
+HeroImageStroke.Parent = HeroImage
+HeroImageStroke.Color = Color3.fromRGB(91,255,98)
+HeroImageStroke.Thickness = 2
+
+-- Hero Image Background
+local HeroBackground = Instance.new("Frame")
+HeroBackground.Parent = Hero
+HeroBackground.AnchorPoint = Vector2.new(1,.5)
+HeroBackground.Position = HeroImage.Position
+HeroBackground.Size = UDim2.new(0,190,0,190)
+HeroBackground.BackgroundColor3 = Color3.fromRGB(30,30,30)
+HeroBackground.BorderSizePixel = 0
+HeroBackground.ZIndex = HeroImage.ZIndex - 1
+
+local HeroBGCorner = Instance.new("UICorner")
+HeroBGCorner.CornerRadius = UDim.new(0,18)
+HeroBGCorner.Parent = HeroBackground
+
+--------------------------------------------------
+-- CARD GRADIENTS
+--------------------------------------------------
+
+local function AddGradient(Frame)
+
+	local Gradient = Instance.new("UIGradient")
+	Gradient.Parent = Frame
+
+	Gradient.Color = ColorSequence.new{
+
+		ColorSequenceKeypoint.new(
+			0,
+			Color3.fromRGB(45,45,45)
+		),
+
+		ColorSequenceKeypoint.new(
+			1,
+			Color3.fromRGB(30,30,30)
+		)
+
+	}
+
+	Gradient.Rotation = 90
+
+end
+
+AddGradient(Hero)
+AddGradient(VersionCard)
+AddGradient(ServerCard)
+AddGradient(ChangesCard)
+
+--------------------------------------------------
+-- CARD PADDING
+--------------------------------------------------
+
+local function AddPadding(Frame)
+
+	local Padding = Instance.new("UIPadding")
+	Padding.Parent = Frame
+
+	Padding.PaddingLeft = UDim.new(0,8)
+	Padding.PaddingRight = UDim.new(0,8)
+	Padding.PaddingTop = UDim.new(0,8)
+	Padding.PaddingBottom = UDim.new(0,8)
+
+end
+
+AddPadding(VersionCard)
+AddPadding(ServerCard)
+AddPadding(ChangesCard)
+
+--------------------------------------------------
+-- HEADER DIVIDER
+--------------------------------------------------
+
+local Divider = Instance.new("Frame")
+Divider.Parent = ChangesCard
+Divider.Position = UDim2.new(0,18,0,46)
+Divider.Size = UDim2.new(1,-36,0,1)
+Divider.BorderSizePixel = 0
+Divider.BackgroundColor3 = Color3.fromRGB(70,70,70)
+
+--------------------------------------------------
+-- HERO SUBTITLE
+--------------------------------------------------
+
+local HeroSubtitle = Instance.new("TextLabel")
+HeroSubtitle.Parent = Hero
+HeroSubtitle.BackgroundTransparency = 1
+HeroSubtitle.Position = UDim2.new(0,20,0,190)
+HeroSubtitle.Size = UDim2.new(.55,0,0,18)
+HeroSubtitle.Font = Enum.Font.GothamBold
+HeroSubtitle.Text = "Squid Game X • All-In-One Tool"
+HeroSubtitle.TextColor3 = Color3.fromRGB(91,255,98)
+HeroSubtitle.TextSize = 14
+HeroSubtitle.TextXAlignment = Enum.TextXAlignment.Left
+
+--------------------------------------------------
+-- FOOTER COLOR
+--------------------------------------------------
+
+Footer.TextColor3 = Color3.fromRGB(180,180,180)
+
+--------------------------------------------------
+-- HOME PAGE READY
+--------------------------------------------------
+
+print("Home Dashboard Loaded")
 
 print("Milestone 1 Loaded")
 
