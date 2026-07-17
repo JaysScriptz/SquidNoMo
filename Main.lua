@@ -108,6 +108,24 @@ local MinCorner = Instance.new("UICorner")
 MinCorner.CornerRadius = UDim.new(0,8)
 MinCorner.Parent = Minimize
 
+local Floating = Instance.new("TextButton")
+Floating.Name = "Floating"
+Floating.Visible = false
+Floating.Size = UDim2.fromOffset(60,60)
+Floating.AnchorPoint = Vector2.new(1,1)
+Floating.Position = UDim2.new(1,-20,1,-20)
+Floating.BackgroundColor3 = Color3.fromRGB(91,255,98)
+Floating.Text = "🦑"
+Floating.Font = Enum.Font.GothamBold
+Floating.TextScaled = true
+Floating.TextColor3 = Color3.new(0,0,0)
+Floating.BorderSizePixel = 0
+Floating.Parent = Gui
+
+local FloatCorner = Instance.new("UICorner")
+FloatCorner.CornerRadius = UDim.new(1,0)
+FloatCorner.Parent = Floating
+
 local Sidebar = Instance.new("ScrollingFrame")
 Sidebar.Name = "Sidebar"
 Sidebar.Position = UDim2.new(0,0,0.085,0)
@@ -181,3 +199,13 @@ ButtonConstraint.Parent = Button
 end
 
 print("Milestone 1 Loaded")
+
+Minimize.MouseButton1Click:Connect(function()
+    Window.Visible = false
+    Floating.Visible = true
+end)
+
+Floating.MouseButton1Click:Connect(function()
+    Floating.Visible = false
+    Window.Visible = true
+end)
