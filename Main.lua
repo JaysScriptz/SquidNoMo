@@ -1,6 +1,7 @@
 repeat task.wait() until game:IsLoaded()
 
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
@@ -25,6 +26,8 @@ Window.Size = UDim2.new(0.88,0,0.82,0)
 Window.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Window.BorderSizePixel = 0
 Window.Parent = Gui
+
+local OriginalSize = Window.Size
 
 local UIScale = Instance.new("UIScale")
 UIScale.Parent = Window
@@ -200,8 +203,31 @@ end
 
 print("Milestone 1 Loaded")
 
+local TweenInfoFast = TweenInfo.new(
+    0.2,
+    Enum.EasingStyle.Quad,
+    Enum.EasingDirection.Out
+)
+
 Minimize.MouseButton1Click:Connect(function()
+
+    TweenService:Create(
+        Window,
+        TweenInfoFast,
+        {
+            Size = UDim2.new(
+                OriginalSize.X.Scale,
+                0,
+                0,
+                0
+            )
+        }
+    ):Play()
+
+    task.wait(0.2)
+
     Window.Visible = false
+    Window.Size = OriginalSize
     Floating.Visible = true
 end)
 
