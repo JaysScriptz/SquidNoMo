@@ -211,24 +211,25 @@ local TweenInfoFast = TweenInfo.new(
 
 Minimize.MouseButton1Click:Connect(function()
 
-    TweenService:Create(
-        Window,
-        TweenInfoFast,
-        {
-            Size = UDim2.new(
-                OriginalSize.X.Scale,
-                0,
-                0,
-                0
-            )
-        }
-    ):Play()
+    local Tween = TweenService:Create(
+    Window,
+    TweenInfoFast,
+    {
+        Size = UDim2.new(
+            OriginalSize.X.Scale,
+            0,
+            0,
+            0
+        )
+    }
+)
 
-    task.wait(0.2)
+Tween:Play()
+Tween.Completed:Wait()
 
-    Window.Visible = false
-    Window.Size = OriginalSize
-    Floating.Visible = true
+Window.Visible = false
+Window.Size = OriginalSize
+Floating.Visible = true
 end)
 
 --// Draggable Floating Button (Mobile Friendly)
