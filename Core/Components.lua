@@ -250,6 +250,62 @@ function Components:CreateProgressBar(Parent, Theme)
 end
 
 ----------------------------------------------------------
+-- Info Row
+----------------------------------------------------------
+
+function Components:CreateInfoRow(Parent, Theme, LeftText, RightText)
+
+	local Row = Instance.new("Frame")
+
+	Row.BackgroundTransparency = 1
+
+	Row.Size = UDim2.new(1,0,0,20)
+
+	Row.Parent = Parent
+
+	local Left = Instance.new("TextLabel")
+
+	Left.BackgroundTransparency = 1
+
+	Left.Size = UDim2.new(.55,0,1,0)
+
+	Left.Font = Theme.Font
+
+	Left.Text = LeftText
+
+	Left.TextColor3 = Theme.Text
+
+	Left.TextSize = 14
+
+	Left.TextXAlignment = Enum.TextXAlignment.Left
+
+	Left.Parent = Row
+
+	local Right = Instance.new("TextLabel")
+
+	Right.BackgroundTransparency = 1
+
+	Right.Position = UDim2.new(.55,0,0,0)
+
+	Right.Size = UDim2.new(.45,0,1,0)
+
+	Right.Font = Theme.FontBold
+
+	Right.Text = RightText
+
+	Right.TextColor3 = Theme.Accent
+
+	Right.TextSize = 14
+
+	Right.TextXAlignment = Enum.TextXAlignment.Right
+
+	Right.Parent = Row
+
+	return Row, Left, Right
+
+end
+
+----------------------------------------------------------
 -- Spacer
 ----------------------------------------------------------
 
