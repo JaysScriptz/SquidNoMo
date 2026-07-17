@@ -21,17 +21,39 @@ local Window = Instance.new("Frame")
 Window.Name = "Window"
 Window.AnchorPoint = Vector2.new(0.5, 0.5)
 Window.Position = UDim2.new(0.5, 0, 0.5, 0)
-Window.Size = UDim2.new(0,850,0,560)
+Window.Size = UDim2.new(0.88,0,0.82,0)
 Window.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Window.BorderSizePixel = 0
 Window.Parent = Gui
+
+local UIScale = Instance.new("UIScale")
+UIScale.Parent = Window
+
+local function UpdateScale()
+    local Camera = workspace.CurrentCamera
+    if not Camera then return end
+
+    local X = Camera.ViewportSize.X
+
+    if X < 700 then
+        UIScale.Scale = 0.82
+    elseif X < 1000 then
+        UIScale.Scale = 0.92
+    else
+        UIScale.Scale = 1
+    end
+end
+
+UpdateScale()
+
+workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateScale)
 
 local Corner = Instance.new("UICorner")
 Corner.CornerRadius = UDim.new(0, 12)
 Corner.Parent = Window
 
 local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1,0,0,50)
+Header.Size = UDim2.new(1,0,0.085,0)
 Header.BackgroundColor3 = Color3.fromRGB(40,40,40)
 Header.BorderSizePixel = 0
 Header.Parent = Window
@@ -46,7 +68,12 @@ Title.Position = UDim2.new(0,15,0,0)
 Title.Size = UDim2.new(1,-120,1,0)
 Title.Font = Enum.Font.GothamBold
 Title.Text = "🦑 SquidNoMo"
-Title.TextSize = 22
+Title.TextScaled = true
+
+local TitleConstraint = Instance.new("UITextSizeConstraint")
+TitleConstraint.MinTextSize = 16
+TitleConstraint.MaxTextSize = 28
+TitleConstraint.Parent = Title
 Title.TextColor3 = Color3.fromRGB(91,255,98)
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = Header
@@ -57,7 +84,12 @@ Version.Position = UDim2.new(1,-95,0,0)
 Version.Size = UDim2.new(0,55,1,0)
 Version.Font = Enum.Font.Gotham
 Version.Text = "v0.0.1"
-Version.TextSize = 12
+Version.TextScaled = true
+
+local VersionConstraint = Instance.new("UITextSizeConstraint")
+VersionConstraint.MinTextSize = 10
+VersionConstraint.MaxTextSize = 16
+VersionConstraint.Parent = Version
 Version.TextColor3 = Color3.fromRGB(180,180,180)
 Version.Parent = Header
 
@@ -78,8 +110,8 @@ MinCorner.Parent = Minimize
 
 local Sidebar = Instance.new("ScrollingFrame")
 Sidebar.Name = "Sidebar"
-Sidebar.Position = UDim2.new(0,0,0,50)
-Sidebar.Size = UDim2.new(0,185,1,-50)
+Sidebar.Position = UDim2.new(0,0,0.085,0)
+Sidebar.Size = UDim2.new(0.20,0,0.915,0)
 Sidebar.BackgroundColor3 = Color3.fromRGB(35,35,35)
 Sidebar.BorderSizePixel = 0
 Sidebar.AutomaticCanvasSize = Enum.AutomaticSize.Y
@@ -120,7 +152,7 @@ for i,v in ipairs(Pages) do
 
     local Button = Instance.new("TextButton")
     Button.Name = v[2]
-    Button.Size = UDim2.new(0,125,0,34)
+    Button.Size = UDim2.new(0.90,0,0,36)
     Button.LayoutOrder = i
     Button.BackgroundColor3 = i == 1
         and Color3.fromRGB(91,255,98)
@@ -131,7 +163,12 @@ for i,v in ipairs(Pages) do
         or Color3.new(1,1,1)
 
     Button.Font = Enum.Font.GothamBold
-    Button.TextSize = 14
+    Button.TextScaled = true
+
+local ButtonConstraint = Instance.new("UITextSizeConstraint")
+ButtonConstraint.MinTextSize = 12
+ButtonConstraint.MaxTextSize = 18
+ButtonConstraint.Parent = Button
     Button.Text = v[1].." "..v[2]
     Button.BorderSizePixel = 0
     Button.AutoButtonColor = true
