@@ -1,287 +1,501 @@
-repeat task.wait() until game:IsLoaded()
+--//========================================================--
+--// SquidNoMo
+--// Beta 4.0
+--// Main Application Loader
+--//========================================================--
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 
-local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+----------------------------------------------------------
+-- Destroy Existing UI
+----------------------------------------------------------
 
 local Existing = PlayerGui:FindFirstChild("SquidNoMo")
+
 if Existing then
     Existing:Destroy()
 end
 
-local Gui = Instance.new("ScreenGui")
-Gui.Name = "SquidNoMo"
-Gui.ResetOnSpawn = false
-Gui.IgnoreGuiInset = true
-Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-Gui.Parent = PlayerGui
+----------------------------------------------------------
+-- Core Modules
+----------------------------------------------------------
+
+local Core = script.Parent:WaitForChild("Core")
+
+local Theme = require(Core.Theme)
+local Components = require(Core.Components)
+local Navigation = require(Core.Navigation)
+local Notifications = require(Core.Notifications)
+
+----------------------------------------------------------
+-- Pages
+----------------------------------------------------------
+
+local Modules = script.Parent:WaitForChild("Modules")
+
+local Home = require(Modules.Home)
+local PlayersPage = require(Modules.Players)
+local Guards = require(Modules.Guards)
+local Detective = require(Modules.Detective)
+local Farming = require(Modules.Farming)
+local VIP = require(Modules.VIP)
+local Games = require(Modules.Games)
+local Settings = require(Modules.Settings)
+local Support = require(Modules.Support)
+
+----------------------------------------------------------
+-- Application
+----------------------------------------------------------
+
+local App = {
+
+    Name = "SquidNoMo",
+
+    Version = "Beta 4.0",
+
+    Build = "4.0.0",
+
+    Pages = {},
+
+    CurrentPage = nil,
+
+    Theme = Theme,
+
+    Components = Components,
+
+    Navigation = Navigation,
+
+    Notifications = Notifications
+
+}
+----------------------------------------------------------
+-- ScreenGui
+----------------------------------------------------------
+
+local ScreenGui = Instance.new("ScreenGui")
+
+ScreenGui.Name = App.Name
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = PlayerGui
+
+----------------------------------------------------------
+-- Root Window
+----------------------------------------------------------
 
 local Window = Instance.new("Frame")
+
 Window.Name = "Window"
-Window.AnchorPoint = Vector2.new(0.5, 0.5)
-Window.Position = UDim2.new(0.5, 0, 0.55, 0)
-Window.Size = UDim2.new(0.88,0,0.82,0)
-Window.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Window.AnchorPoint = Vector2.new(.5,.5)
+Window.Position = UDim2.fromScale(.5,.5)
+Window.Size = UDim2.fromOffset(1225,730)
+Window.BackgroundColor3 = Theme.Background
 Window.BorderSizePixel = 0
-Window.Parent = Gui
+Window.Parent = ScreenGui
 
-local OriginalSize = Window.Size
+local WindowCorner = Instance.new("UICorner")
+WindowCorner.CornerRadius = UDim.new(0,18)
+WindowCorner.Parent = Window
 
-local UIScale = Instance.new("UIScale")
-UIScale.Parent = Window
+local WindowStroke = Instance.new("UIStroke")
+WindowStroke.Color = Theme.Border
+WindowStroke.Thickness = 1.3
+WindowStroke.Parent = Window
 
-local function UpdateScale()
-    local Camera = workspace.CurrentCamera
-    if not Camera then return end
+----------------------------------------------------------
+-- Window Shadow
+----------------------------------------------------------
 
-    local X = Camera.ViewportSize.X
+local WindowShadow = Instance.new("ImageLabel")
 
-    if X < 700 then
-        UIScale.Scale = 0.82
-    elseif X < 1000 then
-        UIScale.Scale = 0.92
-    else
-        UIScale.Scale = 1
-    end
-end
+WindowShadow.Name = "Shadow"
+WindowShadow.AnchorPoint = Vector2.new(.5,.5)
+WindowShadow.Position = UDim2.fromScale(.5,.5)
+WindowShadow.Size = UDim2.new(1,80,1,80)
+WindowShadow.BackgroundTransparency = 1
+WindowShadow.Image = "rbxassetid://1316045217"
+WindowShadow.ImageTransparency = .45
+WindowShadow.ScaleType = Enum.ScaleType.Slice
+WindowShadow.SliceCenter = Rect.new(10,10,118,118)
+WindowShadow.ZIndex = -1
+WindowShadow.Parent = Window
 
-UpdateScale()
+----------------------------------------------------------
+-- Sidebar
+----------------------------------------------------------
 
-workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(UpdateScale)
+local Sidebar = Instance.new("Frame")
 
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 12)
-Corner.Parent = Window
+Sidebar.Name = "Sidebar"
+Sidebar.Size = UDim2.fromOffset(245,730)
+Sidebar.BackgroundColor3 = Theme.Sidebar
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = Window
+
+local SidebarCorner = Instance.new("UICorner")
+SidebarCorner.CornerRadius = UDim.new(0,18)
+SidebarCorner.Parent = Sidebar
+
+----------------------------------------------------------
+-- Divider
+----------------------------------------------------------
+
+local Divider = Instance.new("Frame")
+
+Divider.Name = "Divider"
+Divider.Size = UDim2.fromOffset(1,730)
+Divider.Position = UDim2.fromOffset(245,0)
+Divider.BackgroundColor3 = Theme.Border
+Divider.BackgroundTransparency = .75
+Divider.BorderSizePixel = 0
+Divider.Parent = Window
+
+----------------------------------------------------------
+-- Header
+----------------------------------------------------------
 
 local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1,0,0.085,0)
-Header.BackgroundColor3 = Color3.fromRGB(40,40,40)
-Header.BorderSizePixel = 0
+
+Header.Name = "Header"
+Header.Size = UDim2.new(1,-245,0,72)
+Header.Position = UDim2.fromOffset(246,0)
+Header.BackgroundTransparency = 1
 Header.Parent = Window
 
-local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0,12)
-HeaderCorner.Parent = Header
+----------------------------------------------------------
+-- Header Title
+----------------------------------------------------------
 
-local Title = Instance.new("TextLabel")
-Title.BackgroundTransparency = 1
-Title.Position = UDim2.new(0,15,0,0)
-Title.Size = UDim2.new(1,-120,1,0)
-Title.Font = Enum.Font.GothamBold
-Title.Text = "🦑 SquidNoMo"
-Title.TextScaled = true
+local HeaderTitle = Instance.new("TextLabel")
 
-local TitleConstraint = Instance.new("UITextSizeConstraint")
-TitleConstraint.MinTextSize = 16
-TitleConstraint.MaxTextSize = 28
-TitleConstraint.Parent = Title
-Title.TextColor3 = Color3.fromRGB(91,255,98)
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = Header
+HeaderTitle.Name = "PageTitle"
+HeaderTitle.BackgroundTransparency = 1
+HeaderTitle.Position = UDim2.fromOffset(24,18)
+HeaderTitle.Size = UDim2.new(0,350,0,24)
+HeaderTitle.Font = Enum.Font.GothamBold
+HeaderTitle.Text = "Dashboard"
+HeaderTitle.TextColor3 = Theme.Text
+HeaderTitle.TextSize = 24
+HeaderTitle.TextXAlignment = Enum.TextXAlignment.Left
+HeaderTitle.Parent = Header
+
+----------------------------------------------------------
+-- Header Subtitle
+----------------------------------------------------------
+
+local HeaderSubtitle = Instance.new("TextLabel")
+
+HeaderSubtitle.BackgroundTransparency = 1
+HeaderSubtitle.Position = UDim2.fromOffset(24,44)
+HeaderSubtitle.Size = UDim2.new(0,420,0,18)
+HeaderSubtitle.Font = Enum.Font.Gotham
+HeaderSubtitle.Text = "SquidNoMo Beta 4.0"
+HeaderSubtitle.TextColor3 = Theme.SubText
+HeaderSubtitle.TextSize = 13
+HeaderSubtitle.TextXAlignment = Enum.TextXAlignment.Left
+HeaderSubtitle.Parent = Header
+
+----------------------------------------------------------
+-- Header Right Container
+----------------------------------------------------------
+
+local HeaderRight = Instance.new("Frame")
+
+HeaderRight.Name = "HeaderRight"
+HeaderRight.AnchorPoint = Vector2.new(1,0)
+HeaderRight.Position = UDim2.new(1,-20,0,16)
+HeaderRight.Size = UDim2.fromOffset(260,42)
+HeaderRight.BackgroundTransparency = 1
+HeaderRight.Parent = Header
+
+----------------------------------------------------------
+-- Minimize Button
+----------------------------------------------------------
+
+local Minimize = Instance.new("TextButton")
+
+Minimize.Name = "Minimize"
+Minimize.AnchorPoint = Vector2.new(1,.5)
+Minimize.Position = UDim2.new(1,0,.5,0)
+Minimize.Size = UDim2.fromOffset(38,38)
+Minimize.BackgroundColor3 = Theme.Card
+Minimize.BorderSizePixel = 0
+Minimize.Text = "—"
+Minimize.Font = Enum.Font.GothamBold
+Minimize.TextSize = 20
+Minimize.TextColor3 = Theme.Text
+Minimize.AutoButtonColor = false
+Minimize.Parent = HeaderRight
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0,10)
+MinCorner.Parent = Minimize
+
+----------------------------------------------------------
+-- Content Holder
+----------------------------------------------------------
+
+local Content = Instance.new("Frame")
+
+Content.Name = "Content"
+Content.Position = UDim2.fromOffset(262,84)
+Content.Size = UDim2.new(1,-280,1,-102)
+Content.BackgroundTransparency = 1
+Content.ClipsDescendants = true
+Content.Parent = Window
+
+----------------------------------------------------------
+-- Register References
+----------------------------------------------------------
+
+App.Gui = ScreenGui
+App.Window = Window
+App.Sidebar = Sidebar
+App.Header = Header
+App.Content = Content
+App.HeaderTitle = HeaderTitle
+App.HeaderSubtitle = HeaderSubtitle
+
+----------------------------------------------------------
+-- Fade In
+----------------------------------------------------------
+
+Window.BackgroundTransparency = 1
+
+TweenService:Create(
+    Window,
+    TweenInfo.new(.25, Enum.EasingStyle.Quint),
+    {
+        BackgroundTransparency = 0
+    }
+):Play()
+
+----------------------------------------------------------
+-- Sidebar Branding
+----------------------------------------------------------
+
+local Branding = Instance.new("Frame")
+Branding.Name = "Branding"
+Branding.Size = UDim2.new(1,0,0,90)
+Branding.BackgroundTransparency = 1
+Branding.Parent = Sidebar
+
+local Logo = Instance.new("ImageLabel")
+Logo.Name = "Logo"
+Logo.BackgroundTransparency = 1
+Logo.Size = UDim2.fromOffset(46,46)
+Logo.Position = UDim2.fromOffset(18,20)
+Logo.ScaleType = Enum.ScaleType.Fit
+Logo.Image = "" --// SquidNoMo Logo Asset
+Logo.Parent = Branding
+
+local LogoGlow = Instance.new("UIStroke")
+LogoGlow.Color = Theme.Border
+LogoGlow.Thickness = 1.2
+LogoGlow.Parent = Logo
+
+local AppTitle = Instance.new("TextLabel")
+AppTitle.BackgroundTransparency = 1
+AppTitle.Position = UDim2.fromOffset(74,18)
+AppTitle.Size = UDim2.new(1,-84,0,24)
+AppTitle.Font = Enum.Font.GothamBold
+AppTitle.Text = App.Name
+AppTitle.TextColor3 = Theme.Text
+AppTitle.TextSize = 24
+AppTitle.TextXAlignment = Enum.TextXAlignment.Left
+AppTitle.Parent = Branding
 
 local Version = Instance.new("TextLabel")
 Version.BackgroundTransparency = 1
-Version.Position = UDim2.new(1,-95,0,0)
-Version.Size = UDim2.new(0,55,1,0)
+Version.Position = UDim2.fromOffset(74,45)
+Version.Size = UDim2.new(1,-84,0,16)
 Version.Font = Enum.Font.Gotham
-Version.Text = "v0.0.1"
-Version.TextScaled = true
+Version.Text = App.Version
+Version.TextColor3 = Theme.SubText
+Version.TextSize = 13
+Version.TextXAlignment = Enum.TextXAlignment.Left
+Version.Parent = Branding
 
-local VersionConstraint = Instance.new("UITextSizeConstraint")
-VersionConstraint.MinTextSize = 10
-VersionConstraint.MaxTextSize = 16
-VersionConstraint.Parent = Version
-Version.TextColor3 = Color3.fromRGB(180,180,180)
-Version.Parent = Header
+----------------------------------------------------------
+-- Navigation Holder
+----------------------------------------------------------
 
-local Minimize = Instance.new("TextButton")
-Minimize.Position = UDim2.new(1,-40,0.5,-15)
-Minimize.Size = UDim2.new(0,30,0,30)
-Minimize.BackgroundColor3 = Color3.fromRGB(60,60,60)
-Minimize.Text = "—"
-Minimize.Font = Enum.Font.GothamBold
-Minimize.TextSize = 18
-Minimize.TextColor3 = Color3.new(1,1,1)
-Minimize.BorderSizePixel = 0
-Minimize.Parent = Header
+local NavigationHolder = Instance.new("Frame")
+NavigationHolder.Name = "Navigation"
+NavigationHolder.BackgroundTransparency = 1
+NavigationHolder.Position = UDim2.fromOffset(0,105)
+NavigationHolder.Size = UDim2.new(1,0,1,-185)
+NavigationHolder.Parent = Sidebar
 
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0,8)
-MinCorner.Parent = Minimize
+local NavigationLayout = Instance.new("UIListLayout")
+NavigationLayout.Padding = UDim.new(0,8)
+NavigationLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+NavigationLayout.SortOrder = Enum.SortOrder.LayoutOrder
+NavigationLayout.Parent = NavigationHolder
 
-local Floating = Instance.new("TextButton")
-Floating.Name = "Floating"
-Floating.Visible = false
-Floating.Size = UDim2.fromOffset(60,60)
-Floating.AnchorPoint = Vector2.new(1,1)
-Floating.Position = UDim2.new(1,-20,1,-20)
-Floating.BackgroundColor3 = Color3.fromRGB(91,255,98)
-Floating.Text = "🦑"
-Floating.Font = Enum.Font.GothamBold
-Floating.TextScaled = true
-Floating.TextColor3 = Color3.new(0,0,0)
-Floating.BorderSizePixel = 0
-Floating.Parent = Gui
+----------------------------------------------------------
+-- Navigation Table
+----------------------------------------------------------
 
-local FloatCorner = Instance.new("UICorner")
-FloatCorner.CornerRadius = UDim.new(1,0)
-FloatCorner.Parent = Floating
+App.NavigationButtons = {}
 
-local Sidebar = Instance.new("ScrollingFrame")
-Sidebar.Name = "Sidebar"
-Sidebar.Position = UDim2.new(0,0,0.085,0)
-Sidebar.Size = UDim2.new(0.20,0,0.915,0)
-Sidebar.BackgroundColor3 = Color3.fromRGB(35,35,35)
-Sidebar.BorderSizePixel = 0
-Sidebar.AutomaticCanvasSize = Enum.AutomaticSize.Y
-Sidebar.CanvasSize = UDim2.new()
-Sidebar.ScrollBarThickness = 3
-Sidebar.ScrollingDirection = Enum.ScrollingDirection.Y
-Sidebar.Parent = Window
+local NavigationItems = {
 
-local SideCorner = Instance.new("UICorner")
-SideCorner.CornerRadius = UDim.new(0,10)
-SideCorner.Parent = Sidebar
+	{Name="Home",Title="Dashboard"},
+	{Name="Players",Title="Players"},
+	{Name="Guards",Title="Guards"},
+	{Name="Detective",Title="Detective"},
+	{Name="Farming",Title="Farming"},
+	{Name="VIP",Title="VIP"},
+	{Name="Games",Title="Games"},
+	{Name="Settings",Title="Settings"},
+	{Name="Support",Title="Support Development"}
 
-local Layout = Instance.new("UIListLayout")
-Layout.Padding = UDim.new(0,6)
-Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-Layout.SortOrder = Enum.SortOrder.LayoutOrder
-Layout.Parent = Sidebar
-
-local Padding = Instance.new("UIPadding")
-Padding.PaddingTop = UDim.new(0,8)
-Padding.PaddingBottom = UDim.new(0,8)
-Padding.PaddingLeft = UDim.new(0,10)
-Padding.PaddingRight = UDim.new(0,10)
-Padding.Parent = Sidebar
-
-local Pages = {
-    {"🏠","Home"},
-    {"🎮","Games"},
-    {"🛡","Guards"},
-    {"🕵","Detective"},
-    {"🌾","Farming"},
-    {"💎","VIP"},
-    {"🖥","Display"},
-    {"⚙","Settings"}
 }
 
-for i,v in ipairs(Pages) do
+----------------------------------------------------------
+-- Navigation Button Builder
+----------------------------------------------------------
 
-    local Button = Instance.new("TextButton")
-    Button.Name = v[2]
-    Button.Size = UDim2.new(0.90,0,0,36)
-    Button.LayoutOrder = i
-    Button.BackgroundColor3 = i == 1
-        and Color3.fromRGB(91,255,98)
-        or Color3.fromRGB(48,48,48)
+local function CreateNavigationButton(Data)
 
-    Button.TextColor3 = i == 1
-        and Color3.new(0,0,0)
-        or Color3.new(1,1,1)
+	local Button = Instance.new("TextButton")
 
-    Button.Font = Enum.Font.GothamBold
-    Button.TextScaled = true
+	Button.Name = Data.Name
 
-local ButtonConstraint = Instance.new("UITextSizeConstraint")
-ButtonConstraint.MinTextSize = 12
-ButtonConstraint.MaxTextSize = 18
-ButtonConstraint.Parent = Button
-    Button.Text = v[1].." "..v[2]
-    Button.BorderSizePixel = 0
-    Button.AutoButtonColor = true
-    Button.Parent = Sidebar
+	Button.Size = UDim2.new(.90,0,0,44)
 
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0,8)
-    Corner.Parent = Button
+	Button.BackgroundColor3 = Theme.Card
 
-end
+	Button.AutoButtonColor = false
 
-print("Milestone 1 Loaded")
+	Button.Text = ""
 
-local TweenInfoFast = TweenInfo.new(
-    0.2,
-    Enum.EasingStyle.Quad,
-    Enum.EasingDirection.Out
-)
+	Button.Parent = NavigationHolder
 
-Minimize.MouseButton1Click:Connect(function()
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0,10)
+	Corner.Parent = Button
 
-    local Tween = TweenService:Create(
-    Window,
-    TweenInfoFast,
-    {
-        Size = UDim2.new(
-            OriginalSize.X.Scale,
-            0,
-            0,
-            0
-        )
-    }
-)
+	local Stroke = Instance.new("UIStroke")
+	Stroke.Color = Color3.fromRGB(50,50,50)
+	Stroke.Parent = Button
 
-Tween:Play()
-Tween.Completed:Wait()
+	local Indicator = Instance.new("Frame")
+	Indicator.Visible = false
+	Indicator.Size = UDim2.fromOffset(4,28)
+	Indicator.Position = UDim2.new(0,8,.5,-14)
+	Indicator.BackgroundColor3 = Theme.Accent
+	Indicator.BorderSizePixel = 0
+	Indicator.Parent = Button
 
-Window.Visible = false
-Window.Size = OriginalSize
-Floating.Visible = true
-end)
+	local IndicatorCorner = Instance.new("UICorner")
+	IndicatorCorner.CornerRadius = UDim.new(1,0)
+	IndicatorCorner.Parent = Indicator
 
---// Draggable Floating Button (Mobile Friendly)
-local UIS = game:GetService("UserInputService")
+	local Label = Instance.new("TextLabel")
+	Label.BackgroundTransparency = 1
+	Label.Position = UDim2.fromOffset(22,0)
+	Label.Size = UDim2.new(1,-30,1,0)
+	Label.Font = Enum.Font.GothamSemibold
+	Label.Text = Data.Title
+	Label.TextColor3 = Theme.SubText
+	Label.TextSize = 14
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.Parent = Button
 
-local dragging = false
-local moved = false
-local dragStart
-local startPos
+	Button.MouseEnter:Connect(function()
 
-local function update(input)
-	local delta = input.Position - dragStart
+		if App.CurrentPage ~= Data.Name then
 
-	if math.abs(delta.X) > 5 or math.abs(delta.Y) > 5 then
-		moved = true
-	end
+			TweenService:Create(
+				Button,
+				TweenInfo.new(.18),
+				{
+					BackgroundColor3 = Color3.fromRGB(36,36,36)
+				}
+			):Play()
 
-	Floating.Position = UDim2.new(
-		startPos.X.Scale,
-		startPos.X.Offset + delta.X,
-		startPos.Y.Scale,
-		startPos.Y.Offset + delta.Y
-	)
-end
-
-Floating.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.Touch
-	or input.UserInputType == Enum.UserInputType.MouseButton1 then
-
-		dragging = true
-		moved = false
-		dragStart = input.Position
-		startPos = Floating.Position
-	end
-end)
-
-UIS.InputChanged:Connect(function(input)
-	if dragging and (
-		input.UserInputType == Enum.UserInputType.Touch
-		or input.UserInputType == Enum.UserInputType.MouseMovement
-	) then
-		update(input)
-	end
-end)
-
-UIS.InputEnded:Connect(function(input)
-	if dragging then
-		dragging = false
-
-		if not moved then
-			Floating.Visible = false
-			Window.Visible = true
 		end
-	end
-end)
+
+	end)
+
+	Button.MouseLeave:Connect(function()
+
+		if App.CurrentPage ~= Data.Name then
+
+			TweenService:Create(
+				Button,
+				TweenInfo.new(.18),
+				{
+					BackgroundColor3 = Theme.Card
+				}
+			):Play()
+
+		end
+
+	end)
+
+	Button.MouseButton1Click:Connect(function()
+
+		App.Navigation:SwitchPage(Data.Name)
+
+	end)
+
+	App.NavigationButtons[Data.Name] = {
+
+		Button = Button,
+
+		Label = Label,
+
+		Indicator = Indicator,
+
+		Stroke = Stroke
+
+	}
+
+end
+
+----------------------------------------------------------
+-- Create Navigation
+----------------------------------------------------------
+
+for _,Item in ipairs(NavigationItems) do
+
+	CreateNavigationButton(Item)
+
+end
+
+----------------------------------------------------------
+-- Sidebar Footer
+----------------------------------------------------------
+
+local Footer = Instance.new("Frame")
+Footer.Name = "Footer"
+Footer.BackgroundTransparency = 1
+Footer.Size = UDim2.new(1,0,0,62)
+Footer.Position = UDim2.new(0,0,1,-70)
+Footer.Parent = Sidebar
+
+local FooterLabel = Instance.new("TextLabel")
+FooterLabel.BackgroundTransparency = 1
+FooterLabel.Size = UDim2.new(1,0,1,0)
+FooterLabel.Font = Enum.Font.Gotham
+FooterLabel.Text = "SquidNoMo • Beta 4.0"
+FooterLabel.TextColor3 = Theme.SubText
+FooterLabel.TextSize = 12
+FooterLabel.Parent = Footer
+
+----------------------------------------------------------
+-- Finish
+----------------------------------------------------------
+
+App.NavigationHolder = NavigationHolder
