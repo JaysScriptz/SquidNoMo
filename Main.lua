@@ -5,6 +5,11 @@
 --// Application Bootstrap
 --//========================================================--
 
+local Success, ErrorMessage = pcall(function()
+
+    -- EVERYTHING that is currently inside Main.lua
+    -- starts here
+		
 ----------------------------------------------------------
 -- Services
 ----------------------------------------------------------
@@ -769,3 +774,17 @@ print(
 
 return App
 
+		end)
+
+if not Success then
+    warn("SQUIDNOMO ERROR:")
+    warn(ErrorMessage)
+
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "SquidNoMo Error",
+            Text = tostring(ErrorMessage),
+            Duration = 15
+        })
+    end)
+end
