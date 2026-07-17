@@ -70,7 +70,7 @@ Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0,15,0,0)
 Title.Size = UDim2.new(1,-120,1,0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "ðŸ¦‘ SquidNoMo"
+Title.Text = "SquidNoMo"
 Title.TextScaled = true
 
 local TitleConstraint = Instance.new("UITextSizeConstraint")
@@ -100,7 +100,7 @@ local Minimize = Instance.new("TextButton")
 Minimize.Position = UDim2.new(1,-40,0.5,-15)
 Minimize.Size = UDim2.new(0,30,0,30)
 Minimize.BackgroundColor3 = Color3.fromRGB(60,60,60)
-Minimize.Text = "â€”"
+Minimize.Text = "-"
 Minimize.Font = Enum.Font.GothamBold
 Minimize.TextSize = 18
 Minimize.TextColor3 = Color3.new(1,1,1)
@@ -118,7 +118,7 @@ Floating.Size = UDim2.fromOffset(60,60)
 Floating.AnchorPoint = Vector2.new(1,1)
 Floating.Position = UDim2.new(1,-20,1,-20)
 Floating.BackgroundColor3 = Color3.fromRGB(91,255,98)
-Floating.Text = "ðŸ¦‘"
+Floating.Text = "SQ"
 Floating.Font = Enum.Font.GothamBold
 Floating.TextScaled = true
 Floating.TextColor3 = Color3.new(0,0,0)
@@ -166,14 +166,14 @@ Padding.PaddingRight = UDim.new(0,10)
 Padding.Parent = Sidebar
 
 local Pages = {
-    {"ðŸ ","Home"},
-    {"ðŸŽ®","Games"},
-    {"ðŸ›¡","Guards"},
-    {"ðŸ•µ","Detective"},
-    {"ðŸŒ¾","Farming"},
-    {"ðŸ’Ž","VIP"},
-    {"ðŸ–¥","Display"},
-    {"âš™","Settings"}
+    {"","Home"},
+    {"","Games"},
+    {"","Guards"},
+    {"","Detective"},
+    {"","Farming"},
+    {"","VIP"},
+    {"","Display"},
+    {"","Settings"}
 }
 
 for i,v in ipairs(Pages) do
@@ -219,7 +219,7 @@ HomeTitle.BackgroundTransparency=1
 HomeTitle.Position=UDim2.new(0,20,0,20)
 HomeTitle.Size=UDim2.new(1,-40,0,40)
 HomeTitle.Font=Enum.Font.GothamBold
-HomeTitle.Text="ðŸ  Home"
+HomeTitle.Text="Home"
 HomeTitle.TextSize=30
 HomeTitle.TextColor3=Color3.fromRGB(255,255,255)
 HomeTitle.TextXAlignment=Enum.TextXAlignment.Left
