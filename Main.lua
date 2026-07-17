@@ -1,17 +1,23 @@
 print("MAIN STARTED")
 
-local URL = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Config.lua"
+local ConfigSource = game:HttpGet(
+    "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Config.lua"
+)
 
-print(URL)
+local Config = loadstring(ConfigSource)()
 
-local Source = game:HttpGet(URL)
+print("CONFIG LOADED")
 
-print("Downloaded:", #Source)
+local LoaderSource = game:HttpGet(
+    "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Loader.lua"
+)
 
-local Chunk = loadstring(Source)
+print("LOADER DOWNLOADED")
 
-print("Compiled:", Chunk ~= nil)
+local Loader = loadstring(LoaderSource)()
 
-Chunk()
+print("LOADER EXECUTED")
 
-print("CONFIG FINISHED")
+Loader.Home.Load()
+
+print("HOME FINISHED")
