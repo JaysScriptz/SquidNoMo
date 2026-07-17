@@ -451,17 +451,9 @@ task.spawn(function()
 			"Players: "..#Players:GetPlayers().." / "..Players.MaxPlayers
 
 		pcall(function()
-
-			local Ping =
-				math.floor(
-					StatsService.Network.ServerStatsItem["Data Ping"]
-				)
-
-			PingLabel.Text =
-				"Ping: "..Ping.." ms"
-
-		end)
-
+	local pingItem = StatsService.Network.ServerStatsItem["Data Ping"]
+	if pingItem then
+		PingLabel.Text = "Ping: "..math.floor(pingItem:GetValue()).." ms"
 	end
 end)
 
