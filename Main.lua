@@ -205,21 +205,21 @@ Minimize.MouseButton1Click:Connect(function()
     Floating.Visible = true
 end)
 
-Floating.MouseButton1Click:Connect(function()
-    Floating.Visible = false
-    Window.Visible = true
-end)
-
---// Draggable Floating Button
+--// Draggable Floating Button (Mobile Friendly)
 local UIS = game:GetService("UserInputService")
 
 local dragging = false
-local dragInput
+local moved = false
 local dragStart
 local startPos
 
 local function update(input)
 	local delta = input.Position - dragStart
+
+	if math.abs(delta.X) > 5 or math.abs(delta.Y) > 5 then
+		moved = true
+	end
+
 	Floating.Position = UDim2.new(
 		startPos.X.Scale,
 		startPos.X.Offset + delta.X,
@@ -233,26 +233,28 @@ Floating.InputBegan:Connect(function(input)
 	or input.UserInputType == Enum.UserInputType.MouseButton1 then
 
 		dragging = true
+		moved = false
 		dragStart = input.Position
 		startPos = Floating.Position
-
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
-end)
-
-Floating.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.Touch
-	or input.UserInputType == Enum.UserInputType.MouseMovement then
-		dragInput = input
 	end
 end)
 
 UIS.InputChanged:Connect(function(input)
-	if dragging and input == dragInput then
+	if dragging and (
+		input.UserInputType == Enum.UserInputType.Touch
+		or input.UserInputType == Enum.UserInputType.MouseMovement
+	) then
 		update(input)
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if dragging then
+		dragging = false
+
+		if not moved then
+			Floating.Visible = false
+			Window.Visible = true
+		end
 	end
 end)
