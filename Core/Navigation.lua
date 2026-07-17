@@ -1,8 +1,10 @@
 --//========================================================--
 --// SquidNoMo
---// Beta 4.0
+--// Beta 5.0
 --// Navigation.lua
 --//========================================================--
+
+local TweenService = game:GetService("TweenService")
 
 local Navigation = {}
 
@@ -10,15 +12,68 @@ Navigation.Pages = {}
 
 Navigation.CurrentPage = nil
 
+Navigation.TweenInfo =
+	TweenInfo.new(
+
+		0.20,
+
+		Enum.EasingStyle.Quad,
+
+		Enum.EasingDirection.Out
+
+	)
+
 ----------------------------------------------------------
 -- Register Page
 ----------------------------------------------------------
 
-function Navigation:Register(PageName, PageFrame)
+function Navigation:Register(Name, Page)
 
-	self.Pages[PageName] = PageFrame
+	self.Pages[Name] = Page
 
-	PageFrame.Visible = false
+	Page.Visible = false
+
+	Page.BackgroundTransparency = 1
+
+end
+
+----------------------------------------------------------
+-- Hide All Pages
+----------------------------------------------------------
+
+function Navigation:HideAll()
+
+	for _,Page in pairs(self.Pages) do
+
+		Page.Visible = false
+
+	end
+
+end
+
+----------------------------------------------------------
+-- Fade In
+----------------------------------------------------------
+
+function Navigation:FadeIn(Page)
+
+	Page.BackgroundTransparency = 1
+
+	local Tween = TweenService:Create(
+
+		Page,
+
+		self.TweenInfo,
+
+		{
+
+			BackgroundTransparency = 0
+
+		}
+
+	)
+
+	Tween:Play()
 
 end
 
@@ -26,166 +81,90 @@ end
 -- Open Page
 ----------------------------------------------------------
 
-function Navigation:Open(PageName, App)
+function Navigation:Open(Name, App)
 
-	if self.CurrentPage == PageName then
+	local Page = self.Pages[Name]
+
+	if not Page then
+		warn("[Navigation] Missing page:", Name)
 		return
 	end
 
 	------------------------------------------------------
-	-- Hide All Pages
+	-- Hide Previous Page
 	------------------------------------------------------
 
-	for _, Page in pairs(self.Pages) do
-		Page.Visible = false
+	if self.CurrentPage then
+		self.CurrentPage.Visible = false
 	end
 
 	------------------------------------------------------
-	-- Reset Navigation Buttons
+	-- Show New Page
+	------------------------------------------------------
+
+	Page.Visible = true
+
+	self:FadeIn(Page)
+
+	self.CurrentPage = Page
+
+	------------------------------------------------------
+	-- Sidebar Highlight
 	------------------------------------------------------
 
 	if App and App.NavigationButtons then
 
-		for _, Data in pairs(App.NavigationButtons) do
+		for ButtonName,Button in pairs(App.NavigationButtons) do
 
-			Data.Button.BackgroundColor3 = App.Theme.Card
+			if ButtonName == Name then
 
-			Data.Label.TextColor3 = App.Theme.SubText
+				Button.BackgroundColor3 =
+					App.Theme.Accent
 
-			Data.Indicator.Visible = false
+				Button.TextColor3 =
+					Color3.new(1,1,1)
+
+			else
+
+				Button.BackgroundColor3 =
+					App.Theme.Card
+
+				Button.TextColor3 =
+					App.Theme.Text
+
+			end
 
 		end
 
 	end
 
-	------------------------------------------------------
-	-- Show Selected Page
-	------------------------------------------------------
-
-	local SelectedPage = self.Pages[PageName]
-
-	if SelectedPage then
-
-		SelectedPage.Visible = true
-
-	end
-
-	------------------------------------------------------
-	-- Highlight Button
-	------------------------------------------------------
-
-	if App
-		and App.NavigationButtons
-		and App.NavigationButtons[PageName] then
-
-		local Button = App.NavigationButtons[PageName]
-
-		Button.Button.BackgroundColor3 = App.Theme.CardHover
-
-		Button.Label.TextColor3 = App.Theme.Text
-
-		Button.Indicator.Visible = true
-
-	end
-
-	------------------------------------------------------
-	-- Update Header
-	------------------------------------------------------
-
-	if App and App.HeaderTitle then
-
-		local Titles = {
-
-			Home = "Dashboard",
-
-			Players = "Players",
-
-			Guards = "Guards",
-
-			Detective = "Detective",
-
-			Farming = "Farming",
-
-			VIP = "VIP",
-
-			Games = "Games",
-
-			Settings = "Settings",
-
-			Support = "Support Development"
-
-		}
-
-		App.HeaderTitle.Text = Titles[PageName] or PageName
-
-	end
-
-	self.CurrentPage = PageName
-
 end
 
 ----------------------------------------------------------
--- Remove Page
+-- Refresh
 ----------------------------------------------------------
 
-function Navigation:Remove(PageName)
+function Navigation:Refresh()
 
-	if self.Pages[PageName] then
+	if self.CurrentPage then
 
-		self.Pages[PageName]:Destroy()
-
-		self.Pages[PageName] = nil
+		self.CurrentPage.CanvasPosition =
+			Vector2.new(0,0)
 
 	end
 
 end
 
 ----------------------------------------------------------
--- Get Current
+-- Get Current Page
 ----------------------------------------------------------
 
-function Navigation:GetCurrent()
+function Navigation:GetCurrentPage()
 
 	return self.CurrentPage
 
 end
 
 ----------------------------------------------------------
--- Exists
-----------------------------------------------------------
-
-function Navigation:Exists(PageName)
-
-	return self.Pages[PageName] ~= nil
-
-end
-
-----------------------------------------------------------
--- Get Page
-----------------------------------------------------------
-
-function Navigation:Get(PageName)
-
-	return self.Pages[PageName]
-
-end
-
-----------------------------------------------------------
--- Clear All
-----------------------------------------------------------
-
-function Navigation:Clear()
-
-	for _, Page in pairs(self.Pages) do
-
-		Page:Destroy()
-
-	end
-
-	table.clear(self.Pages)
-
-	self.CurrentPage = nil
-
-end
 
 return Navigation
