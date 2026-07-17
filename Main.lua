@@ -17,7 +17,12 @@ Gui.Name = "SquidNoMo"
 Gui.ResetOnSpawn = false
 Gui.IgnoreGuiInset = true
 Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+Gui.DisplayOrder = 999
 Gui.Parent = PlayerGui
+
+pcall(function()
+    Gui.ScreenInsets = Enum.ScreenInsets.None
+end)
 
 local Window = Instance.new("Frame")
 Window.Name = "Window"
