@@ -70,7 +70,7 @@ Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0,15,0,0)
 Title.Size = UDim2.new(1,-120,1,0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "🦑 SquidNoMo"
+Title.Text = "ðŸ¦‘ SquidNoMo"
 Title.TextScaled = true
 
 local TitleConstraint = Instance.new("UITextSizeConstraint")
@@ -100,7 +100,7 @@ local Minimize = Instance.new("TextButton")
 Minimize.Position = UDim2.new(1,-40,0.5,-15)
 Minimize.Size = UDim2.new(0,30,0,30)
 Minimize.BackgroundColor3 = Color3.fromRGB(60,60,60)
-Minimize.Text = "—"
+Minimize.Text = "â€”"
 Minimize.Font = Enum.Font.GothamBold
 Minimize.TextSize = 18
 Minimize.TextColor3 = Color3.new(1,1,1)
@@ -118,7 +118,7 @@ Floating.Size = UDim2.fromOffset(60,60)
 Floating.AnchorPoint = Vector2.new(1,1)
 Floating.Position = UDim2.new(1,-20,1,-20)
 Floating.BackgroundColor3 = Color3.fromRGB(91,255,98)
-Floating.Text = "🦑"
+Floating.Text = "ðŸ¦‘"
 Floating.Font = Enum.Font.GothamBold
 Floating.TextScaled = true
 Floating.TextColor3 = Color3.new(0,0,0)
@@ -145,6 +145,13 @@ local SideCorner = Instance.new("UICorner")
 SideCorner.CornerRadius = UDim.new(0,10)
 SideCorner.Parent = Sidebar
 
+local Content = Instance.new("Frame")
+Content.Name = "Content"
+Content.Position = UDim2.new(0.20,0,0.085,0)
+Content.Size = UDim2.new(0.80,0,0.915,0)
+Content.BackgroundTransparency = 1
+Content.Parent = Window
+
 local Layout = Instance.new("UIListLayout")
 Layout.Padding = UDim.new(0,6)
 Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -159,14 +166,14 @@ Padding.PaddingRight = UDim.new(0,10)
 Padding.Parent = Sidebar
 
 local Pages = {
-    {"🏠","Home"},
-    {"🎮","Games"},
-    {"🛡","Guards"},
-    {"🕵","Detective"},
-    {"🌾","Farming"},
-    {"💎","VIP"},
-    {"🖥","Display"},
-    {"⚙","Settings"}
+    {"ðŸ ","Home"},
+    {"ðŸŽ®","Games"},
+    {"ðŸ›¡","Guards"},
+    {"ðŸ•µ","Detective"},
+    {"ðŸŒ¾","Farming"},
+    {"ðŸ’Ž","VIP"},
+    {"ðŸ–¥","Display"},
+    {"âš™","Settings"}
 }
 
 for i,v in ipairs(Pages) do
@@ -200,6 +207,36 @@ ButtonConstraint.Parent = Button
     Corner.Parent = Button
 
 end
+
+local HomePage = Instance.new("Frame")
+HomePage.Name="HomePage"
+HomePage.Size=UDim2.fromScale(1,1)
+HomePage.BackgroundTransparency=1
+HomePage.Parent=Content
+
+local HomeTitle=Instance.new("TextLabel")
+HomeTitle.BackgroundTransparency=1
+HomeTitle.Position=UDim2.new(0,20,0,20)
+HomeTitle.Size=UDim2.new(1,-40,0,40)
+HomeTitle.Font=Enum.Font.GothamBold
+HomeTitle.Text="ðŸ  Home"
+HomeTitle.TextSize=30
+HomeTitle.TextColor3=Color3.fromRGB(255,255,255)
+HomeTitle.TextXAlignment=Enum.TextXAlignment.Left
+HomeTitle.Parent=HomePage
+
+local Welcome=Instance.new("TextLabel")
+Welcome.BackgroundTransparency=1
+Welcome.Position=UDim2.new(0,20,0,70)
+Welcome.Size=UDim2.new(1,-40,0,150)
+Welcome.Font=Enum.Font.Gotham
+Welcome.TextSize=18
+Welcome.TextWrapped=true
+Welcome.TextYAlignment=Enum.TextYAlignment.Top
+Welcome.TextXAlignment=Enum.TextXAlignment.Left
+Welcome.TextColor3=Color3.fromRGB(220,220,220)
+Welcome.Text="Welcome to SquidNoMo!\n\nVersion: v0.0.1\n\nThe UI framework is complete. The next milestone is building the Home and Settings pages."
+Welcome.Parent=HomePage
 
 print("Milestone 1 Loaded")
 
