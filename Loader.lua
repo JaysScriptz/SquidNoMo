@@ -1,21 +1,29 @@
-print("Loader started")
+print("LOADER STARTED")
+
+pcall(function()
+	game:GetService("StarterGui"):SetCore("SendNotification", {
+		Title = "SquidNoMo",
+		Text = "Loader Started",
+		Duration = 5
+	})
+end)
 
 return {
-    Theme = {},
-    Components = {},
-    Navigation = {},
-    Notifications = {},
-    Utilities = {},
-    Home = {
-        Load = function(App)
-            print("HOME LOADED")
-            pcall(function()
-                game:GetService("StarterGui"):SetCore("SendNotification",{
-                    Title="SquidNoMo",
-                    Text="Home Loaded",
-                    Duration=10
-                })
-            end)
-        end
-    }
+	Theme = {},
+	Components = {},
+	Navigation = {},
+	Notifications = {},
+	Utilities = {},
+	Home = {
+		Load = function()
+			print("HOME FUNCTION")
+			pcall(function()
+				game:GetService("StarterGui"):SetCore("SendNotification", {
+					Title = "SquidNoMo",
+					Text = "Home Function",
+					Duration = 5
+				})
+			end)
+		end
+	}
 }
