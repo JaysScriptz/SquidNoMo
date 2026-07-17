@@ -5,28 +5,35 @@
 --// Dashboard
 --//========================================================--
 
+local RunService = game:GetService("RunService")
+
 local Home = {}
 
 function Home:Create(Page, App)
 
+	----------------------------------------------------------
+	-- References
+	----------------------------------------------------------
+
 	local Theme = App.Theme
 	local Components = App.Components
+	local Utilities = App.Utilities
+	local Notifications = App.Notifications
 
 	----------------------------------------------------------
-	-- UIListLayout
+	-- Page Layout
 	----------------------------------------------------------
 
-	local Layout = Instance.new("UIListLayout")
+	Page.BackgroundTransparency = 1
 
-	Layout.FillDirection = Enum.FillDirection.Vertical
+	local MainLayout = Instance.new("UIListLayout")
 
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	MainLayout.FillDirection = Enum.FillDirection.Vertical
+	MainLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	MainLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	MainLayout.Padding = UDim.new(0,18)
 
-	Layout.Padding = UDim.new(0,18)
-
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-
-	Layout.Parent = Page
+	MainLayout.Parent = Page
 
 	----------------------------------------------------------
 	-- Hero Banner
@@ -35,52 +42,41 @@ function Home:Create(Page, App)
 	local Banner = Components:CreateCard(
 
 		Page,
-
 		Theme,
-
 		UDim2.new(1,0,0,260),
-
 		UDim2.new()
 
 	)
 
 	Banner.LayoutOrder = 1
 
-	----------------------------------------------------------
-	-- Banner Image
-	----------------------------------------------------------
+	local BannerImage = Instance.new("ImageLabel")
 
-	local Artwork = Instance.new("ImageLabel")
+	BannerImage.Name = "Banner"
 
-	Artwork.Name = "Artwork"
+	BannerImage.BackgroundTransparency = 1
 
-	Artwork.BackgroundTransparency = 1
+	BannerImage.Size = UDim2.fromScale(1,1)
 
-	Artwork.Size = UDim2.new(1,0,1,0)
+	BannerImage.Image = Theme.Assets.HeroImage
 
-	Artwork.Image = Theme.Assets.HeroImage
+	BannerImage.ScaleType = Enum.ScaleType.Crop
 
-	Artwork.ScaleType = Enum.ScaleType.Crop
+	BannerImage.Parent = Banner
 
-	Artwork.Parent = Banner
+	local ImageCorner = Instance.new("UICorner")
 
-	local ArtworkCorner = Instance.new("UICorner")
+	ImageCorner.CornerRadius = UDim.new(0,Theme.CardRadius)
 
-	ArtworkCorner.CornerRadius = UDim.new(0,Theme.CardRadius)
-
-	ArtworkCorner.Parent = Artwork
-
-	----------------------------------------------------------
-	-- Dark Overlay
-	----------------------------------------------------------
+	ImageCorner.Parent = BannerImage
 
 	local Overlay = Instance.new("Frame")
 
-	Overlay.BackgroundColor3 = Color3.new(0,0,0)
+	Overlay.Size = UDim2.fromScale(1,1)
+
+	Overlay.BackgroundColor3 = Color3.new()
 
 	Overlay.BackgroundTransparency = .45
-
-	Overlay.Size = UDim2.fromScale(1,1)
 
 	Overlay.Parent = Banner
 
@@ -90,25 +86,21 @@ function Home:Create(Page, App)
 
 	OverlayCorner.Parent = Overlay
 
-	----------------------------------------------------------
-	-- Welcome Title
-	----------------------------------------------------------
-
 	local Title = Instance.new("TextLabel")
 
 	Title.BackgroundTransparency = 1
 
-	Title.Position = UDim2.fromOffset(34,26)
+	Title.Position = UDim2.fromOffset(30,26)
 
-	Title.Size = UDim2.new(.55,0,0,48)
+	Title.Size = UDim2.new(.6,0,0,60)
 
 	Title.Font = Theme.FontBlack
 
 	Title.Text = "Welcome to\nSquidNoMo!"
 
-	Title.TextColor3 = Theme.Text
-
 	Title.TextSize = 34
+
+	Title.TextColor3 = Theme.Text
 
 	Title.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -116,15 +108,11 @@ function Home:Create(Page, App)
 
 	Title.Parent = Banner
 
-	----------------------------------------------------------
-	-- Description
-	----------------------------------------------------------
-
 	local Description = Instance.new("TextLabel")
 
 	Description.BackgroundTransparency = 1
 
-	Description.Position = UDim2.fromOffset(34,118)
+	Description.Position = UDim2.fromOffset(30,118)
 
 	Description.Size = UDim2.new(.55,0,0,70)
 
@@ -141,46 +129,39 @@ function Home:Create(Page, App)
 	Description.TextYAlignment = Enum.TextYAlignment.Top
 
 	Description.Text =
-		"SquidNoMo is the ultimate all-in-one companion for Squid Game X, bringing powerful automation and utilities together in one clean interface."
+		"SquidNoMo is an advanced all-in-one toolkit for Squid Game X featuring automation, utilities, farming tools, player controls, and intelligent dashboard monitoring."
 
 	Description.Parent = Banner
 
-	----------------------------------------------------------
-	-- Footer Tags
-	----------------------------------------------------------
+	local Footer = Instance.new("TextLabel")
 
-	local Tags = Instance.new("TextLabel")
+	Footer.BackgroundTransparency = 1
 
-	Tags.BackgroundTransparency = 1
+	Footer.Position = UDim2.fromOffset(30,218)
 
-	Tags.Position = UDim2.fromOffset(34,214)
+	Footer.Size = UDim2.new(.6,0,0,22)
 
-	Tags.Size = UDim2.new(.6,0,0,24)
+	Footer.Font = Theme.FontBold
 
-	Tags.Font = Theme.FontBold
+	Footer.Text = "Squid Game X  •  Beta 4.0"
 
-	Tags.TextColor3 = Theme.Accent
+	Footer.TextSize = 16
 
-	Tags.TextSize = 17
+	Footer.TextColor3 = Theme.Accent
 
-	Tags.TextXAlignment = Enum.TextXAlignment.Left
+	Footer.TextXAlignment = Enum.TextXAlignment.Left
 
-	Tags.Text =
-		"Squid Game X   •   All-In-One Tool"
-
-	Tags.Parent = Banner
+	Footer.Parent = Banner
 
 	----------------------------------------------------------
-	-- Main Content Row
+	-- Dashboard Row
 	----------------------------------------------------------
 
 	local Row = Instance.new("Frame")
 
-	Row.Name = "TopRow"
-
 	Row.BackgroundTransparency = 1
 
-	Row.Size = UDim2.new(1,0,0,420)
+	Row.Size = UDim2.new(1,0,0,650)
 
 	Row.LayoutOrder = 2
 
@@ -189,6 +170,8 @@ function Home:Create(Page, App)
 	local RowLayout = Instance.new("UIListLayout")
 
 	RowLayout.FillDirection = Enum.FillDirection.Horizontal
+
+	RowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 	RowLayout.Padding = UDim.new(0,18)
 
@@ -202,9 +185,15 @@ function Home:Create(Page, App)
 
 	LeftColumn.BackgroundTransparency = 1
 
-	LeftColumn.Size = UDim2.new(.34,0,1,0)
+	LeftColumn.Size = UDim2.new(.33,0,1,0)
 
 	LeftColumn.Parent = Row
+
+	local LeftLayout = Instance.new("UIListLayout")
+
+	LeftLayout.Padding = UDim.new(0,18)
+
+	LeftLayout.Parent = LeftColumn
 
 	----------------------------------------------------------
 	-- Middle Column
@@ -214,9 +203,15 @@ function Home:Create(Page, App)
 
 	MiddleColumn.BackgroundTransparency = 1
 
-	MiddleColumn.Size = UDim2.new(.32,0,1,0)
+	MiddleColumn.Size = UDim2.new(.34,0,1,0)
 
 	MiddleColumn.Parent = Row
+
+	local MiddleLayout = Instance.new("UIListLayout")
+
+	MiddleLayout.Padding = UDim.new(0,18)
+
+	MiddleLayout.Parent = MiddleColumn
 
 	----------------------------------------------------------
 	-- Right Column
@@ -226,13 +221,21 @@ function Home:Create(Page, App)
 
 	RightColumn.BackgroundTransparency = 1
 
-	RightColumn.Size = UDim2.new(.34,0,1,0)
+	RightColumn.Size = UDim2.new(.33,0,1,0)
 
 	RightColumn.Parent = Row
+
+	local RightLayout = Instance.new("UIListLayout")
+
+	RightLayout.Padding = UDim.new(0,18)
+
+	RightLayout.Parent = RightColumn
 
 	----------------------------------------------------------
 	-- Save References
 	----------------------------------------------------------
+
+	self.Page = Page
 
 	self.LeftColumn = LeftColumn
 
@@ -240,7 +243,7 @@ function Home:Create(Page, App)
 
 	self.RightColumn = RightColumn
 
-  	----------------------------------------------------------
+		----------------------------------------------------------
 	-- Feature Group Controls
 	----------------------------------------------------------
 
@@ -248,10 +251,12 @@ function Home:Create(Page, App)
 
 		LeftColumn,
 		Theme,
-		UDim2.new(1,0,1,0),
+		UDim2.new(1,0,0,370),
 		UDim2.new()
 
 	)
+
+	FeatureCard.LayoutOrder = 1
 
 	Components:CreateTitle(
 		FeatureCard,
@@ -259,27 +264,31 @@ function Home:Create(Page, App)
 		"⚡ FEATURE GROUP CONTROLS"
 	)
 
-	local ToggleHolder = Instance.new("Frame")
+	local ToggleContainer = Instance.new("Frame")
 
-	ToggleHolder.BackgroundTransparency = 1
+	ToggleContainer.BackgroundTransparency = 1
 
-	ToggleHolder.Position = UDim2.fromOffset(20,60)
+	ToggleContainer.Position = UDim2.fromOffset(20,55)
 
-	ToggleHolder.Size = UDim2.new(1,-40,0,250)
+	ToggleContainer.Size = UDim2.new(1,-40,0,220)
 
-	ToggleHolder.Parent = FeatureCard
+	ToggleContainer.Parent = FeatureCard
 
 	local ToggleLayout = Instance.new("UIListLayout")
 
 	ToggleLayout.Padding = UDim.new(0,8)
 
-	ToggleLayout.Parent = ToggleHolder
+	ToggleLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-	local ToggleData = {
+	ToggleLayout.Parent = ToggleContainer
+
+	App.FeatureToggles = {}
+
+	local Groups = {
 
 		"👤 Player Features",
 
-		"🛡️ Guard Features",
+		"🛡 Guard Features",
 
 		"🕵 Detective Features",
 
@@ -289,13 +298,11 @@ function Home:Create(Page, App)
 
 	}
 
-	App.FeatureToggles = {}
-
-	for _,Name in ipairs(ToggleData) do
+	for _,Name in ipairs(Groups) do
 
 		local Holder, Toggle =
 			Components:CreateToggle(
-				ToggleHolder,
+				ToggleContainer,
 				Theme,
 				Name
 			)
@@ -308,37 +315,23 @@ function Home:Create(Page, App)
 	end
 
 	----------------------------------------------------------
-	-- Apply Button
+	-- Apply Features
 	----------------------------------------------------------
 
 	local ApplyButton =
 		Components:CreateButton(
-
 			FeatureCard,
-
 			Theme,
-
 			"▶ APPLY ENABLED FEATURES"
-
 		)
 
-	ApplyButton.Position = UDim2.new(
-		0,
-		20,
-		1,
-		-70
-	)
+	ApplyButton.Position = UDim2.new(0,20,1,-72)
 
-	ApplyButton.Size = UDim2.new(
-		1,
-		-40,
-		0,
-		42
-	)
+	ApplyButton.Size = UDim2.new(1,-40,0,40)
 
 	ApplyButton.MouseButton1Click:Connect(function()
 
-		App.Notifications:Info(
+		Notifications:Info(
 
 			"Feature Groups",
 
@@ -351,52 +344,94 @@ function Home:Create(Page, App)
 	end)
 
 	----------------------------------------------------------
-	-- Footer Text
+	-- Feature Footer
 	----------------------------------------------------------
 
-	local Footer = Instance.new("TextLabel")
+	local FeatureFooter = Instance.new("TextLabel")
 
-	Footer.BackgroundTransparency = 1
+	FeatureFooter.BackgroundTransparency = 1
 
-	Footer.Position = UDim2.new(
-		0,
-		20,
-		1,
-		-24
+	FeatureFooter.Position = UDim2.new(0,20,1,-26)
+
+	FeatureFooter.Size = UDim2.new(1,-40,0,18)
+
+	FeatureFooter.Font = Theme.Font
+
+	FeatureFooter.TextSize = 12
+
+	FeatureFooter.TextColor3 = Theme.SubText
+
+	FeatureFooter.TextXAlignment = Enum.TextXAlignment.Center
+
+	FeatureFooter.Text =
+		"Enable groups here • Configure individual features later"
+
+	FeatureFooter.Parent = FeatureCard
+
+	----------------------------------------------------------
+	-- Left Column Placeholder
+	----------------------------------------------------------
+
+	local Placeholder = Components:CreateCard(
+
+		LeftColumn,
+		Theme,
+		UDim2.new(1,0,0,180),
+		UDim2.new()
+
 	)
 
-	Footer.Size = UDim2.new(
-		1,
-		-40,
-		0,
-		18
+	Placeholder.LayoutOrder = 2
+
+	Components:CreateTitle(
+
+		Placeholder,
+
+		Theme,
+
+		"📌 UPCOMING"
+
 	)
 
-	Footer.Font = Theme.Font
+	local PlaceholderText = Instance.new("TextLabel")
 
-	Footer.Text =
-		"Applies all enabled feature groups at once."
+	PlaceholderText.BackgroundTransparency = 1
 
-	Footer.TextColor3 = Theme.SubText
+	PlaceholderText.Position = UDim2.fromOffset(20,55)
 
-	Footer.TextSize = 12
+	PlaceholderText.Size = UDim2.new(1,-40,1,-70)
 
-	Footer.TextXAlignment = Enum.TextXAlignment.Center
+	PlaceholderText.Font = Theme.Font
 
-	Footer.Parent = FeatureCard
+	PlaceholderText.TextWrapped = true
 
-  	----------------------------------------------------------
-	-- Server Stats
+	PlaceholderText.TextYAlignment = Enum.TextYAlignment.Top
+
+	PlaceholderText.TextXAlignment = Enum.TextXAlignment.Left
+
+	PlaceholderText.TextSize = 13
+
+	PlaceholderText.TextColor3 = Theme.SubText
+
+	PlaceholderText.Text =
+		"This area is reserved for future dashboard widgets such as daily challenges, update notes, or featured tools."
+
+	PlaceholderText.Parent = Placeholder
+
+		----------------------------------------------------------
+	-- Server Statistics
 	----------------------------------------------------------
 
 	local ServerCard = Components:CreateCard(
 
 		MiddleColumn,
 		Theme,
-		UDim2.new(1,0,0,300),
+		UDim2.new(1,0,0,285),
 		UDim2.new()
 
 	)
+
+	ServerCard.LayoutOrder = 1
 
 	Components:CreateTitle(
 		ServerCard,
@@ -408,35 +443,35 @@ function Home:Create(Page, App)
 
 	StatsHolder.BackgroundTransparency = 1
 
-	StatsHolder.Position = UDim2.fromOffset(20,60)
+	StatsHolder.Position = UDim2.fromOffset(20,55)
 
-	StatsHolder.Size = UDim2.new(1,-40,1,-80)
+	StatsHolder.Size = UDim2.new(1,-40,1,-70)
 
 	StatsHolder.Parent = ServerCard
 
-	local Layout = Instance.new("UIListLayout")
+	local StatsLayout = Instance.new("UIListLayout")
 
-	Layout.Padding = UDim.new(0,6)
+	StatsLayout.Padding = UDim.new(0,6)
 
-	Layout.Parent = StatsHolder
+	StatsLayout.Parent = StatsHolder
 
-	local function CreateStat(Name, Value)
+	local function NewStat(Text)
 
 		local Label = Instance.new("TextLabel")
 
 		Label.BackgroundTransparency = 1
 
-		Label.Size = UDim2.new(1,0,0,20)
+		Label.Size = UDim2.new(1,0,0,18)
 
-		Label.Font = Theme.FontMedium
-
-		Label.TextXAlignment = Enum.TextXAlignment.Left
+		Label.Font = Theme.Font
 
 		Label.TextSize = 14
 
+		Label.TextXAlignment = Enum.TextXAlignment.Left
+
 		Label.TextColor3 = Theme.Text
 
-		Label.Text = Name .. ": " .. tostring(Value)
+		Label.Text = Text
 
 		Label.Parent = StatsHolder
 
@@ -444,32 +479,29 @@ function Home:Create(Page, App)
 
 	end
 
-	local StatusLabel = CreateStat("Status","🟢 Running")
-	local PingLabel = CreateStat("Ping","0 ms")
-	local FPSLabel = CreateStat("FPS","60")
-	local PlayersLabel = CreateStat("Players","0")
-	local AgeLabel = CreateStat("Server Age","00:00")
-	local PlaceLabel = CreateStat("Place","Squid Game X")
-	local RegionLabel = CreateStat("Region","Unknown")
-	local VersionLabel = CreateStat("Version",App.Version)
+	local PingLabel = NewStat("Ping : 0 ms")
+	local FPSLabel = NewStat("FPS : 0")
+	local PlayerLabel = NewStat("Players : 0")
+	local AgeLabel = NewStat("Server Age : 00:00")
+	local StatusLabel = NewStat("Status : 🟢 Running")
+	local BuildLabel = NewStat("Build : "..App.Version)
 
 	RunService.RenderStepped:Connect(function()
 
 		PingLabel.Text =
-			"Ping: "..Utilities:GetPing().." ms"
+			"Ping : "..Utilities:GetPing().." ms"
 
 		FPSLabel.Text =
-			"FPS: "..Utilities:GetFPS()
+			"FPS : "..Utilities:GetFPS()
 
-		PlayersLabel.Text =
-			"Players: "..Utilities:GetPlayerCount()
+		PlayerLabel.Text =
+			"Players : "..Utilities:GetPlayerCount()
 
 		AgeLabel.Text =
-			"Server Age: "..Utilities:GetServerAge()
+			"Server Age : "..Utilities:GetServerAge()
 
 	end)
 
-  
 	----------------------------------------------------------
 	-- Warning Panel
 	----------------------------------------------------------
@@ -477,16 +509,13 @@ function Home:Create(Page, App)
 	local WarningCard = Components:CreateCard(
 
 		MiddleColumn,
-
 		Theme,
-
-		UDim2.new(1,0,0,260),
-
+		UDim2.new(1,0,0,320),
 		UDim2.new()
 
 	)
 
-	WarningCard.Position = UDim2.new(0,0,0,320)
+	WarningCard.LayoutOrder = 2
 
 	Components:CreateTitle(
 
@@ -498,39 +527,6 @@ function Home:Create(Page, App)
 
 	)
 
-	local WarningText = Instance.new("TextLabel")
-
-	WarningText.BackgroundTransparency = 1
-
-	WarningText.Position = UDim2.fromOffset(20,58)
-
-	WarningText.Size = UDim2.new(1,-40,1,-70)
-
-	WarningText.Font = Theme.Font
-
-	WarningText.TextSize = 14
-
-	WarningText.TextWrapped = true
-
-	WarningText.TextYAlignment = Enum.TextYAlignment.Top
-
-	WarningText.TextXAlignment = Enum.TextXAlignment.Left
-
-	WarningText.TextColor3 = Theme.SubText
-
-	WarningText.Text =
-[[• Some features are experimental and may not always behave as expected.
-
-• Using automation or gameplay modifications may increase your risk of moderation or account penalties.
-
-• Use features responsibly and avoid obvious abuse in public servers.
-
-• SquidNoMo cannot guarantee protection from detection or future game updates.
-
-• Always test new features carefully before relying on them.]]
-
-	WarningText.Parent = WarningCard
-
 	local WarningBar = Instance.new("Frame")
 
 	WarningBar.Size = UDim2.new(1,0,0,4)
@@ -541,91 +537,117 @@ function Home:Create(Page, App)
 
 	WarningBar.Parent = WarningCard
 
-	local BarCorner = Instance.new("UICorner")
+	local WarningCorner = Instance.new("UICorner")
 
-	BarCorner.CornerRadius = UDim.new(1,0)
+	WarningCorner.CornerRadius = UDim.new(1,0)
 
-	BarCorner.Parent = WarningBar
+	WarningCorner.Parent = WarningBar
 
-	----------------------------------------------------------
+	local WarningText = Instance.new("TextLabel")
+
+	WarningText.BackgroundTransparency = 1
+
+	WarningText.Position = UDim2.fromOffset(20,55)
+
+	WarningText.Size = UDim2.new(1,-40,1,-70)
+
+	WarningText.Font = Theme.Font
+
+	WarningText.TextWrapped = true
+
+	WarningText.TextXAlignment = Enum.TextXAlignment.Left
+
+	WarningText.TextYAlignment = Enum.TextYAlignment.Top
+
+	WarningText.TextColor3 = Theme.SubText
+
+	WarningText.TextSize = 13
+
+	WarningText.Text =
+[[• Some features are still experimental.
+
+• Automation may increase your risk of moderation.
+
+• Use features responsibly.
+
+• Avoid obvious abuse in public servers.
+
+• SquidNoMo cannot guarantee protection against future anti-cheat updates.
+
+• Always test new features carefully before daily use.]]
+
+	WarningText.Parent = WarningCard
+
+		----------------------------------------------------------
 	-- Support Development
 	----------------------------------------------------------
 
 	local SupportCard = Components:CreateCard(
 
 		RightColumn,
-
 		Theme,
-
-		UDim2.new(1,0,0,360),
-
+		UDim2.new(1,0,0,310),
 		UDim2.new()
 
 	)
 
+	SupportCard.LayoutOrder = 1
+
 	Components:CreateTitle(
-
 		SupportCard,
-
 		Theme,
-
 		"❤️ SUPPORT DEVELOPMENT"
-
 	)
 
-	Components:CreateSubtitle(
+	local GoalLabel = Instance.new("TextLabel")
 
-		SupportCard,
+	GoalLabel.BackgroundTransparency = 1
 
-		Theme,
+	GoalLabel.Position = UDim2.fromOffset(20,55)
 
-		"Keep SquidNoMo completely free."
+	GoalLabel.Size = UDim2.new(1,-40,0,18)
 
-	)
+	GoalLabel.Font = Theme.FontBold
 
-	----------------------------------------------------------
-	-- Goal Text
-	----------------------------------------------------------
+	GoalLabel.Text = "$0 / $100 Monthly Goal"
 
-	local GoalText = Instance.new("TextLabel")
+	GoalLabel.TextSize = 14
 
-	GoalText.BackgroundTransparency = 1
+	GoalLabel.TextColor3 = Theme.Text
 
-	GoalText.Position = UDim2.fromOffset(20,82)
+	GoalLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-	GoalText.Size = UDim2.new(1,-40,0,18)
+	GoalLabel.Parent = SupportCard
 
-	GoalText.Font = Theme.FontBold
+	local ProgressBar = Instance.new("Frame")
 
-	GoalText.Text = "$0 / $100 Monthly Goal"
+	ProgressBar.Position = UDim2.fromOffset(20,82)
 
-	GoalText.TextColor3 = Theme.Text
+	ProgressBar.Size = UDim2.new(1,-40,0,14)
 
-	GoalText.TextSize = 14
+	ProgressBar.BackgroundColor3 = Theme.Card
 
-	GoalText.TextXAlignment = Enum.TextXAlignment.Left
+	ProgressBar.BorderSizePixel = 0
 
-	GoalText.Parent = SupportCard
+	ProgressBar.Parent = SupportCard
 
-	----------------------------------------------------------
-	-- Progress Bar
-	----------------------------------------------------------
+	local ProgressCorner = Instance.new("UICorner")
+	ProgressCorner.CornerRadius = UDim.new(1,0)
+	ProgressCorner.Parent = ProgressBar
 
-	local ProgressBar, Fill =
-		Components:CreateProgressBar(
-			SupportCard,
-			Theme
-		)
+	local ProgressFill = Instance.new("Frame")
 
-	ProgressBar.Position = UDim2.fromOffset(20,110)
+	ProgressFill.Size = UDim2.new(0,0,1,0)
 
-	ProgressBar.Size = UDim2.new(1,-40,0,16)
+	ProgressFill.BackgroundColor3 = Theme.Accent
 
-	Fill.Size = UDim2.new(0,0,1,0)
+	ProgressFill.BorderSizePixel = 0
 
-	----------------------------------------------------------
-	-- Donation Buttons
-	----------------------------------------------------------
+	ProgressFill.Parent = ProgressBar
+
+	local FillCorner = Instance.new("UICorner")
+	FillCorner.CornerRadius = UDim.new(1,0)
+	FillCorner.Parent = ProgressFill
 
 	local CashApp =
 		Components:CreateButton(
@@ -634,7 +656,7 @@ function Home:Create(Page, App)
 			"💵 CashApp"
 		)
 
-	CashApp.Position = UDim2.fromOffset(20,145)
+	CashApp.Position = UDim2.fromOffset(20,115)
 
 	CashApp.Size = UDim2.new(.47,-5,0,40)
 
@@ -645,130 +667,61 @@ function Home:Create(Page, App)
 			"🅿 PayPal"
 		)
 
-	PayPal.Position = UDim2.new(.53,5,0,145)
+	PayPal.Position = UDim2.new(.53,5,0,115)
 
 	PayPal.Size = UDim2.new(.47,-5,0,40)
 
-	CashApp.MouseButton1Click:Connect(function()
+	local SupportInfo = Instance.new("TextLabel")
 
-		App.Notifications:Info(
+	SupportInfo.BackgroundTransparency = 1
 
-			"CashApp",
+	SupportInfo.Position = UDim2.fromOffset(20,170)
 
-			"Opening CashApp support link...",
+	SupportInfo.Size = UDim2.new(1,-40,0,100)
 
-			2
+	SupportInfo.Font = Theme.Font
 
-		)
+	SupportInfo.TextWrapped = true
 
-	end)
+	SupportInfo.TextYAlignment = Enum.TextYAlignment.Top
 
-	PayPal.MouseButton1Click:Connect(function()
+	SupportInfo.TextXAlignment = Enum.TextXAlignment.Left
 
-		App.Notifications:Info(
+	SupportInfo.TextSize = 13
 
-			"PayPal",
+	SupportInfo.TextColor3 = Theme.SubText
 
-			"Opening PayPal support link...",
+	SupportInfo.Text =
+		"SquidNoMo is completely keyless and independently developed.\n\nEvery donation goes directly toward development, hosting, testing, and future updates."
 
-			2
-
-		)
-
-	end)
+	SupportInfo.Parent = SupportCard
 
 	----------------------------------------------------------
-	-- Recent Supporters
-	----------------------------------------------------------
-
-	local RecentTitle = Instance.new("TextLabel")
-
-	RecentTitle.BackgroundTransparency = 1
-
-	RecentTitle.Position = UDim2.fromOffset(20,205)
-
-	RecentTitle.Size = UDim2.new(1,-40,0,18)
-
-	RecentTitle.Font = Theme.FontBold
-
-	RecentTitle.Text = "Recent Supporters"
-
-	RecentTitle.TextColor3 = Theme.Text
-
-	RecentTitle.TextSize = 14
-
-	RecentTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-	RecentTitle.Parent = SupportCard
-
-	local Recent = Instance.new("TextLabel")
-
-	Recent.BackgroundTransparency = 1
-
-	Recent.Position = UDim2.fromOffset(20,230)
-
-	Recent.Size = UDim2.new(1,-40,0,90)
-
-	Recent.Font = Theme.Font
-
-	Recent.TextWrapped = true
-
-	Recent.TextYAlignment = Enum.TextYAlignment.Top
-
-	Recent.TextXAlignment = Enum.TextXAlignment.Left
-
-	Recent.TextColor3 = Theme.SubText
-
-	Recent.Text =
-		"No supporters yet.\nBe the first to help keep SquidNoMo free!"
-
-	Recent.TextSize = 13
-
-	Recent.Parent = SupportCard
-
-  	----------------------------------------------------------
 	-- Quick Settings
 	----------------------------------------------------------
 
 	local QuickCard = Components:CreateCard(
 
 		RightColumn,
-
 		Theme,
-
 		UDim2.new(1,0,0,250),
-
 		UDim2.new()
 
 	)
 
-	QuickCard.Position = UDim2.new(0,0,0,380)
+	QuickCard.LayoutOrder = 2
 
 	Components:CreateTitle(
-
 		QuickCard,
-
 		Theme,
-
 		"⚙ QUICK SETTINGS"
-
-	)
-
-	Components:CreateSubtitle(
-
-		QuickCard,
-
-		Theme,
-
-		"Frequently used options."
-
 	)
 
 	local QuickHolder = Instance.new("Frame")
 
 	QuickHolder.BackgroundTransparency = 1
 
-	QuickHolder.Position = UDim2.fromOffset(20,60)
+	QuickHolder.Position = UDim2.fromOffset(20,55)
 
 	QuickHolder.Size = UDim2.new(1,-40,0,130)
 
@@ -798,80 +751,20 @@ function Home:Create(Page, App)
 		"Animations"
 	)
 
-	local OpenSettings =
+	local SettingsButton =
 		Components:CreateButton(
 			QuickCard,
 			Theme,
 			"⚙ OPEN SETTINGS"
 		)
 
-	OpenSettings.Position = UDim2.new(
-		0,
-		20,
-		1,
-		-52
-	)
+	SettingsButton.Position = UDim2.new(0,20,1,-52)
 
-	OpenSettings.Size = UDim2.new(
-		1,
-		-40,
-		0,
-		36
-	)
+	SettingsButton.Size = UDim2.new(1,-40,0,36)
 
-	OpenSettings.MouseButton1Click:Connect(function()
+	SettingsButton.MouseButton1Click:Connect(function()
 
 		App:OpenPage("Settings")
-
-	end)
-  
-	self.Page = Page
-
-  	----------------------------------------------------------
-	-- Dashboard Footer
-	----------------------------------------------------------
-
-	local Footer = Instance.new("TextLabel")
-
-	Footer.Name = "DashboardFooter"
-
-	Footer.BackgroundTransparency = 1
-
-	Footer.Size = UDim2.new(1,0,0,22)
-
-	Footer.LayoutOrder = 99
-
-	Footer.Font = Theme.Font
-
-	Footer.Text = "SquidNoMo Beta 4.0 • Developed by NOMO • Keyless • Experimental Build"
-
-	Footer.TextColor3 = Theme.SubText
-
-	Footer.TextSize = 12
-
-	Footer.TextXAlignment = Enum.TextXAlignment.Center
-
-	Footer.Parent = Page
-
-	----------------------------------------------------------
-	-- Dashboard Refresh Loop
-	----------------------------------------------------------
-
-	task.spawn(function()
-
-		while Page.Parent do
-
-			-- Future live updates will go here.
-			-- Examples:
-			-- Donation Goal
-			-- Server Health
-			-- Script Health
-			-- Feature Status
-			-- AI Suggestions
-
-			task.wait(1)
-
-		end
 
 	end)
 
@@ -879,17 +772,16 @@ function Home:Create(Page, App)
 	-- Dashboard Ready
 	----------------------------------------------------------
 
-	App.Notifications:Success(
+	Notifications:Success(
 
-		"Dashboard Ready",
+		"Dashboard",
 
 		"Home page loaded successfully.",
 
 		2
 
-  )
+	)
 
 end
 
 return Home
-
