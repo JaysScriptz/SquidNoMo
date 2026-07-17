@@ -38,24 +38,38 @@ Loader.Utilities = Load("Core/Utilities.lua")
 Loader.Notifications = Load("Core/Notifications.lua")
 Loader.Navigation = Load("Core/Navigation.lua")
 
-----------------------------------------------------
+--------------------------------------------------
 -- Page Modules
-----------------------------------------------------
+--------------------------------------------------
 
-Loader.Home = {
-    Load = function()
+Loader.Home = Load("Modules/Home.lua")
 
-        pcall(function()
-            game:GetService("StarterGui"):SetCore("SendNotification",{
-                Title = "SquidNoMo",
-                Text = "Core Modules Loaded",
-                Duration = 5
-            })
-        end)
+--------------------------------------------------
+-- Start Application
+--------------------------------------------------
 
-        print("[Loader] Home Loaded")
+pcall(function()
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "SquidNoMo",
+        Text = "Launching...",
+        Duration = 3
+    })
+end)
 
+print("[Loader] Starting Home...")
+
+if Loader.Home then
+    if type(Loader.Home) == "table" then
+        if Loader.Home.Load then
+            Loader.Home.Load()
+        elseif Loader.Home.Init then
+            Loader.Home.Init()
+        end
+    elseif type(Loader.Home) == "function" then
+        Loader.Home()
     end
-}
+end
+
+print("[Loader] Finished.")
 
 return Loader
