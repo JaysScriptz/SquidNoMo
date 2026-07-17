@@ -1,14 +1,7 @@
-print("CONFIG FILE EXECUTED")
+local Config = {}
 
-pcall(function()
-	game:GetService("StarterGui"):SetCore("SendNotification", {
-		Title = "SquidNoMo",
-		Text = "Config Executed",
-		Duration = 5
-	})
-end)
+Config.Debug = true
 
-return {
-	Debug = true,
-	Repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-}
+Config.Repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+
+return Config
