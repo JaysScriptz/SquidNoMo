@@ -1,4 +1,4 @@
-print("MAIN STARTED")
+print("MAIN VERSION 7")
 
 local ConfigSource = game:HttpGet(
     "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Config.lua"
