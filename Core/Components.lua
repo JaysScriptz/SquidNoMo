@@ -4,16 +4,8 @@
 --// Components.lua
 --//========================================================--
 
-----------------------------------------------------------
--- Services
-----------------------------------------------------------
-
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-	game:GetService("TweenService")
-
-----------------------------------------------------------
--- Components
-----------------------------------------------------------
 
 local Components = {}
 
@@ -24,342 +16,174 @@ Components.Theme = nil
 ----------------------------------------------------------
 
 function Components:Initialize(Theme)
-
 	self.Theme = Theme
-
 end
 
 ----------------------------------------------------------
 -- Card
 ----------------------------------------------------------
 
-function Components:CreateCard(
-	Parent,
-	Size
-)
+function Components:CreateCard(Parent, Size)
 
 	local Theme = self.Theme
 
-	local Card =
-		Instance.new("Frame")
-
+	local Card = Instance.new("Frame")
 	Card.Size = Size
-
-	Card.BackgroundColor3 =
-		Theme.Card
-
+	Card.BackgroundColor3 = Theme.Card
 	Card.BorderSizePixel = 0
-
 	Card.Parent = Parent
 
-	local Corner =
-		Instance.new("UICorner")
-
-	Corner.CornerRadius =
-		UDim.new(0,16)
-
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0,16)
 	Corner.Parent = Card
 
-	local Stroke =
-		Instance.new("UIStroke")
-
-	Stroke.Color =
-		Theme.BorderDark
-
+	local Stroke = Instance.new("UIStroke")
+	Stroke.Color = Theme.BorderDark
 	Stroke.Thickness = 1
-
 	Stroke.Parent = Card
 
 	return Card
-
 end
 
 ----------------------------------------------------------
 -- Section
 ----------------------------------------------------------
 
-function Components:CreateSection(
-	Parent,
-	Title
-)
+function Components:CreateSection(Parent, Title)
 
-	local Theme =
-		self.Theme
+	local Theme = self.Theme
 
-	local Section =
-		Instance.new("Frame")
-
+	local Section = Instance.new("Frame")
 	Section.BackgroundTransparency = 1
-
-	Section.Size =
-		UDim2.new(1,0,0,0)
-
-	Section.AutomaticSize =
-		Enum.AutomaticSize.Y
-
+	Section.Size = UDim2.new(1,0,0,0)
+	Section.AutomaticSize = Enum.AutomaticSize.Y
 	Section.Parent = Parent
 
-	local Layout =
-		Instance.new("UIListLayout")
+	local Layout = Instance.new("UIListLayout")
+	Layout.Padding = UDim.new(0,10)
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Parent = Section
 
-	Layout.Padding =
-		UDim.new(0,10)
-
-	Layout.SortOrder =
-		Enum.SortOrder.LayoutOrder
-
-	Layout.Parent =
-		Section
-
-	local Header =
-		Instance.new("TextLabel")
-
+	local Header = Instance.new("TextLabel")
 	Header.BackgroundTransparency = 1
-
-	Header.Size =
-		UDim2.new(1,0,0,26)
-
-	Header.Font =
-		Theme.FontBlack
-
-	Header.Text =
-		Title
-
+	Header.Size = UDim2.new(1,0,0,26)
+	Header.Font = Theme.FontBlack
+	Header.Text = Title
 	Header.TextSize = 19
+	Header.TextColor3 = Theme.Text
+	Header.TextXAlignment = Enum.TextXAlignment.Left
+	Header.Parent = Section
 
-	Header.TextColor3 =
-		Theme.Text
-
-	Header.TextXAlignment =
-		Enum.TextXAlignment.Left
-
-	Header.Parent =
-		Section
-
-	local Divider =
-		Instance.new("Frame")
-
-	Divider.Size =
-		UDim2.new(1,0,0,1)
-
-	Divider.BackgroundColor3 =
-		Theme.BorderDark
-
+	local Divider = Instance.new("Frame")
+	Divider.Size = UDim2.new(1,0,0,1)
+	Divider.BackgroundColor3 = Theme.BorderDark
 	Divider.BorderSizePixel = 0
+	Divider.Parent = Section
 
-	Divider.Parent =
-		Section
-
-	local Content =
-		Instance.new("Frame")
-
+	local Content = Instance.new("Frame")
 	Content.BackgroundTransparency = 1
+	Content.Size = UDim2.new(1,0,0,0)
+	Content.AutomaticSize = Enum.AutomaticSize.Y
+	Content.Parent = Section
 
-	Content.Size =
-		UDim2.new(1,0,0,0)
-
-	Content.AutomaticSize =
-		Enum.AutomaticSize.Y
-
-	Content.Parent =
-		Section
-
-	local ContentLayout =
-		Instance.new("UIListLayout")
-
-	ContentLayout.Padding =
-		UDim.new(0,8)
-
-	ContentLayout.SortOrder =
-		Enum.SortOrder.LayoutOrder
-
-	ContentLayout.Parent =
-		Content
+	local ContentLayout = Instance.new("UIListLayout")
+	ContentLayout.Padding = UDim.new(0,8)
+	ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	ContentLayout.Parent = Content
 
 	return Content
-
 end
 
 ----------------------------------------------------------
 -- Sidebar Button
 ----------------------------------------------------------
 
-function Components:SidebarButton(
-	Parent,
-	Name,
-	Icon
-)
+function Components:SidebarButton(Parent, Name, Icon)
 
-	local Theme =
-		self.Theme
+	local Theme = self.Theme
 
-	local Button =
-		Instance.new("TextButton")
-
+	local Button = Instance.new("TextButton")
 	Button.Name = Name
-
-	Button.Size =
-		UDim2.new(1,0,0,42)
-
-	Button.BackgroundColor3 =
-		Theme.Card
-
+	Button.Size = UDim2.new(1,0,0,42)
+	Button.BackgroundColor3 = Theme.Card
 	Button.BorderSizePixel = 0
-
 	Button.AutoButtonColor = false
-
 	Button.Text = ""
-
 	Button.Parent = Parent
 
-	local Corner =
-		Instance.new("UICorner")
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0,10)
+	Corner.Parent = Button
 
-	Corner.CornerRadius =
-		UDim.new(0,10)
-
-	Corner.Parent =
-		Button
-
-	local IconLabel =
-		Instance.new("TextLabel")
-
+	local IconLabel = Instance.new("TextLabel")
 	IconLabel.BackgroundTransparency = 1
-
-	IconLabel.Position =
-		UDim2.fromOffset(14,0)
-
-	IconLabel.Size =
-		UDim2.fromOffset(24,42)
-
-	IconLabel.Font =
-		Theme.FontBold
-
-	IconLabel.Text =
-		Icon
-
+	IconLabel.Position = UDim2.fromOffset(14,0)
+	IconLabel.Size = UDim2.fromOffset(24,42)
+	IconLabel.Font = Theme.FontBold
+	IconLabel.Text = Icon
 	IconLabel.TextSize = 18
+	IconLabel.TextColor3 = Theme.Text
+	IconLabel.Parent = Button
 
-	IconLabel.TextColor3 =
-		Theme.Text
-
-	IconLabel.Parent =
-		Button
-
-	local Label =
-		Instance.new("TextLabel")
-
+	local Label = Instance.new("TextLabel")
 	Label.BackgroundTransparency = 1
-
-	Label.Position =
-		UDim2.fromOffset(46,0)
-
-	Label.Size =
-		UDim2.new(1,-46,1,0)
-
-	Label.Font =
-		Theme.Font
-
-	Label.Text =
-		Name
-
+	Label.Position = UDim2.fromOffset(46,0)
+	Label.Size = UDim2.new(1,-46,1,0)
+	Label.Font = Theme.Font
+	Label.Text = Name
 	Label.TextSize = 15
-
-	Label.TextColor3 =
-		Theme.Text
-
-	Label.TextXAlignment =
-		Enum.TextXAlignment.Left
-
-	Label.Parent =
-		Button
+	Label.TextColor3 = Theme.Text
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.Parent = Button
 
 	function Button:SetSelected(State)
 
 		TweenService:Create(
-
 			Button,
-
 			TweenInfo.new(.15),
-
 			{
-
 				BackgroundColor3 =
-					State
-					and Theme.Accent
-					or Theme.Card
-
+					State and Theme.Accent or Theme.Card
 			}
-
 		):Play()
 
 	end
 
 	return Button
-
 end
+
 ----------------------------------------------------------
 -- Button
 ----------------------------------------------------------
 
-function Components:CreateButton(
-	Parent,
-	Text
-)
+function Components:CreateButton(Parent, Text)
 
-	local Theme =
-		self.Theme
+	local Theme = self.Theme
 
-	local Button =
-		Instance.new("TextButton")
+	local Button = Instance.new("TextButton")
 
-	Button.Size =
-		UDim2.new(1,0,0,40)
-
-	Button.BackgroundColor3 =
-		Theme.Accent
-
+	Button.Size = UDim2.new(1,0,0,40)
+	Button.BackgroundColor3 = Theme.Accent
 	Button.BorderSizePixel = 0
-
 	Button.AutoButtonColor = false
-
-	Button.Font =
-		Theme.FontBold
-
-	Button.Text =
-		Text
-
+	Button.Font = Theme.FontBold
+	Button.Text = Text
 	Button.TextSize = 15
+	Button.TextColor3 = Color3.new(1,1,1)
+	Button.Parent = Parent
 
-	Button.TextColor3 =
-		Color3.new(1,1,1)
-
-	Button.Parent =
-		Parent
-
-	local Corner =
-		Instance.new("UICorner")
-
-	Corner.CornerRadius =
-		UDim.new(0,10)
-
-	Corner.Parent =
-		Button
+	local Corner = Instance.new("UICorner")
+	Corner.CornerRadius = UDim.new(0,10)
+	Corner.Parent = Button
 
 	Button.MouseEnter:Connect(function()
 
 		TweenService:Create(
-
 			Button,
-
 			TweenInfo.new(.15),
-
 			{
-
 				BackgroundTransparency = .08
-
 			}
-
 		):Play()
 
 	end)
@@ -367,234 +191,137 @@ function Components:CreateButton(
 	Button.MouseLeave:Connect(function()
 
 		TweenService:Create(
-
 			Button,
-
 			TweenInfo.new(.15),
-
 			{
-
 				BackgroundTransparency = 0
-
 			}
-
 		):Play()
 
 	end)
 
 	return Button
-
 end
+
 
 ----------------------------------------------------------
 -- Toggle
 ----------------------------------------------------------
 
-function Components:CreateToggle(
-	Parent,
-	Text
-)
+function Components:CreateToggle(Parent, Text)
 
-	local Theme =
-		self.Theme
+	local Theme = self.Theme
 
 	local Toggle = {}
-
 	Toggle.Enabled = false
 
-	------------------------------------------------------
-	-- Holder
-	------------------------------------------------------
 
-	local Holder =
-		Instance.new("Frame")
+	local Holder = Instance.new("Frame")
 
-	Holder.Size =
-		UDim2.new(1,0,0,42)
-
+	Holder.Size = UDim2.new(1,0,0,42)
 	Holder.BackgroundTransparency = 1
+	Holder.Parent = Parent
 
-	Holder.Parent =
-		Parent
 
-	------------------------------------------------------
-	-- Label
-	------------------------------------------------------
-
-	local Label =
-		Instance.new("TextLabel")
+	local Label = Instance.new("TextLabel")
 
 	Label.BackgroundTransparency = 1
-
-	Label.Size =
-		UDim2.new(1,-70,1,0)
-
-	Label.Font =
-		Theme.Font
-
-	Label.Text =
-		Text
-
+	Label.Size = UDim2.new(1,-70,1,0)
+	Label.Font = Theme.Font
+	Label.Text = Text
 	Label.TextSize = 15
+	Label.TextColor3 = Theme.Text
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.Parent = Holder
 
-	Label.TextColor3 =
-		Theme.Text
 
-	Label.TextXAlignment =
-		Enum.TextXAlignment.Left
+	local Switch = Instance.new("Frame")
 
-	Label.Parent =
-		Holder
-
-	------------------------------------------------------
-	-- Switch
-	------------------------------------------------------
-
-	local Switch =
-		Instance.new("Frame")
-
-	Switch.Size =
-		UDim2.fromOffset(52,28)
-
-	Switch.AnchorPoint =
-		Vector2.new(1,.5)
-
-	Switch.Position =
-		UDim2.new(1,0,.5,0)
-
-	Switch.BackgroundColor3 =
-		Theme.Card
-
+	Switch.Size = UDim2.fromOffset(52,28)
+	Switch.AnchorPoint = Vector2.new(1,.5)
+	Switch.Position = UDim2.new(1,0,.5,0)
+	Switch.BackgroundColor3 = Theme.Card
 	Switch.BorderSizePixel = 0
+	Switch.Parent = Holder
 
-	Switch.Parent =
-		Holder
 
-	local SwitchCorner =
-		Instance.new("UICorner")
+	local SwitchCorner = Instance.new("UICorner")
 
-	SwitchCorner.CornerRadius =
-		UDim.new(1,0)
+	SwitchCorner.CornerRadius = UDim.new(1,0)
+	SwitchCorner.Parent = Switch
 
-	SwitchCorner.Parent =
-		Switch
 
-	------------------------------------------------------
-	-- Knob
-	------------------------------------------------------
+	local Knob = Instance.new("Frame")
 
-	local Knob =
-		Instance.new("Frame")
-
-	Knob.Size =
-		UDim2.fromOffset(22,22)
-
-	Knob.Position =
-		UDim2.fromOffset(3,3)
-
-	Knob.BackgroundColor3 =
-		Theme.Text
-
+	Knob.Size = UDim2.fromOffset(22,22)
+	Knob.Position = UDim2.fromOffset(3,3)
+	Knob.BackgroundColor3 = Theme.Text
 	Knob.BorderSizePixel = 0
+	Knob.Parent = Switch
 
-	Knob.Parent =
-		Switch
 
-	local KnobCorner =
-		Instance.new("UICorner")
+	local KnobCorner = Instance.new("UICorner")
 
-	KnobCorner.CornerRadius =
-		UDim.new(1,0)
+	KnobCorner.CornerRadius = UDim.new(1,0)
+	KnobCorner.Parent = Knob
 
-	KnobCorner.Parent =
-		Knob
-
-	------------------------------------------------------
-	-- Refresh
-	------------------------------------------------------
 
 	local function Refresh()
 
 		TweenService:Create(
-
 			Switch,
-
 			TweenInfo.new(.15),
-
 			{
-
 				BackgroundColor3 =
 					Toggle.Enabled
 					and Theme.Accent
 					or Theme.Card
-
 			}
-
 		):Play()
 
+
 		TweenService:Create(
-
 			Knob,
-
 			TweenInfo.new(.15),
-
 			{
-
 				Position =
 					Toggle.Enabled
 					and UDim2.fromOffset(27,3)
 					or UDim2.fromOffset(3,3)
-
 			}
-
 		):Play()
 
 	end
 
-	------------------------------------------------------
-	-- Click
-	------------------------------------------------------
 
-	local Button =
-		Instance.new("TextButton")
+	local Click = Instance.new("TextButton")
 
-	Button.BackgroundTransparency = 1
+	Click.BackgroundTransparency = 1
+	Click.Size = UDim2.fromScale(1,1)
+	Click.Text = ""
+	Click.Parent = Holder
 
-	Button.Size =
-		UDim2.fromScale(1,1)
 
-	Button.Text = ""
-
-	Button.Parent =
-		Holder
-
-	Button.MouseButton1Click:Connect(function()
+	Click.MouseButton1Click:Connect(function()
 
 		Toggle.Enabled = not Toggle.Enabled
 
 		Refresh()
 
 		if Toggle.Callback then
-
-			Toggle.Callback(
-				Toggle.Enabled
-			)
-
+			Toggle.Callback(Toggle.Enabled)
 		end
 
 	end)
 
-	------------------------------------------------------
-	-- API
-	------------------------------------------------------
 
 	function Toggle:Set(Value)
 
 		Toggle.Enabled = Value
-
 		Refresh()
 
 	end
+
 
 	function Toggle:Get()
 
@@ -602,18 +329,21 @@ function Components:CreateToggle(
 
 	end
 
+
 	function Toggle:OnChanged(Function)
 
 		Toggle.Callback = Function
 
 	end
 
+
 	Refresh()
 
 	return Holder, Toggle
 
 		end
-----------------------------------------------------------
+
+		----------------------------------------------------------
 -- Slider
 ----------------------------------------------------------
 
@@ -631,107 +361,66 @@ function Components:CreateSlider(
 
 	Slider.Value = Default or Min
 
-	------------------------------------------------------
-	-- Holder
-	------------------------------------------------------
 
 	local Holder = Instance.new("Frame")
 
 	Holder.Size = UDim2.new(1,0,0,62)
-
 	Holder.BackgroundTransparency = 1
-
 	Holder.Parent = Parent
 
-	------------------------------------------------------
-	-- Title
-	------------------------------------------------------
 
 	local Label = Instance.new("TextLabel")
 
 	Label.BackgroundTransparency = 1
-
 	Label.Size = UDim2.new(1,-60,0,20)
-
 	Label.Font = Theme.Font
-
 	Label.Text = Title
-
 	Label.TextSize = 15
-
 	Label.TextColor3 = Theme.Text
-
 	Label.TextXAlignment = Enum.TextXAlignment.Left
-
 	Label.Parent = Holder
 
-	------------------------------------------------------
-	-- Value
-	------------------------------------------------------
 
 	local Value = Instance.new("TextLabel")
 
 	Value.AnchorPoint = Vector2.new(1,0)
-
 	Value.Position = UDim2.new(1,0,0,0)
-
 	Value.Size = UDim2.new(0,50,0,20)
-
 	Value.BackgroundTransparency = 1
-
 	Value.Font = Theme.FontBold
-
 	Value.Text = tostring(Slider.Value)
-
 	Value.TextSize = 15
-
 	Value.TextColor3 = Theme.Accent
-
 	Value.Parent = Holder
 
-	------------------------------------------------------
-	-- Track
-	------------------------------------------------------
 
 	local Track = Instance.new("Frame")
 
 	Track.Position = UDim2.new(0,0,0,34)
-
 	Track.Size = UDim2.new(1,0,0,6)
-
 	Track.BackgroundColor3 = Theme.Card
-
 	Track.BorderSizePixel = 0
-
 	Track.Parent = Holder
+
 
 	local TrackCorner = Instance.new("UICorner")
 
 	TrackCorner.CornerRadius = UDim.new(1,0)
-
 	TrackCorner.Parent = Track
 
-	------------------------------------------------------
-	-- Fill
-	------------------------------------------------------
 
 	local Fill = Instance.new("Frame")
 
 	Fill.BackgroundColor3 = Theme.Accent
-
 	Fill.BorderSizePixel = 0
-
 	Fill.Parent = Track
+
 
 	local FillCorner = Instance.new("UICorner")
 
 	FillCorner.CornerRadius = UDim.new(1,0)
-
 	FillCorner.Parent = Fill
 
-	------------------------------------------------------
-	-- Refresh
-	------------------------------------------------------
 
 	local function Refresh()
 
@@ -739,57 +428,46 @@ function Components:CreateSlider(
 			(Slider.Value-Min)/(Max-Min)
 
 		Fill.Size =
-			UDim2.new(Percent,0,1,0)
+			UDim2.new(
+				math.clamp(Percent,0,1),
+				0,
+				1,
+				0
+			)
 
 		Value.Text =
 			tostring(Slider.Value)
 
 	end
 
-	------------------------------------------------------
-	-- Drag
-	------------------------------------------------------
 
 	local Dragging = false
 
-	local UserInputService =
-		game:GetService("UserInputService")
 
 	local function Update(X)
 
 		local Percent =
 			math.clamp(
-
-				(X-Track.AbsolutePosition.X)
+				(X - Track.AbsolutePosition.X)
 				/
 				Track.AbsoluteSize.X,
-
 				0,
-
 				1
-
 			)
 
 		Slider.Value =
 			math.floor(
-
 				Min + ((Max-Min)*Percent)
-
 			)
 
 		Refresh()
 
 		if Slider.Callback then
-
-			Slider.Callback(
-
-				Slider.Value
-
-			)
-
+			Slider.Callback(Slider.Value)
 		end
 
 	end
+
 
 	Track.InputBegan:Connect(function(Input)
 
@@ -800,12 +478,12 @@ function Components:CreateSlider(
 			Enum.UserInputType.Touch then
 
 			Dragging = true
-
 			Update(Input.Position.X)
 
 		end
 
 	end)
+
 
 	UserInputService.InputChanged:Connect(function(Input)
 
@@ -825,6 +503,7 @@ function Components:CreateSlider(
 
 	end)
 
+
 	UserInputService.InputEnded:Connect(function(Input)
 
 		if Input.UserInputType ==
@@ -839,7 +518,6 @@ function Components:CreateSlider(
 
 	end)
 
-	Refresh()
 
 	function Slider:Get()
 
@@ -847,13 +525,14 @@ function Components:CreateSlider(
 
 	end
 
+
 	function Slider:Set(Value)
 
 		Slider.Value = Value
-
 		Refresh()
 
 	end
+
 
 	function Slider:OnChanged(Function)
 
@@ -861,9 +540,13 @@ function Components:CreateSlider(
 
 	end
 
+
+	Refresh()
+
 	return Holder, Slider
 
 end
+
 
 ----------------------------------------------------------
 -- Dropdown
@@ -881,37 +564,31 @@ function Components:CreateDropdown(
 
 	Dropdown.Value = nil
 
+
 	local Holder = Instance.new("Frame")
 
 	Holder.Size = UDim2.new(1,0,0,42)
-
 	Holder.BackgroundTransparency = 1
-
 	Holder.Parent = Parent
+
 
 	local Button = Instance.new("TextButton")
 
 	Button.Size = UDim2.new(1,0,1,0)
-
 	Button.BackgroundColor3 = Theme.Card
-
 	Button.BorderSizePixel = 0
-
 	Button.Font = Theme.Font
-
 	Button.TextSize = 15
-
 	Button.TextColor3 = Theme.Text
-
 	Button.Text = Title
-
 	Button.Parent = Holder
+
 
 	local Corner = Instance.new("UICorner")
 
 	Corner.CornerRadius = UDim.new(0,10)
-
 	Corner.Parent = Button
+
 
 	function Dropdown:Set(Value)
 
@@ -921,12 +598,11 @@ function Components:CreateDropdown(
 			Title.." : "..tostring(Value)
 
 		if Dropdown.Callback then
-
 			Dropdown.Callback(Value)
-
 		end
 
 	end
+
 
 	function Dropdown:Get()
 
@@ -934,11 +610,13 @@ function Components:CreateDropdown(
 
 	end
 
+
 	function Dropdown:OnChanged(Function)
 
 		Dropdown.Callback = Function
 
 	end
+
 
 	Button.MouseButton1Click:Connect(function()
 
@@ -953,7 +631,6 @@ function Components:CreateDropdown(
 					if v == Dropdown.Value then
 
 						Index = i + 1
-
 						break
 
 					end
@@ -962,26 +639,27 @@ function Components:CreateDropdown(
 
 			end
 
+
 			if Index > #Options then
-
 				Index = 1
-
 			end
 
+
 			Dropdown:Set(
-
 				Options[Index]
-
 			)
 
 		end
 
 	end)
 
+
 	return Holder, Dropdown
 
 						end
-----------------------------------------------------------
+
+
+						----------------------------------------------------------
 -- Textbox
 ----------------------------------------------------------
 
@@ -994,45 +672,40 @@ function Components:CreateTextbox(
 
 	local Box = {}
 
+
 	local TextBox = Instance.new("TextBox")
 
 	TextBox.Size = UDim2.new(1,0,0,40)
-
 	TextBox.BackgroundColor3 = Theme.Card
-
 	TextBox.BorderSizePixel = 0
-
 	TextBox.ClearTextOnFocus = false
-
 	TextBox.PlaceholderText = Placeholder
-
 	TextBox.Text = ""
-
 	TextBox.Font = Theme.Font
-
 	TextBox.TextSize = 15
-
 	TextBox.TextColor3 = Theme.Text
-
 	TextBox.PlaceholderColor3 = Theme.SubText
-
 	TextBox.Parent = Parent
+
 
 	local Corner = Instance.new("UICorner")
 
 	Corner.CornerRadius = UDim.new(0,10)
-
 	Corner.Parent = TextBox
+
 
 	TextBox.FocusLost:Connect(function()
 
 		if Box.Callback then
 
-			Box.Callback(TextBox.Text)
+			Box.Callback(
+				TextBox.Text
+			)
 
 		end
 
 	end)
+
 
 	function Box:Get()
 
@@ -1040,11 +713,14 @@ function Components:CreateTextbox(
 
 	end
 
+
 	function Box:Set(Value)
 
-		TextBox.Text = tostring(Value)
+		TextBox.Text =
+			tostring(Value)
 
 	end
+
 
 	function Box:OnChanged(Function)
 
@@ -1052,9 +728,11 @@ function Components:CreateTextbox(
 
 	end
 
+
 	return TextBox, Box
 
 end
+
 
 ----------------------------------------------------------
 -- Label
@@ -1069,25 +747,33 @@ function Components:CreateLabel(
 
 	local Label = Instance.new("TextLabel")
 
-	Label.Size = UDim2.new(1,0,0,22)
+	Label.Size =
+		UDim2.new(1,0,0,22)
 
 	Label.BackgroundTransparency = 1
 
-	Label.Font = Theme.Font
+	Label.Font =
+		Theme.Font
 
-	Label.Text = Text
+	Label.Text =
+		Text
 
-	Label.TextSize = 15
+	Label.TextSize =
+		15
 
-	Label.TextColor3 = Theme.Text
+	Label.TextColor3 =
+		Theme.Text
 
-	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.TextXAlignment =
+		Enum.TextXAlignment.Left
 
-	Label.Parent = Parent
+	Label.Parent =
+		Parent
 
 	return Label
 
 end
+
 
 ----------------------------------------------------------
 -- Spacer
@@ -1102,13 +788,21 @@ function Components:CreateSpacer(
 
 	Spacer.BackgroundTransparency = 1
 
-	Spacer.Size = UDim2.new(1,0,0,Height or 8)
+	Spacer.Size =
+		UDim2.new(
+			1,
+			0,
+			0,
+			Height or 8
+		)
 
-	Spacer.Parent = Parent
+	Spacer.Parent =
+		Parent
 
 	return Spacer
 
 end
+
 
 ----------------------------------------------------------
 -- Divider
@@ -1122,22 +816,30 @@ function Components:CreateDivider(
 
 	local Divider = Instance.new("Frame")
 
-	Divider.Size = UDim2.new(1,0,0,1)
+	Divider.Size =
+		UDim2.new(
+			1,
+			0,
+			0,
+			1
+		)
 
-	Divider.BackgroundColor3 = Theme.BorderDark
+	Divider.BackgroundColor3 =
+		Theme.BorderDark
 
-	Divider.BorderSizePixel = 0
+	Divider.BorderSizePixel =
+		0
 
-	Divider.Parent = Parent
+	Divider.Parent =
+		Parent
 
 	return Divider
 
 end
+
 
 ----------------------------------------------------------
 -- Return
 ----------------------------------------------------------
 
 return Components
-						
-		
