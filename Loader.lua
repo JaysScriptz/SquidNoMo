@@ -35,26 +35,36 @@ Loader.Utilities     = Load("Core/Utilities.lua")
 Loader.Notifications = Load("Core/Notifications.lua")
 
 ----------------------------------------------------------
--- NEW
+-- App
 ----------------------------------------------------------
 
 Loader.App = Load("Core/App.lua")
---Loader.Features = Load("Features/FeatureManager.lua")
 
------------------------------------------------------------
+----------------------------------------------------------
 -- Pages
 ----------------------------------------------------------
 
-Loader.Home    = Load("Modules/Home.lua")
+Loader.Home = Load("Modules/Home.lua")
 Loader.Players = Load("Modules/Players.lua")
+
+----------------------------------------------------------
+-- Home Modules
+----------------------------------------------------------
+
+Loader.HeroBanner = Load("Modules/Home/HeroBanner.lua")
+Loader.FeatureGroups = Load("Modules/Home/FeatureGroups.lua")
+Loader.ServerStatus = Load("Modules/Home/ServerStatus.lua")
+Loader.NOMOAI = Load("Modules/Home/NOMOAI.lua")
+Loader.SupportDevelopment = Load("Modules/Home/SupportDevelopment.lua")
+Loader.DevelopmentGoal = Load("Modules/Home/DevelopmentGoal.lua")
+Loader.Supporters = Load("Modules/Home/Supporters.lua")
+Loader.ImportantNotice = Load("Modules/Home/ImportantNotice.lua")
+Loader.Footer = Load("Modules/Home/Footer.lua")
 
 ----------------------------------------------------------
 -- Launch
 ----------------------------------------------------------
 
-Loader.Features:Initialize(Loader)
 Loader.App:Build(Loader)
-
-
 
 return Loader
