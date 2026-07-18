@@ -372,9 +372,9 @@ function App:CreateHeader()
 	Stroke.Parent =
 		Header
 
-	------------------------------------------------------
-	-- Title
-	------------------------------------------------------
+------------------------------------------------------
+-- Title
+------------------------------------------------------
 
 	local Title =
 		Instance.new("TextLabel")
@@ -406,9 +406,9 @@ function App:CreateHeader()
 
 	self.HeaderTitle = Title
 
-	------------------------------------------------------
-	-- Version
-	------------------------------------------------------
+------------------------------------------------------
+-- Version
+------------------------------------------------------
 
 	local Version =
 		Instance.new("TextLabel")
@@ -438,9 +438,9 @@ function App:CreateHeader()
 	Version.Parent =
 		Header
 
-	------------------------------------------------------
-	-- Close Button
-	------------------------------------------------------
+------------------------------------------------------
+-- Close Button
+------------------------------------------------------
 
 	local Close =
 		Instance.new("TextButton")
@@ -529,9 +529,9 @@ function App:CreateBanner()
 	Corner.Parent =
 		Banner
 
-	------------------------------------------------------
-	-- Welcome
-	------------------------------------------------------
+------------------------------------------------------
+-- Welcome
+------------------------------------------------------
 
 	local Welcome =
 		Instance.new("TextLabel")
@@ -561,9 +561,9 @@ function App:CreateBanner()
 	Welcome.Parent =
 		Banner
 
-	------------------------------------------------------
-	-- Subtitle
-	------------------------------------------------------
+------------------------------------------------------
+-- Subtitle
+------------------------------------------------------
 
 	local Subtitle =
 		Instance.new("TextLabel")
@@ -960,9 +960,59 @@ end
 
 function App:BuildPages()
 
-	------------------------------------------------------
-	-- Home
-	------------------------------------------------------
+	local Home = self:CreatePage("Home")
+
+	if self.Loader.Home and self.Loader.Home.Create then
+
+		local Success, Error = pcall(function()
+
+			self.Loader.Home:Create(
+				Home,
+				self
+			)
+
+		end)
+
+		if not Success then
+
+			warn("[Home]", Error)
+
+		end
+
+	end
+
+	local Players = self:CreatePage("Players")
+
+	if self.Loader.Players and self.Loader.Players.Create then
+
+		local Success, Error = pcall(function()
+
+			self.Loader.Players:Create(
+				Players,
+				self
+			)
+
+		end)
+
+		if not Success then
+
+			warn("[Players]", Error)
+
+		end
+
+	end
+
+	self:CreatePage("Guards")
+	self:CreatePage("Detective")
+	self:CreatePage("Farming")
+	self:CreatePage("Games")
+	self:CreatePage("VIP")
+	self:CreatePage("Settings")
+
+end
+------------------------------------------------------
+-- Home
+------------------------------------------------------
 
 	local Home =
 		self:CreatePage("Home")
