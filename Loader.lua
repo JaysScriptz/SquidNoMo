@@ -52,7 +52,7 @@ Loader.Players = Load("Modules/Players.lua")
 -- Launch
 ----------------------------------------------------------
 
---Loader.Features:Initialize(Loader)
+Loader.Features:Initialize(Loader)
 
 Loader.App:Build(Loader)
 
