@@ -8,60 +8,64 @@
 local Player = {}
 
 ----------------------------------------------------------
--- Loader
+-- Initialize
 ----------------------------------------------------------
 
-local function Load(ModuleName)
+function Player:Initialize(Loader)
 
-	return loadstring(game:HttpGet(
+	local function Load(Module)
 
-		App.Config.Repository ..
-		"Features/Player/" ..
-		ModuleName ..
-		".lua"
+		return loadstring(game:HttpGet(
 
-	))()
+			Loader.Config.Repository ..
+			"Features/Player/" ..
+			Module ..
+			".lua"
+
+		))()
+
+	end
+
+	------------------------------------------------------
+	-- Enhancements
+	------------------------------------------------------
+
+	self.WalkSpeed = Load("WalkSpeed")
+
+	self.JumpPower = Load("JumpPower")
+
+	self.InfiniteJump = Load("InfiniteJump")
+
+	self.Noclip = Load("Noclip")
+
+	------------------------------------------------------
+	-- ESP
+	------------------------------------------------------
+
+	self.PlayerESP = Load("PlayerESP")
+
+	self.GuardESP = Load("GuardESP")
+
+	self.DetectiveESP = Load("DetectiveESP")
+
+	self.FrontmanESP = Load("FrontmanESP")
+
+	------------------------------------------------------
+	-- Utilities
+	------------------------------------------------------
+
+	self.AntiAFK = Load("AntiAFK")
+
+	self.AntiLag = Load("AntiLag")
+
+	self.Reset = Load("Reset")
+
+	self.Rejoin = Load("Rejoin")
+
+	return self
 
 end
 
-----------------------------------------------------------
--- Enhancement Features
-----------------------------------------------------------
-
-Player.WalkSpeed = Load("WalkSpeed")
-
-Player.JumpPower = Load("JumpPower")
-
-Player.InfiniteJump = Load("InfiniteJump")
-
-Player.Noclip = Load("Noclip")
-
-----------------------------------------------------------
--- ESP Features
-----------------------------------------------------------
-
-Player.PlayerESP = Load("PlayerESP")
-
-Player.GuardESP = Load("GuardESP")
-
-Player.DetectiveESP = Load("DetectiveESP")
-
-Player.FrontmanESP = Load("FrontmanESP")
-
-----------------------------------------------------------
--- Utility Features
-----------------------------------------------------------
-
-Player.AntiAFK = Load("AntiAFK")
-
-Player.AntiLag = Load("AntiLag")
-
-Player.Reset = Load("Reset")
-
-Player.Rejoin = Load("Rejoin")
-
-----------------------------------------------------------
--- Return
 ----------------------------------------------------------
 
 return Player
