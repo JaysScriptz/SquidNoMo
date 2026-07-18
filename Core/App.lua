@@ -789,23 +789,33 @@ function App:Build(Loader)
 		self
 	)
 
-	------------------------------------------------------
-	-- Placeholder Pages
-	------------------------------------------------------
+------------------------------------------------------
+-- Players
+------------------------------------------------------
 
+local Players =
 	self:CreatePage("Players")
 
-	self:CreatePage("Guards")
+Loader.Players:Create(
+	Players,
+	self
+)
 
-	self:CreatePage("Detective")
+------------------------------------------------------
+-- Remaining Pages
+------------------------------------------------------
 
-	self:CreatePage("Farming")
+self:CreatePage("Guards")
 
-	self:CreatePage("VIP")
+self:CreatePage("Detective")
 
-	self:CreatePage("Games")
+self:CreatePage("Farming")
 
-	self:CreatePage("Settings")
+self:CreatePage("VIP")
+
+self:CreatePage("Games")
+
+self:CreatePage("Settings")
 
 	------------------------------------------------------
 	-- Open Home
