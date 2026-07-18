@@ -1,67 +1,58 @@
 --//========================================================--
 --// SquidNoMo
 --// Beta 5.0
---// FeatureManager.lua
+--// Player
+--// Init.lua
 --//========================================================--
 
-local FeatureManager = {}
+local Player = {}
 
 ----------------------------------------------------------
 -- Load Helper
 ----------------------------------------------------------
 
-local function Load(App, Path)
+local function Load(Module)
 
 	return loadstring(game:HttpGet(
 
-		App.Config.Repository .. Path
+		App.Config.Repository ..
+		"Features/Player/" ..
+		Module ..
+		".lua"
 
 	))()
 
 end
 
 ----------------------------------------------------------
--- Initialize
+-- Enhancements
 ----------------------------------------------------------
 
-function FeatureManager:Initialize(App)
-
-	local Features = {}
-
-	------------------------------------------------------
-	-- Shared
-	------------------------------------------------------
-
-	Features.Shared = {}
-
-	Features.Shared.RoleService = Load(
-		App,
-		"Features/Shared/RoleService.lua"
-	)
-
-	------------------------------------------------------
-	-- Player
-	------------------------------------------------------
-
-	Features.Player = Load(
-		App,
-		"Features/Player/Init.lua"
-	)
-
-	self.Features = Features
-
-	return Features
-
-end
+Player.WalkSpeed     = Load("WalkSpeed")
+Player.JumpPower     = Load("JumpPower")
+Player.InfiniteJump  = Load("InfiniteJump")
+Player.Noclip        = Load("Noclip")
 
 ----------------------------------------------------------
--- Get
+-- ESP
 ----------------------------------------------------------
 
-function FeatureManager:Get()
+Player.PlayerESP     = Load("PlayerESP")
+Player.GuardESP      = Load("GuardESP")
+Player.DetectiveESP  = Load("DetectiveESP")
+Player.FrontmanESP   = Load("FrontmanESP")
 
-	return self.Features
+----------------------------------------------------------
+-- Utilities
+----------------------------------------------------------
 
-end
+Player.AntiAFK       = Load("AntiAFK")
+Player.AntiLag       = Load("AntiLag")
+Player.Reset         = Load("Reset")
+Player.Rejoin        = Load("Rejoin")
 
-return FeatureManager
+----------------------------------------------------------
+-- Return
+----------------------------------------------------------
+
+return Player
