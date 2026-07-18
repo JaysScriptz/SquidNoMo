@@ -355,7 +355,7 @@ function PlayersPage:Create(Page, App)
 
 		Page,
 		Theme,
-		UDim2.new(1,0,0,180)
+		UDim2.new(1,0,0,235)
 
 	)
 
@@ -398,6 +398,35 @@ function PlayersPage:Create(Page, App)
 
 	end)
 
+------------------------------------------------------
+-- Anti Lag
+------------------------------------------------------
+
+local _, AntiLag =
+	Components:CreateToggle(
+
+		Utility,
+		Theme,
+		"Anti Lag"
+
+	)
+
+AntiLag:OnChanged(function(State)
+
+	if App.Features
+	and App.Features.Player
+	and App.Features.Player.AntiLag then
+
+		if State then
+			App.Features.Player.AntiLag:Enable()
+		else
+			App.Features.Player.AntiLag:Disable()
+		end
+
+	end
+
+end)
+	
 	------------------------------------------------------
 	-- Reset Character
 	------------------------------------------------------
