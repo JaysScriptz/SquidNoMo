@@ -1,13 +1,11 @@
 --//========================================================--
 --// SquidNoMo
 --// Beta 5.0
---// Responsive UI Framework
+--// App.lua
 --//========================================================--
 
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -30,42 +28,32 @@ App.Utilities = nil
 App.Notifications = nil
 
 ----------------------------------------------------------
--- Main References
+-- References
 ----------------------------------------------------------
 
 App.Gui = nil
 App.Window = nil
-App.Sidebar = nil
+
 App.Header = nil
 App.Banner = nil
-App.TopNavigation = nil
+App.Sidebar = nil
+
 App.PageContainer = nil
 
 ----------------------------------------------------------
--- Pages
+-- Collections
 ----------------------------------------------------------
 
 App.Pages = {}
 
-----------------------------------------------------------
--- Buttons
-----------------------------------------------------------
-
 App.NavigationButtons = {}
-App.SubNavigationButtons = {}
 
 ----------------------------------------------------------
--- Window Settings
+-- Window
 ----------------------------------------------------------
 
-App.WindowScale = 0.80
-App.WindowHeightScale = 0.82
-
-App.MinimumWidth = 950
-App.MaximumWidth = 1650
-
-App.MinimumHeight = 560
-App.MaximumHeight = 900
+App.Width = 1180
+App.Height = 720
 
 ----------------------------------------------------------
 -- Initialize
@@ -82,7 +70,7 @@ function App:Init(Loader)
 end
 
 ----------------------------------------------------------
--- Create ScreenGui
+-- ScreenGui
 ----------------------------------------------------------
 
 function App:CreateGui()
@@ -94,7 +82,8 @@ function App:CreateGui()
 		Existing:Destroy()
 	end
 
-	local Gui = Instance.new("ScreenGui")
+	local Gui =
+		Instance.new("ScreenGui")
 
 	Gui.Name = "SquidNoMo"
 
@@ -102,64 +91,30 @@ function App:CreateGui()
 
 	Gui.ResetOnSpawn = false
 
-	Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	Gui.ZIndexBehavior =
+		Enum.ZIndexBehavior.Sibling
 
-	Gui.Parent = LocalPlayer.PlayerGui
+	Gui.Parent =
+		LocalPlayer.PlayerGui
 
 	self.Gui = Gui
 
 	self.Notifications:Init(
+
 		Gui,
 		self.Theme
+
 	)
 
 end
 
 ----------------------------------------------------------
--- Responsive Size
-----------------------------------------------------------
-
-function App:GetWindowSize()
-
-	local Viewport =
-		workspace.CurrentCamera.ViewportSize
-
-	local Width =
-		math.clamp(
-
-			Viewport.X * self.WindowScale,
-
-			self.MinimumWidth,
-
-			self.MaximumWidth
-
-		)
-
-	local Height =
-		math.clamp(
-
-			Viewport.Y * self.WindowHeightScale,
-
-			self.MinimumHeight,
-
-			self.MaximumHeight
-
-		)
-
-	return Width,Height
-
-end
-
-----------------------------------------------------------
--- Create Main Window
+-- Window
 ----------------------------------------------------------
 
 function App:CreateWindow()
 
 	local Theme = self.Theme
-
-	local Width,Height =
-		self:GetWindowSize()
 
 	local Window =
 		Instance.new("Frame")
@@ -168,8 +123,10 @@ function App:CreateWindow()
 
 	Window.Size =
 		UDim2.fromOffset(
-			Width,
-			Height
+
+			self.Width,
+			self.Height
+
 		)
 
 	Window.AnchorPoint =
@@ -183,15 +140,14 @@ function App:CreateWindow()
 
 	Window.BorderSizePixel = 0
 
-	Window.ClipsDescendants = true
-
-	Window.Parent = self.Gui
+	Window.Parent =
+		self.Gui
 
 	local Corner =
 		Instance.new("UICorner")
 
 	Corner.CornerRadius =
-		UDim.new(0,20)
+		UDim.new(0,18)
 
 	Corner.Parent = Window
 
@@ -205,90 +161,18 @@ function App:CreateWindow()
 
 	Stroke.Parent = Window
 
-	local Scale =
-		Instance.new("UIScale")
-
-	Scale.Scale = 1
-
-	Scale.Parent = Window
-
 	self.Window = Window
-
-	self.WindowScaleObject = Scale
 
 	if UserInputService.MouseEnabled then
 
 		self.Utilities:EnableDragging(
+
 			Window,
 			Window
+
 		)
 
 	end
-
-end
-
-----------------------------------------------------------
--- Automatic Scaling
-----------------------------------------------------------
-
-function App:UpdateScale()
-
-	if not self.Window then
-		return
-	end
-
-	local Camera =
-		workspace.CurrentCamera
-
-	local Viewport =
-		Camera.ViewportSize
-
-	local Width,Height =
-		self:GetWindowSize()
-
-	self.Window.Size =
-		UDim2.fromOffset(
-			Width,
-			Height
-		)
-
-	local Shortest =
-		math.min(
-			Viewport.X,
-			Viewport.Y
-		)
-
-	local Scale =
-		math.clamp(
-
-			Shortest / 720,
-
-			0.82,
-
-			1.20
-
-		)
-
-	self.WindowScaleObject.Scale =
-		Scale
-
-end
-
-----------------------------------------------------------
--- Listen For Resolution Changes
-----------------------------------------------------------
-
-function App:StartResponsiveUpdates()
-
-	self:UpdateScale()
-
-	workspace.CurrentCamera
-	:GetPropertyChangedSignal("ViewportSize")
-	:Connect(function()
-
-		self:UpdateScale()
-
-	end)
 
 end
 
@@ -300,17 +184,21 @@ function App:CreateHeader()
 
 	local Theme = self.Theme
 
-	local Header = Instance.new("Frame")
+	local Header =
+		Instance.new("Frame")
 
 	Header.Name = "Header"
 
-	Header.Size = UDim2.new(1,0,0,52)
+	Header.Size =
+		UDim2.new(1,0,0,52)
 
-	Header.BackgroundColor3 = Theme.Header
+	Header.BackgroundColor3 =
+		Theme.Header
 
 	Header.BorderSizePixel = 0
 
-	Header.Parent = self.Window
+	Header.Parent =
+		self.Window
 
 	self.Header = Header
 
@@ -318,91 +206,108 @@ function App:CreateHeader()
 	-- Title
 	------------------------------------------------------
 
-	local Title = Instance.new("TextLabel")
+	local Title =
+		Instance.new("TextLabel")
 
 	Title.BackgroundTransparency = 1
 
-	Title.Position = UDim2.fromOffset(18,10)
+	Title.Position =
+		UDim2.fromOffset(18,9)
 
-	Title.Size = UDim2.new(0,260,0,32)
+	Title.Size =
+		UDim2.new(0,260,0,34)
 
-	Title.Font = Theme.FontBlack
+	Title.Font =
+		Theme.FontBlack
 
 	Title.Text = "SquidNoMo"
 
 	Title.TextSize = 24
 
-	Title.TextColor3 = Theme.Text
+	Title.TextColor3 =
+		Theme.Text
 
-	Title.TextXAlignment = Enum.TextXAlignment.Left
+	Title.TextXAlignment =
+		Enum.TextXAlignment.Left
 
 	Title.Parent = Header
-
-	self.HeaderTitle = Title
 
 	------------------------------------------------------
 	-- Version
 	------------------------------------------------------
 
-	local Version = Instance.new("TextLabel")
+	local Version =
+		Instance.new("TextLabel")
 
 	Version.BackgroundTransparency = 1
 
-	Version.AnchorPoint = Vector2.new(1,0)
+	Version.AnchorPoint =
+		Vector2.new(1,0)
 
-	Version.Position = UDim2.new(1,-90,0,14)
+	Version.Position =
+		UDim2.new(1,-58,0,14)
 
-	Version.Size = UDim2.new(0,70,0,24)
+	Version.Size =
+		UDim2.fromOffset(90,24)
 
-	Version.Font = Theme.FontBold
+	Version.Font =
+		Theme.FontBold
 
 	Version.Text = self.Version
 
 	Version.TextSize = 14
 
-	Version.TextColor3 = Theme.Accent
+	Version.TextColor3 =
+		Theme.Accent
 
 	Version.Parent = Header
 
 	------------------------------------------------------
-	-- Close Button
+	-- Close
 	------------------------------------------------------
 
-	local Close = Instance.new("TextButton")
+	local Close =
+		Instance.new("TextButton")
 
-	Close.Size = UDim2.fromOffset(32,32)
+	Close.Size =
+		UDim2.fromOffset(34,34)
 
-	Close.AnchorPoint = Vector2.new(1,0)
+	Close.AnchorPoint =
+		Vector2.new(1,0)
 
-	Close.Position = UDim2.new(1,-10,0,10)
+	Close.Position =
+		UDim2.new(1,-10,0,9)
+
+	Close.BackgroundColor3 =
+		Theme.Card
+
+	Close.BorderSizePixel = 0
 
 	Close.Text = "✕"
 
-	Close.Font = Theme.FontBlack
-
 	Close.TextSize = 18
 
-	Close.TextColor3 = Theme.Text
+	Close.Font =
+		Theme.FontBlack
 
-	Close.BackgroundColor3 = Theme.Card
-
-	Close.AutoButtonColor = true
+	Close.TextColor3 =
+		Theme.Text
 
 	Close.Parent = Header
 
-	local CloseCorner = Instance.new("UICorner")
+	local Corner =
+		Instance.new("UICorner")
 
-	CloseCorner.CornerRadius = UDim.new(0,10)
+	Corner.CornerRadius =
+		UDim.new(0,10)
 
-	CloseCorner.Parent = Close
+	Corner.Parent = Close
 
 	Close.MouseButton1Click:Connect(function()
 
 		self.Gui.Enabled = false
 
 	end)
-
-	self.CloseButton = Close
 
 end
 
@@ -414,110 +319,85 @@ function App:CreateBanner()
 
 	local Theme = self.Theme
 
-	local Banner = Instance.new("Frame")
+	local Banner =
+		Instance.new("Frame")
 
 	Banner.Name = "Banner"
 
-	Banner.Position = UDim2.fromOffset(0,52)
+	Banner.Position =
+		UDim2.fromOffset(0,52)
 
-	Banner.Size = UDim2.new(1,0,0,170)
+	Banner.Size =
+		UDim2.new(1,0,0,160)
 
-	Banner.BackgroundColor3 = Theme.Card
+	Banner.BackgroundColor3 =
+		Theme.Card
 
 	Banner.BorderSizePixel = 0
 
-	Banner.Parent = self.Window
+	Banner.Parent =
+		self.Window
 
-	local Corner = Instance.new("UICorner")
+	local Corner =
+		Instance.new("UICorner")
 
-	Corner.CornerRadius = UDim.new(0,18)
+	Corner.CornerRadius =
+		UDim.new(0,18)
 
 	Corner.Parent = Banner
 
-	------------------------------------------------------
-	-- Image
-	------------------------------------------------------
+	local Title =
+		Instance.new("TextLabel")
 
-	local Image = Instance.new("ImageLabel")
+	Title.BackgroundTransparency = 1
 
-	Image.Name = "BannerImage"
+	Title.Position =
+		UDim2.fromOffset(24,20)
 
-	Image.BackgroundTransparency = 1
+	Title.Size =
+		UDim2.new(.8,0,0,40)
 
-	Image.Size = UDim2.fromScale(1,1)
+	Title.Font =
+		Theme.FontBlack
 
-	Image.ScaleType = Enum.ScaleType.Crop
+	Title.Text = "Welcome to SquidNoMo"
 
-	-- Replace later with your Squid Game X banner asset
-	Image.Image = ""
+	Title.TextSize = 28
 
-	Image.Parent = Banner
+	Title.TextColor3 =
+		Theme.Text
 
-	------------------------------------------------------
-	-- Dark Overlay
-	------------------------------------------------------
+	Title.TextXAlignment =
+		Enum.TextXAlignment.Left
 
-	local Overlay = Instance.new("Frame")
+	Title.Parent = Banner
 
-	Overlay.Size = UDim2.fromScale(1,1)
-
-	Overlay.BackgroundColor3 = Color3.new(0,0,0)
-
-	Overlay.BackgroundTransparency = .35
-
-	Overlay.BorderSizePixel = 0
-
-	Overlay.Parent = Banner
-
-	local OverlayCorner = Instance.new("UICorner")
-
-	OverlayCorner.CornerRadius = UDim.new(0,18)
-
-	OverlayCorner.Parent = Overlay
-
-	------------------------------------------------------
-	-- Welcome
-	------------------------------------------------------
-
-	local Welcome = Instance.new("TextLabel")
-
-	Welcome.BackgroundTransparency = 1
-
-	Welcome.Position = UDim2.fromOffset(24,24)
-
-	Welcome.Size = UDim2.new(.6,0,0,44)
-
-	Welcome.Font = Theme.FontBlack
-
-	Welcome.Text = "Welcome to SquidNoMo"
-
-	Welcome.TextSize = 30
-
-	Welcome.TextColor3 = Theme.Text
-
-	Welcome.TextXAlignment = Enum.TextXAlignment.Left
-
-	Welcome.Parent = Banner
-
-	local Subtitle = Instance.new("TextLabel")
+	local Subtitle =
+		Instance.new("TextLabel")
 
 	Subtitle.BackgroundTransparency = 1
 
-	Subtitle.Position = UDim2.fromOffset(24,70)
+	Subtitle.Position =
+		UDim2.fromOffset(24,64)
 
-	Subtitle.Size = UDim2.new(.7,0,0,50)
+	Subtitle.Size =
+		UDim2.new(.8,0,0,46)
 
-	Subtitle.Font = Theme.Font
+	Subtitle.Font =
+		Theme.Font
 
 	Subtitle.TextWrapped = true
 
-	Subtitle.Text = "Advanced automation and utilities for Squid Game X."
+	Subtitle.Text =
+		"Advanced utilities for Squid Game X."
 
 	Subtitle.TextSize = 16
 
-	Subtitle.TextColor3 = Theme.SubText
+	Subtitle.TextColor3 =
+		Theme.SubText
 
-	Subtitle.TextXAlignment = Enum.TextXAlignment.Left
+	Subtitle.TextXAlignment =
+		Enum.TextXAlignment.Left
 
 	Subtitle.Parent = Banner
 
@@ -533,127 +413,138 @@ function App:CreateSidebar()
 
 	local Theme = self.Theme
 
-	local Sidebar = Instance.new("Frame")
+	local Sidebar =
+		Instance.new("Frame")
 
 	Sidebar.Name = "Sidebar"
 
-	Sidebar.Position = UDim2.fromOffset(0,222)
+	Sidebar.Position =
+		UDim2.fromOffset(0,212)
 
-	Sidebar.Size = UDim2.new(0,190,1,-222)
+	Sidebar.Size =
+		UDim2.new(0,190,1,-212)
 
-	Sidebar.BackgroundColor3 = Theme.Sidebar
+	Sidebar.BackgroundColor3 =
+		Theme.Sidebar
 
 	Sidebar.BorderSizePixel = 0
 
-	Sidebar.Parent = self.Window
+	Sidebar.Parent =
+		self.Window
 
-	local Layout = Instance.new("UIListLayout")
+	local Layout =
+		Instance.new("UIListLayout")
 
-	Layout.Padding = UDim.new(0,8)
+	Layout.Padding =
+		UDim.new(0,8)
 
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.HorizontalAlignment =
+		Enum.HorizontalAlignment.Center
 
 	Layout.Parent = Sidebar
 
-	local Padding = Instance.new("UIPadding")
+	local Padding =
+		Instance.new("UIPadding")
 
-	Padding.Top = UDim.new(0,18)
+	Padding.Top =
+		UDim.new(0,16)
 
-	Padding.Left = UDim.new(0,12)
+	Padding.Left =
+		UDim.new(0,12)
 
-	Padding.Right = UDim.new(0,12)
+	Padding.Right =
+		UDim.new(0,12)
 
 	Padding.Parent = Sidebar
 
 	self.Sidebar = Sidebar
 
-	------------------------------------------------------
-	-- Navigation List
-	------------------------------------------------------
-
 	local Pages = {
 
-		{Name="Home",Icon="🏠"},
-
-		{Name="Players",Icon="👤"},
-
-		{Name="Guards",Icon="🛡"},
-
-		{Name="Detective",Icon="🕵"},
-
-		{Name="Farming",Icon="🌱"},
-
-		{Name="VIP",Icon="👑"},
-
-		{Name="Games",Icon="🎮"},
-
-		{Name="Settings",Icon="⚙"}
+		{"Home","🏠"},
+		{"Players","👤"},
+		{"Guards","🛡"},
+		{"Detective","🕵"},
+		{"Farming","🌱"},
+		{"VIP","👑"},
+		{"Games","🎮"},
+		{"Settings","⚙"}
 
 	}
 
-	for _,Page in ipairs(Pages) do
+	for _,Info in ipairs(Pages) do
 
-		local Button = Instance.new("TextButton")
+		local Button =
+			Instance.new("TextButton")
 
-		Button.Name = Page.Name
+		Button.Name = Info[1]
 
-		Button.Size = UDim2.new(1,0,0,44)
+		Button.Size =
+			UDim2.new(1,0,0,44)
 
-		Button.BackgroundColor3 = Theme.Card
+		Button.BackgroundColor3 =
+			Theme.Card
 
 		Button.BorderSizePixel = 0
 
-		Button.AutoButtonColor = true
-
-		Button.Font = Theme.FontBold
+		Button.Font =
+			Theme.FontBold
 
 		Button.TextSize = 16
 
-		Button.TextColor3 = Theme.Text
+		Button.TextColor3 =
+			Theme.Text
 
-		Button.TextXAlignment = Enum.TextXAlignment.Left
+		Button.TextXAlignment =
+			Enum.TextXAlignment.Left
 
-		Button.Text = "   "..Page.Icon.."   "..Page.Name
+		Button.Text =
+			"   "..Info[2].."   "..Info[1]
 
 		Button.Parent = Sidebar
 
-		local Corner = Instance.new("UICorner")
+		local Corner =
+			Instance.new("UICorner")
 
-		Corner.CornerRadius = UDim.new(0,12)
+		Corner.CornerRadius =
+			UDim.new(0,12)
 
 		Corner.Parent = Button
 
 		Button.MouseButton1Click:Connect(function()
 
-			self:OpenPage(Page.Name)
+			self:OpenPage(Info[1])
 
 		end)
 
-		self.NavigationButtons[Page.Name] = Button
+		self.NavigationButtons[Info[1]] =
+			Button
 
 	end
 
 end
 
 ----------------------------------------------------------
--- Page Area
+-- Page Container
 ----------------------------------------------------------
 
 function App:CreatePageContainer()
 
-	local Container = Instance.new("Frame")
+	local Container =
+		Instance.new("Frame")
 
 	Container.Name = "Pages"
 
-	Container.Position = UDim2.fromOffset(205,222)
+	Container.Position =
+		UDim2.fromOffset(205,212)
 
-	Container.Size = UDim2.new(1,-220,1,-237)
+	Container.Size =
+		UDim2.new(1,-220,1,-227)
 
 	Container.BackgroundTransparency = 1
 
-	Container.Parent = self.Window
+	Container.Parent =
+		self.Window
 
 	self.PageContainer = Container
 
@@ -665,35 +556,45 @@ end
 
 function App:CreatePage(Name)
 
-	local Page = Instance.new("ScrollingFrame")
+	local Page =
+		Instance.new("ScrollingFrame")
 
 	Page.Name = Name
 
-	Page.Size = UDim2.fromScale(1,1)
-
-	Page.CanvasSize = UDim2.new(0,0,0,0)
-
-	Page.AutomaticCanvasSize = Enum.AutomaticSize.Y
-
-	Page.ScrollBarThickness = 6
+	Page.Size =
+		UDim2.fromScale(1,1)
 
 	Page.BackgroundTransparency = 1
 
 	Page.BorderSizePixel = 0
 
+	Page.ScrollBarThickness = 6
+
+	Page.CanvasSize =
+		UDim2.new(0,0,0,0)
+
+	Page.AutomaticCanvasSize =
+		Enum.AutomaticSize.Y
+
 	Page.Visible = false
 
-	Page.Parent = self.PageContainer
+	Page.Parent =
+		self.PageContainer
 
-	local Padding = Instance.new("UIPadding")
+	local Padding =
+		Instance.new("UIPadding")
 
-	Padding.Top = UDim.new(0,18)
+	Padding.Top =
+		UDim.new(0,18)
 
-	Padding.Bottom = UDim.new(0,18)
+	Padding.Bottom =
+		UDim.new(0,18)
 
-	Padding.Left = UDim.new(0,18)
+	Padding.Left =
+		UDim.new(0,18)
 
-	Padding.Right = UDim.new(0,18)
+	Padding.Right =
+		UDim.new(0,18)
 
 	Padding.Parent = Page
 
@@ -702,8 +603,10 @@ function App:CreatePage(Name)
 	if self.Navigation then
 
 		self.Navigation:Register(
+
 			Name,
 			Page
+
 		)
 
 	end
@@ -721,15 +624,13 @@ function App:OpenPage(Name)
 	if self.Navigation then
 
 		self.Navigation:Open(
+
 			Name,
 			self
+
 		)
 
 	end
-
-	------------------------------------------------------
-	-- Highlight Active Button
-	------------------------------------------------------
 
 	for ButtonName,Button in pairs(self.NavigationButtons) do
 
@@ -761,13 +662,19 @@ end
 
 function App:Build(Loader)
 
+	------------------------------------------------------
+	-- Initialize
+	------------------------------------------------------
+
 	self:Init(Loader)
+
+	------------------------------------------------------
+	-- Build UI
+	------------------------------------------------------
 
 	self:CreateGui()
 
 	self:CreateWindow()
-
-	self:StartResponsiveUpdates()
 
 	self:CreateHeader()
 
@@ -785,43 +692,51 @@ function App:Build(Loader)
 		self:CreatePage("Home")
 
 	Loader.Home:Create(
+
 		Home,
 		self
+
 	)
 
-------------------------------------------------------
--- Players
-------------------------------------------------------
+	------------------------------------------------------
+	-- Players
+	------------------------------------------------------
 
-local Players =
-	self:CreatePage("Players")
+	local Players =
+		self:CreatePage("Players")
 
-Loader.Players:Create(
-	Players,
-	self
-)
+	Loader.Players:Create(
 
-------------------------------------------------------
--- Remaining Pages
-------------------------------------------------------
+		Players,
+		self
 
-self:CreatePage("Guards")
-
-self:CreatePage("Detective")
-
-self:CreatePage("Farming")
-
-self:CreatePage("VIP")
-
-self:CreatePage("Games")
-
-self:CreatePage("Settings")
+	)
 
 	------------------------------------------------------
-	-- Open Home
+	-- Remaining Pages
+	------------------------------------------------------
+
+	self:CreatePage("Guards")
+
+	self:CreatePage("Detective")
+
+	self:CreatePage("Farming")
+
+	self:CreatePage("VIP")
+
+	self:CreatePage("Games")
+
+	self:CreatePage("Settings")
+
+	------------------------------------------------------
+	-- Open Default Page
 	------------------------------------------------------
 
 	self:OpenPage("Home")
+
+	------------------------------------------------------
+	-- Notification
+	------------------------------------------------------
 
 	self.Notifications:Success(
 
