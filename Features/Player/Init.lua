@@ -1,6 +1,7 @@
 --//========================================================--
 --// SquidNoMo
 --// Beta 5.0
+--// Features
 --// Player
 --// Init.lua
 --//========================================================--
@@ -15,7 +16,7 @@ function Player:Initialize(Loader)
 
 	local function Load(Module)
 
-		return loadstring(game:HttpGet(
+		local Feature = loadstring(game:HttpGet(
 
 			Loader.Config.Repository ..
 			"Features/Player/" ..
@@ -24,6 +25,8 @@ function Player:Initialize(Loader)
 
 		))()
 
+		return Feature
+
 	end
 
 	------------------------------------------------------
@@ -31,11 +34,8 @@ function Player:Initialize(Loader)
 	------------------------------------------------------
 
 	self.WalkSpeed = Load("WalkSpeed")
-
 	self.JumpPower = Load("JumpPower")
-
 	self.InfiniteJump = Load("InfiniteJump")
-
 	self.Noclip = Load("Noclip")
 
 	------------------------------------------------------
@@ -43,11 +43,8 @@ function Player:Initialize(Loader)
 	------------------------------------------------------
 
 	self.PlayerESP = Load("PlayerESP")
-
 	self.GuardESP = Load("GuardESP")
-
 	self.DetectiveESP = Load("DetectiveESP")
-
 	self.FrontmanESP = Load("FrontmanESP")
 
 	------------------------------------------------------
@@ -55,17 +52,16 @@ function Player:Initialize(Loader)
 	------------------------------------------------------
 
 	self.AntiAFK = Load("AntiAFK")
-
 	self.AntiLag = Load("AntiLag")
-
 	self.Reset = Load("Reset")
-
 	self.Rejoin = Load("Rejoin")
 
 	return self
 
 end
 
+----------------------------------------------------------
+-- Return
 ----------------------------------------------------------
 
 return Player
