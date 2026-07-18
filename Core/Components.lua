@@ -837,6 +837,72 @@ function Components:CreateDivider(
 
 end
 
+----------------------------------------------------------
+-- Horizontal Container
+----------------------------------------------------------
+
+function Components:CreateHorizontalContainer(Parent)
+
+	local Container = Instance.new("Frame")
+
+	Container.Size = UDim2.new(1,0,0,250)
+	Container.BackgroundTransparency = 1
+	Container.Parent = Parent
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Horizontal
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.VerticalAlignment = Enum.VerticalAlignment.Top
+	Layout.Padding = UDim.new(0,12)
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Parent = Container
+
+	local Resize = function()
+
+		local MaxHeight = 0
+
+		for _,Child in ipairs(Container:GetChildren()) do
+
+			if Child:IsA("GuiObject") then
+
+				MaxHeight = math.max(
+					MaxHeight,
+					Child.AbsoluteSize.Y
+				)
+
+			end
+
+		end
+
+		Container.Size = UDim2.new(
+			1,
+			0,
+			0,
+			MaxHeight
+		)
+
+	end
+
+	Container.ChildAdded:Connect(function()
+
+		task.wait()
+
+		Resize()
+
+	end)
+
+	Container.ChildRemoved:Connect(function()
+
+		task.wait()
+
+		Resize()
+
+	end)
+
+	return Container
+
+end
 
 ----------------------------------------------------------
 -- Return
