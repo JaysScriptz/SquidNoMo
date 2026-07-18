@@ -8,7 +8,6 @@
 -- Services
 ----------------------------------------------------------
 
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 	game:GetService("TweenService")
 
