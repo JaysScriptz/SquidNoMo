@@ -40,11 +40,12 @@ Loader.Notifications = Load("Core/Notifications.lua")
 Loader.App = Load("Core/App.lua")
 Loader.Features = Load("Features/FeatureManager.lua")
 
-----------------------------------------------------------
+-----------------------------------------------------------
 -- Pages
 ----------------------------------------------------------
 
-Loader.Home = Load("Modules/Home.lua")
+Loader.Home    = Load("Modules/Home.lua")
+Loader.Players = Load("Modules/Players.lua")
 
 ----------------------------------------------------------
 -- Launch
