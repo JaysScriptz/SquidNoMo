@@ -1,60 +1,82 @@
 --//========================================================--
 --// SquidNoMo
 --// Beta 5.0
---// Player
---// Init.lua
+--// FeatureManager.lua
 --//========================================================--
 
-local Player = {}
+local FeatureManager = {}
+
+----------------------------------------------------------
+-- Load Helper
+----------------------------------------------------------
+
+local function Load(Loader, Path)
+
+	return loadstring(game:HttpGet(
+
+		Loader.Config.Repository ..
+		Path
+
+	))()
+
+end
 
 ----------------------------------------------------------
 -- Initialize
 ----------------------------------------------------------
 
-function Player:Initialize(Loader)
+function FeatureManager:Initialize(Loader)
 
-	local function Load(Module)
-
-		return loadstring(game:HttpGet(
-
-			Loader.Config.Repository ..
-			"Features/Player/" ..
-			Module ..
-			".lua"
-
-		))()
-
-	end
+	local Features = {}
 
 	------------------------------------------------------
-	-- Enhancements
+	-- Shared
 	------------------------------------------------------
 
-	self.WalkSpeed = Load("WalkSpeed")
-	self.JumpPower = Load("JumpPower")
-	self.InfiniteJump = Load("InfiniteJump")
-	self.Noclip = Load("Noclip")
+	Features.Shared = {}
+
+	Features.Shared.RoleService = Load(
+
+		Loader,
+		"Features/Shared/RoleService.lua"
+
+	)
 
 	------------------------------------------------------
-	-- ESP
+	-- Player
 	------------------------------------------------------
 
-	self.PlayerESP = Load("PlayerESP")
-	self.GuardESP = Load("GuardESP")
-	self.DetectiveESP = Load("DetectiveESP")
-	self.FrontmanESP = Load("FrontmanESP")
+	Features.Player = Load(
+
+		Loader,
+		"Features/Player/Init.lua"
+
+	)
+
+	Features.Player:Initialize(Loader)
 
 	------------------------------------------------------
-	-- Utilities
-	------------------------------------------------------
 
-	self.AntiAFK = Load("AntiAFK")
-	self.AntiLag = Load("AntiLag")
-	self.Reset = Load("Reset")
-	self.Rejoin = Load("Rejoin")
+	self.Features = Features
 
-	return self
+	Loader.Features = Features
+
+	return Features
 
 end
 
-return Player
+----------------------------------------------------------
+-- Get
+----------------------------------------------------------
+
+function FeatureManager:Get()
+
+	return self.Features
+
+end
+
+----------------------------------------------------------
+-- Return
+----------------------------------------------------------
+
+return FeatureManager
