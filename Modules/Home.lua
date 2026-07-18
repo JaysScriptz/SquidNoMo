@@ -1,18 +1,20 @@
-local HeroBanner = require(script.Home.HeroBanner)
-local FeatureGroups = require(script.Home.FeatureGroups)
-local ServerStatus = require(script.Home.ServerStatus)
-local NOMOAI = require(script.Home.NOMOAI)
-local SupportDevelopment = require(script.Home.SupportDevelopment)
-local DevelopmentGoal = require(script.Home.DevelopmentGoal)
-local Supporters = require(script.Home.Supporters)
-local ImportantNotice = require(script.Home.ImportantNotice)
-local Footer = require(script.Home.Footer)
-
 local Home = {}
 
 function Home:Create(Page, App)
 
 	local Components = App.Components
+
+	local Widgets = script:WaitForChild("Home")
+
+	local HeroBanner = require(Widgets.HeroBanner)
+	local FeatureGroups = require(Widgets.FeatureGroups)
+	local ServerStatus = require(Widgets.ServerStatus)
+	local NOMOAI = require(Widgets.NOMOAI)
+	local SupportDevelopment = require(Widgets.SupportDevelopment)
+	local DevelopmentGoal = require(Widgets.DevelopmentGoal)
+	local Supporters = require(Widgets.Supporters)
+	local ImportantNotice = require(Widgets.ImportantNotice)
+	local Footer = require(Widgets.Footer)
 
 	local Layout = Instance.new("UIListLayout")
 	Layout.Padding = UDim.new(0,16)
