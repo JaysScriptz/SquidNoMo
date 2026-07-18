@@ -38,6 +38,7 @@ Loader.Notifications = Load("Core/Notifications.lua")
 ----------------------------------------------------------
 
 Loader.App = Load("Core/App.lua")
+Loader.Features = Load("Features/FeatureManager.lua")
 
 ----------------------------------------------------------
 -- Pages
@@ -49,6 +50,10 @@ Loader.Home = Load("Modules/Home.lua")
 -- Launch
 ----------------------------------------------------------
 
+Loader.Features:Initialize(Loader)
+
 Loader.App:Build(Loader)
+
+
 
 return Loader
