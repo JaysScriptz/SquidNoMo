@@ -26,6 +26,7 @@ end
 ----------------------------------------------------------
 
 local Loader = {}
+Loader.Config = Config
 
 Loader.Theme         = Load("Core/Theme.lua")
 Loader.Components    = Load("Core/Components.lua")
