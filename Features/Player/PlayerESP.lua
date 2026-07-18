@@ -12,22 +12,34 @@ local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
+local RoleService = loadstring(game:HttpGet(
+
+	App.Config.Repository ..
+	"Features/Shared/RoleService.lua"
+
+))()
+
 local Enabled = false
 local Connection
-
 local Highlights = {}
 
 ----------------------------------------------------------
--- Create Highlight
+-- Add Highlight
 ----------------------------------------------------------
 
-local function AddCharacter(Character)
+local function Add(Player)
 
-	if not Character then
+	if Player == LocalPlayer then
 		return
 	end
 
-	if Character == LocalPlayer.Character then
+	if not RoleService:IsPlayer(Player) then
+		return
+	end
+
+	local Character = Player.Character
+
+	if not Character then
 		return
 	end
 
@@ -39,17 +51,15 @@ local function AddCharacter(Character)
 
 	Highlight.Name = "SquidNoMo_PlayerESP"
 
-	Highlight.FillTransparency = 0.5
-
-	Highlight.OutlineTransparency = 0
+	Highlight.Adornee = Character
 
 	Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 
 	Highlight.FillColor = Color3.fromRGB(0,170,255)
 
-	Highlight.OutlineColor = Color3.fromRGB(255,255,255)
+	Highlight.OutlineColor = Color3.new(1,1,1)
 
-	Highlight.Adornee = Character
+	Highlight.FillTransparency = .45
 
 	Highlight.Parent = Character
 
@@ -58,12 +68,12 @@ local function AddCharacter(Character)
 end
 
 ----------------------------------------------------------
--- Remove Highlights
+-- Clear
 ----------------------------------------------------------
 
 local function Clear()
 
-	for Character, Highlight in pairs(Highlights) do
+	for _, Highlight in pairs(Highlights) do
 
 		if Highlight then
 			Highlight:Destroy()
@@ -85,11 +95,7 @@ local function Refresh()
 
 	for _, Player in ipairs(Players:GetPlayers()) do
 
-		if Player ~= LocalPlayer then
-
-			AddCharacter(Player.Character)
-
-		end
+		Add(Player)
 
 	end
 
@@ -140,19 +146,5 @@ function PlayerESP:Disable()
 	Clear()
 
 end
-
-----------------------------------------------------------
--- Status
-----------------------------------------------------------
-
-function PlayerESP:IsEnabled()
-
-	return Enabled
-
-end
-
-----------------------------------------------------------
--- Return
-----------------------------------------------------------
 
 return PlayerESP
