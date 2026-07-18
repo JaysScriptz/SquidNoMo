@@ -4,17 +4,15 @@ function Home:Create(Page, App)
 
 	local Components = App.Components
 
-	local Widgets = script:WaitForChild("Home")
-
-	local HeroBanner = require(Widgets.HeroBanner)
-	local FeatureGroups = require(Widgets.FeatureGroups)
-	local ServerStatus = require(Widgets.ServerStatus)
-	local NOMOAI = require(Widgets.NOMOAI)
-	local SupportDevelopment = require(Widgets.SupportDevelopment)
-	local DevelopmentGoal = require(Widgets.DevelopmentGoal)
-	local Supporters = require(Widgets.Supporters)
-	local ImportantNotice = require(Widgets.ImportantNotice)
-	local Footer = require(Widgets.Footer)
+	local HeroBanner = App.Loader.HeroBanner
+	local FeatureGroups = App.Loader.FeatureGroups
+	local ServerStatus = App.Loader.ServerStatus
+	local NOMOAI = App.Loader.NOMOAI
+	local SupportDevelopment = App.Loader.SupportDevelopment
+	local DevelopmentGoal = App.Loader.DevelopmentGoal
+	local Supporters = App.Loader.Supporters
+	local ImportantNotice = App.Loader.ImportantNotice
+	local Footer = App.Loader.Footer
 
 	local Layout = Instance.new("UIListLayout")
 	Layout.Padding = UDim.new(0,16)
@@ -37,7 +35,6 @@ function Home:Create(Page, App)
 	Supporters:Create(Row2, App)
 
 	ImportantNotice:Create(Page, App)
-
 	Footer:Create(Page, App)
 
 end
