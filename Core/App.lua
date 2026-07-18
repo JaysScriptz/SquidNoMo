@@ -932,8 +932,7 @@ function App:OpenPage(Name)
 
 	for PageName, Page in pairs(self.Pages) do
 
-		Page.Visible =
-			(PageName == Name)
+		Page.Visible = (PageName == Name)
 
 	end
 
@@ -941,16 +940,15 @@ function App:OpenPage(Name)
 
 		if Button.SetSelected then
 
-			Button:SetSelected(
-				PageName == Name
-			)
+			Button:SetSelected(PageName == Name)
 
 		end
 
 	end
 
-	self.CurrentPage =
-		Name
+	self.CurrentPage = Name
+
+	print("[SquidNoMo] Opened Page:", Name)
 
 end
 
@@ -1010,6 +1008,7 @@ function App:BuildPages()
 	self:CreatePage("Settings")
 
 end
+
 ------------------------------------------------------
 -- Home
 ------------------------------------------------------
@@ -1027,9 +1026,9 @@ end
 
 	end
 
-	------------------------------------------------------
-	-- Players
-	------------------------------------------------------
+------------------------------------------------------
+-- Players
+------------------------------------------------------
 
 	local Players =
 		self:CreatePage("Players")
@@ -1044,9 +1043,9 @@ end
 
 	end
 
-	------------------------------------------------------
-	-- Placeholder Pages
-	------------------------------------------------------
+------------------------------------------------------
+-- Placeholder Pages
+------------------------------------------------------
 
 	self:CreatePage("Guards")
 
