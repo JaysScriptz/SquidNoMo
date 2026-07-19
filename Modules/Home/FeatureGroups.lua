@@ -7,7 +7,7 @@ function FeatureGroups:Create(Parent, App)
 
 	local Card = Components:CreateCard(
 		Parent,
-		UDim2.new(.33,-8,0,240)
+		UDim2.new(.33,-8,0,285)
 	)
 
 	local Padding = Instance.new("UIPadding")

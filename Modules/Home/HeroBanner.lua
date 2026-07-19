@@ -7,7 +7,7 @@ function HeroBanner:Create(Parent, App)
 
 	local Card = Components:CreateCard(
 		Parent,
-		UDim2.new(1,0,0,170)
+		UDim2.new(1,0,0,190)
 	)
 
 	Card.LayoutOrder = 1
@@ -43,7 +43,7 @@ function HeroBanner:Create(Parent, App)
 	local Description = Instance.new("TextLabel")
 	Description.BackgroundTransparency = 1
 	Description.Position = UDim2.fromOffset(0,82)
-	Description.Size = UDim2.new(1,-220,0,54)
+	Description.Size = UDim2.new(1,0,0,64)
 	Description.Font = Theme.Font
 	Description.TextWrapped = true
 	Description.TextXAlignment = Enum.TextXAlignment.Left

@@ -14,21 +14,18 @@ function Home:Create(Page, App)
 	local ImportantNotice = App.Loader.ImportantNotice
 	local Footer = App.Loader.Footer
 
-	local Layout = Instance.new("UIListLayout")
-	Layout.Padding = UDim.new(0,16)
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Parent = Page
 
 	HeroBanner:Create(Page, App)
 
 	local Row1 = Components:CreateHorizontalContainer(Page)
+	Row1.LayoutOrder = 2
 
 	FeatureGroups:Create(Row1, App)
 	ServerStatus:Create(Row1, App)
 	NOMOAI:Create(Row1, App)
 
 	local Row2 = Components:CreateHorizontalContainer(Page)
+	Row2.LayoutOrder = 3
 
 	SupportDevelopment:Create(Row2, App)
 	DevelopmentGoal:Create(Row2, App)

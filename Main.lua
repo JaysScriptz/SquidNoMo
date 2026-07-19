@@ -1,23 +1,13 @@
-print("MAIN VERSION 7")
+--// SquidNoMo entry point
 
-local ConfigSource = game:HttpGet(
-    "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Config.lua"
-)
-
-local Config = loadstring(ConfigSource)()
-
-print("CONFIG LOADED")
+print("[SquidNoMo] Starting Beta 5.0")
 
 local LoaderSource = game:HttpGet(
     "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Loader.lua"
 )
 
-print("LOADER DOWNLOADED")
-
 local Loader = loadstring(LoaderSource)()
 
-print("LOADER EXECUTED")
+print("[SquidNoMo] Loader executed")
 
-Loader.Home.Load()
-
-print("HOME FINISHED")
+return Loader

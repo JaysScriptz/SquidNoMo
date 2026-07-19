@@ -16,16 +16,27 @@ Components.Theme = nil
 ----------------------------------------------------------
 
 function Components:Initialize(Theme)
+	assert(Theme, "[Components] Theme is required")
 	self.Theme = Theme
+end
+
+local function IsTheme(Value)
+	return type(Value) == "table"
+		and Value.Card ~= nil
+		and Value.Text ~= nil
 end
 
 ----------------------------------------------------------
 -- Card
 ----------------------------------------------------------
 
-function Components:CreateCard(Parent, Size)
+function Components:CreateCard(Parent, ThemeOrSize, MaybeSize)
 
-	local Theme = self.Theme
+	local Theme = IsTheme(ThemeOrSize) and ThemeOrSize or self.Theme
+	local Size = MaybeSize or ThemeOrSize
+
+	assert(Theme, "[Components] Components:Initialize(theme) was not called")
+	assert(Size, "[Components] CreateCard requires a size")
 
 	local Card = Instance.new("Frame")
 	Card.Size = Size
@@ -49,9 +60,10 @@ end
 -- Section
 ----------------------------------------------------------
 
-function Components:CreateSection(Parent, Title)
+function Components:CreateSection(Parent, ThemeOrTitle, MaybeTitle)
 
-	local Theme = self.Theme
+	local Theme = IsTheme(ThemeOrTitle) and ThemeOrTitle or self.Theme
+	local Title = MaybeTitle or ThemeOrTitle
 
 	local Section = Instance.new("Frame")
 	Section.BackgroundTransparency = 1
@@ -149,16 +161,51 @@ function Components:SidebarButton(Parent, Name, Icon)
 
 	end
 
+	function Button:SetCompact(State)
+		Label.Visible = not State
+		if State then
+			IconLabel.AnchorPoint = Vector2.new(.5,0)
+			IconLabel.Position = UDim2.new(.5,0,0,0)
+		else
+			IconLabel.AnchorPoint = Vector2.new(0,0)
+			IconLabel.Position = UDim2.fromOffset(14,0)
+		end
+	end
+
 	return Button
+end
+
+----------------------------------------------------------
+-- Title
+----------------------------------------------------------
+
+function Components:CreateTitle(Parent, ThemeOrText, MaybeText)
+
+	local Theme = IsTheme(ThemeOrText) and ThemeOrText or self.Theme
+	local Text = MaybeText or ThemeOrText
+
+	local Title = Instance.new("TextLabel")
+	Title.BackgroundTransparency = 1
+	Title.Position = UDim2.fromOffset(20,14)
+	Title.Size = UDim2.new(1,-40,0,28)
+	Title.Font = Theme.FontBlack
+	Title.Text = tostring(Text or "")
+	Title.TextSize = 19
+	Title.TextColor3 = Theme.Text
+	Title.TextXAlignment = Enum.TextXAlignment.Left
+	Title.Parent = Parent
+
+	return Title
 end
 
 ----------------------------------------------------------
 -- Button
 ----------------------------------------------------------
 
-function Components:CreateButton(Parent, Text)
+function Components:CreateButton(Parent, ThemeOrText, MaybeText)
 
-	local Theme = self.Theme
+	local Theme = IsTheme(ThemeOrText) and ThemeOrText or self.Theme
+	local Text = MaybeText or ThemeOrText
 
 	local Button = Instance.new("TextButton")
 
@@ -208,9 +255,10 @@ end
 -- Toggle
 ----------------------------------------------------------
 
-function Components:CreateToggle(Parent, Text)
+function Components:CreateToggle(Parent, ThemeOrText, MaybeText)
 
-	local Theme = self.Theme
+	local Theme = IsTheme(ThemeOrText) and ThemeOrText or self.Theme
+	local Text = MaybeText or ThemeOrText
 
 	local Toggle = {}
 	Toggle.Enabled = false
@@ -349,13 +397,36 @@ function Components:CreateToggle(Parent, Text)
 
 function Components:CreateSlider(
 	Parent,
-	Title,
-	Min,
-	Max,
-	Default
+	ThemeOrTitle,
+	TitleOrMin,
+	MinOrMax,
+	MaxOrDefault,
+	MaybeDefault
 )
 
-	local Theme = self.Theme
+	local Theme
+	local Title
+	local Min
+	local Max
+	local Default
+
+	if IsTheme(ThemeOrTitle) then
+		Theme = ThemeOrTitle
+		Title = TitleOrMin
+		Min = MinOrMax
+		Max = MaxOrDefault
+		Default = MaybeDefault
+	else
+		Theme = self.Theme
+		Title = ThemeOrTitle
+		Min = TitleOrMin
+		Max = MinOrMax
+		Default = MaxOrDefault
+	end
+
+	Min = tonumber(Min) or 0
+	Max = tonumber(Max) or 100
+	Default = tonumber(Default) or Min
 
 	local Slider = {}
 
@@ -554,11 +625,24 @@ end
 
 function Components:CreateDropdown(
 	Parent,
-	Title,
-	Options
+	ThemeOrTitle,
+	TitleOrOptions,
+	MaybeOptions
 )
 
-	local Theme = self.Theme
+	local Theme
+	local Title
+	local Options
+
+	if IsTheme(ThemeOrTitle) then
+		Theme = ThemeOrTitle
+		Title = TitleOrOptions
+		Options = MaybeOptions
+	else
+		Theme = self.Theme
+		Title = ThemeOrTitle
+		Options = TitleOrOptions
+	end
 
 	local Dropdown = {}
 
@@ -665,10 +749,12 @@ function Components:CreateDropdown(
 
 function Components:CreateTextbox(
 	Parent,
-	Placeholder
+	ThemeOrPlaceholder,
+	MaybePlaceholder
 )
 
-	local Theme = self.Theme
+	local Theme = IsTheme(ThemeOrPlaceholder) and ThemeOrPlaceholder or self.Theme
+	local Placeholder = MaybePlaceholder or ThemeOrPlaceholder
 
 	local Box = {}
 
@@ -740,10 +826,12 @@ end
 
 function Components:CreateLabel(
 	Parent,
-	Text
+	ThemeOrText,
+	MaybeText
 )
 
-	local Theme = self.Theme
+	local Theme = IsTheme(ThemeOrText) and ThemeOrText or self.Theme
+	local Text = MaybeText or ThemeOrText
 
 	local Label = Instance.new("TextLabel")
 
@@ -809,10 +897,11 @@ end
 ----------------------------------------------------------
 
 function Components:CreateDivider(
-	Parent
+	Parent,
+	MaybeTheme
 )
 
-	local Theme = self.Theme
+	local Theme = IsTheme(MaybeTheme) and MaybeTheme or self.Theme
 
 	local Divider = Instance.new("Frame")
 
@@ -844,13 +933,11 @@ end
 function Components:CreateHorizontalContainer(Parent)
 
 	local Container = Instance.new("Frame")
-
 	Container.Size = UDim2.new(1,0,0,250)
 	Container.BackgroundTransparency = 1
 	Container.Parent = Parent
 
 	local Layout = Instance.new("UIListLayout")
-
 	Layout.FillDirection = Enum.FillDirection.Horizontal
 	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	Layout.VerticalAlignment = Enum.VerticalAlignment.Top
@@ -858,47 +945,60 @@ function Components:CreateHorizontalContainer(Parent)
 	Layout.SortOrder = Enum.SortOrder.LayoutOrder
 	Layout.Parent = Container
 
-	local Resize = function()
+	local OriginalSizes = {}
 
-		local MaxHeight = 0
-
-		for _,Child in ipairs(Container:GetChildren()) do
-
-			if Child:IsA("GuiObject") then
-
-				MaxHeight = math.max(
-					MaxHeight,
-					Child.AbsoluteSize.Y
-				)
-
-			end
-
-		end
-
-		Container.Size = UDim2.new(
-			1,
-			0,
-			0,
-			MaxHeight
-		)
-
+	local function IsCard(Child)
+		return Child:IsA("GuiObject")
 	end
 
-	Container.ChildAdded:Connect(function()
+	local function Update()
+		local Compact = Container.AbsoluteSize.X > 0
+			and Container.AbsoluteSize.X < 720
 
-		task.wait()
+		Layout.FillDirection = Compact
+			and Enum.FillDirection.Vertical
+			or Enum.FillDirection.Horizontal
 
-		Resize()
+		for _, Child in ipairs(Container:GetChildren()) do
+			if IsCard(Child) then
+				OriginalSizes[Child] = OriginalSizes[Child] or Child.Size
+				local Base = OriginalSizes[Child]
+				if Compact then
+					local Height = Base.Y.Offset > 0 and Base.Y.Offset or math.max(Child.AbsoluteSize.Y, 180)
+					Child.Size = UDim2.new(1,0,0,Height)
+				else
+					Child.Size = Base
+				end
+			end
+		end
 
+		task.defer(function()
+			if Container.Parent then
+				Container.Size = UDim2.new(1,0,0,math.max(Layout.AbsoluteContentSize.Y, 1))
+			end
+		end)
+	end
+
+	Container.ChildAdded:Connect(function(Child)
+		if IsCard(Child) then
+			OriginalSizes[Child] = Child.Size
+		end
+		task.defer(Update)
 	end)
 
-	Container.ChildRemoved:Connect(function()
-
-		task.wait()
-
-		Resize()
-
+	Container.ChildRemoved:Connect(function(Child)
+		OriginalSizes[Child] = nil
+		task.defer(Update)
 	end)
+
+	Container:GetPropertyChangedSignal("AbsoluteSize"):Connect(Update)
+	Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		if Container.Parent then
+			Container.Size = UDim2.new(1,0,0,math.max(Layout.AbsoluteContentSize.Y, 1))
+		end
+	end)
+
+	task.defer(Update)
 
 	return Container
 

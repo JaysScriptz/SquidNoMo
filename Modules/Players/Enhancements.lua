@@ -73,7 +73,7 @@ function Enhancements:Create(Page, App)
 	-- Walk Speed
 	----------------------------------------------------------
 
-	local WalkSpeed =
+	local _, WalkSpeed =
 		Components:CreateSlider(
 
 			Holder,
@@ -101,7 +101,7 @@ function Enhancements:Create(Page, App)
 	-- Jump Power
 	----------------------------------------------------------
 
-	local JumpPower =
+	local _, JumpPower =
 		Components:CreateSlider(
 
 			Holder,

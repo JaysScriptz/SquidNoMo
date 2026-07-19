@@ -7,7 +7,7 @@ function Supporters:Create(Parent, App)
 
 	local Card = Components:CreateCard(
 		Parent,
-		UDim2.new(.34,-8,0,190)
+		UDim2.new(.34,-8,0,210)
 	)
 
 	local Padding = Instance.new("UIPadding")

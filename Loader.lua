@@ -10,14 +10,23 @@ local Config = loadstring(game:HttpGet(
 
 local function Load(Path)
 
-    print("[Loader] "..Path)
+    print("[Loader] " .. Path)
 
-    local Source =
-        game:HttpGet(
-            Config.Repository .. Path
-        )
+    local Url = Config.Repository .. Path
+    local Source = game:HttpGet(Url)
+    local Chunk, CompileError = loadstring(Source)
 
-    return loadstring(Source)()
+    if not Chunk then
+        error(string.format("[Loader] Compile failed for %s: %s", Path, tostring(CompileError)))
+    end
+
+    local Success, Result = pcall(Chunk)
+
+    if not Success then
+        error(string.format("[Loader] Execution failed for %s: %s", Path, tostring(Result)))
+    end
+
+    return Result
 
 end
 
@@ -33,6 +42,13 @@ Loader.Components    = Load("Core/Components.lua")
 Loader.Navigation    = Load("Core/Navigation.lua")
 Loader.Utilities     = Load("Core/Utilities.lua")
 Loader.Notifications = Load("Core/Notifications.lua")
+
+----------------------------------------------------------
+-- Features
+----------------------------------------------------------
+
+Loader.FeatureManager = Load("Features/FeatureManager.lua")
+Loader.Features = {}
 
 ----------------------------------------------------------
 -- App
@@ -66,5 +82,23 @@ Loader.Footer = Load("Modules/Home/Footer.lua")
 ----------------------------------------------------------
 
 Loader.App:Build(Loader)
+
+----------------------------------------------------------
+-- Feature Initialization
+----------------------------------------------------------
+
+local FeaturesLoaded, FeaturesOrError = pcall(function()
+	return Loader.FeatureManager:Initialize(Loader)
+end)
+
+if FeaturesLoaded then
+	Loader.Features = FeaturesOrError
+	Loader.App.Features = FeaturesOrError
+	print("[Loader] Features ready")
+else
+	warn("[Loader] Feature initialization failed:", FeaturesOrError)
+	Loader.Features = {}
+	Loader.App.Features = Loader.Features
+end
 
 return Loader

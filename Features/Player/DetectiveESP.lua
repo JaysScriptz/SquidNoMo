@@ -12,16 +12,21 @@ local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
-local RoleService = loadstring(game:HttpGet(
-
-	App.Config.Repository ..
-	"Features/Shared/RoleService.lua"
-
-))()
+local RoleService
 
 local Enabled = false
 local Connection
 local Highlights = {}
+
+----------------------------------------------------------
+-- Initialize
+----------------------------------------------------------
+
+function DetectiveESP:Initialize(Loader)
+	RoleService = Loader.Features
+		and Loader.Features.Shared
+		and Loader.Features.Shared.RoleService
+end
 
 ----------------------------------------------------------
 -- Add Highlight
@@ -33,7 +38,7 @@ local function Add(Player)
 		return
 	end
 
-	if not RoleService:IsDetective(Player) then
+	if not RoleService or not RoleService:IsDetective(Player) then
 		return
 	end
 

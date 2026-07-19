@@ -7,7 +7,7 @@ function ImportantNotice:Create(Parent, App)
 
 	local Card = Components:CreateCard(
 		Parent,
-		UDim2.new(1,0,0,215)
+		UDim2.new(1,0,0,245)
 	)
 
 	Card.LayoutOrder = 99

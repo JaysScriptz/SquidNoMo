@@ -18,18 +18,6 @@ function PlayersPage:Create(Page, App)
 
 	Page.BackgroundTransparency = 1
 
-	------------------------------------------------------
-	-- Page Layout
-	------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,18)
-
-	Layout.Parent = Page
 
 	------------------------------------------------------
 	-- Banner

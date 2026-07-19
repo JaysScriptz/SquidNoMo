@@ -64,11 +64,11 @@ App.SubNavigationButtons = {}
 
 App.Padding = 24
 
-App.MinWidth = 340
+App.MinWidth = 320
 
 App.MaxWidth = 1280
 
-App.MinHeight = 480
+App.MinHeight = 420
 
 App.MaxHeight = 820
 
@@ -89,6 +89,12 @@ function App:Init(Loader)
 	self.Utilities = Loader.Utilities
 
 	self.Notifications = Loader.Notifications
+	self.Config = Loader.Config
+	self.Features = Loader.Features
+
+	if self.Components and self.Components.Initialize then
+		self.Components:Initialize(self.Theme)
+	end
 
 end
 
@@ -98,8 +104,10 @@ end
 
 function App:CreateGui()
 
+	local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
 	local Existing =
-		LocalPlayer.PlayerGui:FindFirstChild(
+		PlayerGui:FindFirstChild(
 			"SquidNoMo"
 		)
 
@@ -123,7 +131,7 @@ function App:CreateGui()
 		Enum.ZIndexBehavior.Sibling
 
 	Gui.Parent =
-		LocalPlayer.PlayerGui
+		PlayerGui
 
 	self.Gui = Gui
 
@@ -159,27 +167,18 @@ function App:GetWindowSize()
 	local Viewport =
 		Camera.ViewportSize
 
-	local Width =
-		math.clamp(
+	local AvailableWidth = math.max(240, Viewport.X - 16)
+	local AvailableHeight = math.max(320, Viewport.Y - 16)
 
-			Viewport.X - (self.Padding * 2),
+	local Width = math.min(
+		self.MaxWidth,
+		math.max(self.MinWidth, AvailableWidth)
+	)
 
-			self.MinWidth,
-
-			self.MaxWidth
-
-		)
-
-	local Height =
-		math.clamp(
-
-			Viewport.Y - (self.Padding * 3),
-
-			self.MinHeight,
-
-			self.MaxHeight
-
-		)
+	local Height = math.min(
+		self.MaxHeight,
+		math.max(self.MinHeight, AvailableHeight)
+	)
 
 	return Width,Height
 
@@ -206,6 +205,10 @@ function App:UpdateWindow()
 			Height
 
 		)
+
+	task.defer(function()
+		self:UpdateLayout()
+	end)
 
 end
 
@@ -287,6 +290,38 @@ function App:CreateWindow()
 
 		)
 
+	end
+
+end
+
+----------------------------------------------------------
+-- Responsive Layout
+----------------------------------------------------------
+
+function App:UpdateLayout()
+
+	if not self.Window then
+		return
+	end
+
+	local Width = self.Window.AbsoluteSize.X
+	local Compact = Width > 0 and Width < 760
+	local SidebarWidth = Compact and 76 or 220
+
+	if self.Sidebar then
+		self.Sidebar.Size = UDim2.new(0,SidebarWidth,1,-256)
+	end
+
+	if self.PageContainer then
+		local Left = 18 + SidebarWidth + 18
+		self.PageContainer.Position = UDim2.fromOffset(Left,238)
+		self.PageContainer.Size = UDim2.new(1,-(Left + 18),1,-256)
+	end
+
+	for _, Button in pairs(self.NavigationButtons) do
+		if Button.SetCompact then
+			Button:SetCompact(Compact)
+		end
 	end
 
 end
@@ -613,7 +648,7 @@ function App:CreateSidebar()
 		self.Theme
 
 	local Sidebar =
-		Instance.new("Frame")
+		Instance.new("ScrollingFrame")
 
 	Sidebar.Name =
 		"Sidebar"
@@ -622,13 +657,16 @@ function App:CreateSidebar()
 		UDim2.fromOffset(18,238)
 
 	Sidebar.Size =
-		UDim2.fromOffset(220,
-			self.Window.AbsoluteSize.Y - 256)
+		UDim2.new(0,220,1,-256)
 
 	Sidebar.BackgroundColor3 =
 		Theme.Card
 
 	Sidebar.BorderSizePixel = 0
+	Sidebar.CanvasSize = UDim2.new(0,0,0,0)
+	Sidebar.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	Sidebar.ScrollBarThickness = 3
+	Sidebar.ScrollBarImageColor3 = Theme.Accent
 
 	Sidebar.Parent =
 		self.Window
@@ -1009,58 +1047,6 @@ function App:BuildPages()
 
 end
 
-------------------------------------------------------
--- Home
-------------------------------------------------------
-
-	local Home =
-		self:CreatePage("Home")
-
-	if self.Loader.Home
-	and self.Loader.Home.Create then
-
-		self.Loader.Home:Create(
-			Home,
-			self
-		)
-
-	end
-
-------------------------------------------------------
--- Players
-------------------------------------------------------
-
-	local Players =
-		self:CreatePage("Players")
-
-	if self.Loader.Players
-	and self.Loader.Players.Create then
-
-		self.Loader.Players:Create(
-			Players,
-			self
-		)
-
-	end
-
-------------------------------------------------------
--- Placeholder Pages
-------------------------------------------------------
-
-	self:CreatePage("Guards")
-
-	self:CreatePage("Detective")
-
-	self:CreatePage("Farming")
-
-	self:CreatePage("Games")
-
-	self:CreatePage("VIP")
-
-	self:CreatePage("Settings")
-
-end
-
 ----------------------------------------------------------
 -- Finish Build
 ----------------------------------------------------------
@@ -1073,6 +1059,7 @@ function App:FinishBuild()
 
 	self:OpenPage("Home")
 
+	self:UpdateLayout()
 	self:StartResponsive()
 
 end

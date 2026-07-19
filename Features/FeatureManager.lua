@@ -42,6 +42,9 @@ function FeatureManager:Initialize(Loader)
 
 	)
 
+	-- Expose shared dependencies before player modules initialize.
+	Loader.Features = Features
+
 	------------------------------------------------------
 	-- Player
 	------------------------------------------------------
