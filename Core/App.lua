@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.5.4"
+App.Version = "v0.5.5"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -137,7 +137,7 @@ App.Config = {
     AllowPartialOffscreenDrag = true,
     DragVisiblePixels = 170,
     ForceMobile = false,
-    AssetVersion = "v0.5.4",
+    AssetVersion = "v0.5.5",
     RespectGuiInset = false,
     ShowHomeFooter = false,
 
@@ -2719,7 +2719,7 @@ function App:CreateFeatureCategoryCard(parent, categoryKey, title, description, 
     button.ZIndex = 1015
     button.Parent = card
 
-    local glyph = self:CreateText(card, categoryKey == "Safe" and "◇" or (categoryKey == "SemiSafe" and "◈" or "△"), UDim2.fromOffset(phone and 38 or 44, height - 16), UDim2.fromOffset(phone and 12 or 16, 8), {
+    local glyph = self:CreateText(card, categoryKey == "Safe" and "✓" or (categoryKey == "SemiSafe" and "!" or "X"), UDim2.fromOffset(phone and 38 or 44, height - 16), UDim2.fromOffset(phone and 12 or 16, 8), {
         Font = Enum.Font.GothamBlack,
         TextSize = phone and 27 or 31,
         Color = color,
@@ -2957,6 +2957,26 @@ function App:BuildFeatureStats(parent)
     self:RefreshFeatureDashboard()
 end
 
+function App:CreateEqualTwoColumnRow(parent, height, layoutOrder)
+    local row = Instance.new("Frame")
+    row.Name = "TwoColumnStatsRow"
+    row.Size = UDim2.new(1, 0, 0, height or 170)
+    row.BackgroundTransparency = 1
+    row.BorderSizePixel = 0
+    row.LayoutOrder = layoutOrder or 1
+    row.Parent = parent
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 12)
+    layout.Parent = row
+
+    return row
+end
+
 function App:CreateThreeColumnRow(parent, height, layoutOrder)
     local row = Instance.new("Frame")
     row.Name = "StatsRow"
@@ -2980,7 +3000,7 @@ end
 function App:CreateCompactMetric(parent, position, widthScale, labelText, valueText, valueColor)
     local frame = Instance.new("Frame")
     frame.Position = position
-    frame.Size = UDim2.new(widthScale, -15, 0, self.DeviceClass == "Phone" and 76 or 90)
+    frame.Size = UDim2.new(widthScale, -18, 0, self.DeviceClass == "Phone" and 76 or 90)
     frame.BackgroundColor3 = self.Colors.CardAlt
     frame.BackgroundTransparency = 0.34
     frame.BorderSizePixel = 0
@@ -3009,10 +3029,10 @@ end
 
 function App:BuildBottomStatsRow(parent)
     local rowHeight = self.Profile.BottomStatsHeight
-    local row = self:CreateThreeColumnRow(parent, rowHeight, 3)
+    local row = self:CreateEqualTwoColumnRow(parent, rowHeight, 3)
     local phone = self.DeviceClass == "Phone"
 
-    local left = self:CreateCard(row, UDim2.new(0.5, -6, 1, 0), {
+    local left = self:CreateCard(row, UDim2.new(0.5, -8, 1, 0), {
         Color = Color3.fromRGB(13, 10, 18),
         BorderColor = self.Colors.Border,
         BorderTransparency = 0.14,
@@ -3020,7 +3040,7 @@ function App:BuildBottomStatsRow(parent)
     })
     left.LayoutOrder = 1
 
-    local right = self:CreateCard(row, UDim2.new(0.5, -6, 1, 0), {
+    local right = self:CreateCard(row, UDim2.new(0.5, -8, 1, 0), {
         Color = Color3.fromRGB(13, 10, 18),
         BorderColor = self.Colors.Border,
         BorderTransparency = 0.14,
