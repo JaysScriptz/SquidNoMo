@@ -74,16 +74,6 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 ----------------------------------------------------------
--- Current Value (dashboard state)
-----------------------------------------------------------
-
-function JumpPower:Get()
-
-	return CurrentJumpPower
-
-end
-
-----------------------------------------------------------
 -- Return
 ----------------------------------------------------------
 
