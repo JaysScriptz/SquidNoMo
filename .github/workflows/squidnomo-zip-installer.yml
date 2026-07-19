@@ -1,0 +1,259 @@
+name: Install SquidNoMo ZIP
+
+on:
+  push:
+    paths:
+      - "**/*SquidNoMo*.zip"
+      - "**/*squidnomo*.zip"
+  workflow_dispatch:
+    inputs:
+      zip_path:
+        description: "Optional repository-relative path to a SquidNoMo ZIP"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: squidnomo-zip-installer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  install:
+    name: Extract, verify, delete ZIP, and commit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install SquidNoMo package
+        env:
+          REQUESTED_ZIP: ${{ inputs.zip_path }}
+        run: |
+          python3 <<'PY'
+          from __future__ import annotations
+
+          import os
+          import shutil
+          import stat
+          import subprocess
+          import tempfile
+          import zipfile
+          from pathlib import Path, PurePosixPath
+
+          root = Path(os.environ["GITHUB_WORKSPACE"]).resolve()
+          requested = os.environ.get("REQUESTED_ZIP", "").strip()
+
+          def changed_files() -> list[Path]:
+              try:
+                  output = subprocess.check_output(
+                      ["git", "show", "--pretty=", "--name-only", "HEAD"],
+                      cwd=root,
+                      text=True,
+                  )
+              except Exception:
+                  return []
+
+              results: list[Path] = []
+              for line in output.splitlines():
+                  line = line.strip()
+                  if line:
+                      results.append((root / line).resolve())
+              return results
+
+          def is_squid_zip(path: Path) -> bool:
+              return (
+                  path.is_file()
+                  and path.suffix.lower() == ".zip"
+                  and "squidnomo" in path.name.lower()
+                  and ".git" not in path.parts
+              )
+
+          if requested:
+              selected_zip = (root / requested).resolve()
+              if root != selected_zip and root not in selected_zip.parents:
+                  raise RuntimeError("The requested ZIP path escapes the repository.")
+              if not is_squid_zip(selected_zip):
+                  raise RuntimeError(
+                      f"Requested file is missing or is not a SquidNoMo ZIP: {requested}"
+                  )
+          else:
+              changed = [path for path in changed_files() if is_squid_zip(path)]
+
+              if changed:
+                  selected_zip = sorted(changed, key=lambda p: p.as_posix())[-1]
+              else:
+                  candidates = [
+                      path.resolve()
+                      for path in root.rglob("*.zip")
+                      if is_squid_zip(path.resolve())
+                  ]
+
+                  if not candidates:
+                      raise RuntimeError(
+                          "No SquidNoMo ZIP was found. Upload a file whose name "
+                          "contains 'SquidNoMo' and ends in .zip."
+                      )
+
+                  selected_zip = max(
+                      candidates,
+                      key=lambda path: (path.stat().st_mtime_ns, path.as_posix()),
+                  )
+
+          print(f"Selected ZIP: {selected_zip.relative_to(root)}")
+
+          temp = Path(tempfile.mkdtemp(prefix="squidnomo-install-"))
+
+          def reject_unsafe_member(info: zipfile.ZipInfo) -> None:
+              raw_name = info.filename.replace("\\", "/")
+              member_path = PurePosixPath(raw_name)
+
+              if member_path.is_absolute() or ".." in member_path.parts:
+                  raise RuntimeError(f"Unsafe path inside ZIP: {info.filename}")
+
+              unix_mode = info.external_attr >> 16
+              if stat.S_ISLNK(unix_mode):
+                  raise RuntimeError(f"Symbolic links are not allowed: {info.filename}")
+
+              destination = (temp / Path(*member_path.parts)).resolve()
+              if destination != temp and temp not in destination.parents:
+                  raise RuntimeError(f"Unsafe extraction target: {info.filename}")
+
+          try:
+              with zipfile.ZipFile(selected_zip, "r") as archive:
+                  bad_file = archive.testzip()
+                  if bad_file:
+                      raise RuntimeError(f"Corrupt ZIP entry detected: {bad_file}")
+
+                  for info in archive.infolist():
+                      reject_unsafe_member(info)
+
+                  archive.extractall(temp)
+
+              project_roots: list[Path] = []
+
+              possible_dirs = [temp]
+              possible_dirs.extend(path for path in temp.rglob("*") if path.is_dir())
+
+              for directory in possible_dirs:
+                  if (
+                      (directory / "Core" / "App.lua").is_file()
+                      and (directory / "Loader.lua").is_file()
+                  ):
+                      project_roots.append(directory)
+
+              if not project_roots:
+                  raise RuntimeError(
+                      "The ZIP does not contain a valid SquidNoMo project. "
+                      "Expected Core/App.lua and Loader.lua."
+                  )
+
+              source = min(
+                  project_roots,
+                  key=lambda path: (len(path.relative_to(temp).parts), path.as_posix()),
+              )
+
+              print(f"Project root inside ZIP: {source.relative_to(temp)}")
+
+              excluded_top_level = {
+                  ".git",
+                  ".github",
+              }
+
+              copied_files = 0
+
+              for item in source.iterdir():
+                  if item.name in excluded_top_level:
+                      continue
+
+                  destination = root / item.name
+
+                  if item.is_dir():
+                      if destination.exists() and not destination.is_dir():
+                          destination.unlink()
+
+                      shutil.copytree(
+                          item,
+                          destination,
+                          dirs_exist_ok=True,
+                          copy_function=shutil.copy2,
+                      )
+                      copied_files += sum(
+                          1 for child in item.rglob("*") if child.is_file()
+                      )
+                  else:
+                      if destination.exists() and destination.is_dir():
+                          shutil.rmtree(destination)
+
+                      shutil.copy2(item, destination)
+                      copied_files += 1
+
+              required_files = [
+                  "Core/App.lua",
+                  "Loader.lua",
+                  "Images/SquidNoMoLogo.png",
+                  "Images/BannerGuards.png",
+                  "Images/CashAppQR.png",
+                  "Images/PayPalQR.png",
+                  "Images/TabIcons/Home.png",
+                  "Images/TabIcons/Games.png",
+                  "Images/TabIcons/Players.png",
+                  "Images/TabIcons/Guards.png",
+                  "Images/TabIcons/Detective.png",
+                  "Images/TabIcons/Farming.png",
+                  "Images/TabIcons/UI.png",
+                  "Images/TabIcons/Settings.png",
+              ]
+
+              missing = [
+                  relative
+                  for relative in required_files
+                  if not (root / relative).is_file()
+              ]
+
+              if missing:
+                  raise RuntimeError(
+                      "Installation finished copying, but required files are missing:\n- "
+                      + "\n- ".join(missing)
+                  )
+
+              selected_zip.unlink()
+
+              print(f"Installed {copied_files} files.")
+              print("Verified all required Lua and image assets.")
+              print("Deleted the uploaded ZIP after successful verification.")
+
+              summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+              if summary_path:
+                  with open(summary_path, "a", encoding="utf-8") as summary:
+                      summary.write("## SquidNoMo ZIP installation complete\n\n")
+                      summary.write(f"- Installed files: **{copied_files}**\n")
+                      summary.write("- Required Lua files: **verified**\n")
+                      summary.write("- Linked image assets: **verified**\n")
+                      summary.write("- Uploaded ZIP: **deleted**\n")
+
+          finally:
+              shutil.rmtree(temp, ignore_errors=True)
+          PY
+
+      - name: Commit installed project
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "SquidNoMo Installer"
+          git config user.email "actions@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No repository changes were produced."
+            exit 0
+          fi
+
+          git commit -m "Install SquidNoMo package [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
