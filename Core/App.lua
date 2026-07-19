@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.5.5"
+App.Version = "v0.5.6-beta"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -135,9 +135,12 @@ App.Config = {
     DisplayOrder = 999999,
     WindowEdgePadding = 6,
     AllowPartialOffscreenDrag = true,
-    DragVisiblePixels = 170,
+    DragVisiblePixels = 48,
+    FreeRoamAutoMinimizeVisibleRatio = 0.28,
+    FreeRoamMinimumTitleWidth = 120,
+    FreeRoamMinimumTitleHeight = 18,
     ForceMobile = false,
-    AssetVersion = "v0.5.5",
+    AssetVersion = "v0.5.6-beta",
     RespectGuiInset = false,
     ShowHomeFooter = false,
 
@@ -198,6 +201,17 @@ App.Colors = {
     Black = Color3.fromRGB(0, 0, 0),
 }
 
+App.PageAccents = {
+    Home = Color3.fromRGB(255, 58, 145),
+    Games = Color3.fromRGB(0, 205, 255),
+    Players = Color3.fromRGB(166, 92, 255),
+    Guards = Color3.fromRGB(255, 63, 86),
+    Detective = Color3.fromRGB(50, 138, 255),
+    Farming = Color3.fromRGB(45, 232, 98),
+    UI = Color3.fromRGB(232, 67, 255),
+    Settings = Color3.fromRGB(255, 196, 64),
+}
+
 ----------------------------------------------------------
 -- Runtime state
 ----------------------------------------------------------
@@ -242,6 +256,11 @@ App.CurrentSafeSize = App.CurrentDesignSize
 App.HasBeenDragged = false
 App.IsMinimized = false
 App.IsMaximized = false
+App.IsFullScreen = false
+App.FreeRoamEnabled = false
+App.LastSafePosition = nil
+App.MinimizedByFreeRoam = false
+App.WindowSettingsWidgets = {}
 App.DetectionStatus = "UNKNOWN"
 App.DetectionDetail = "No status signal has been reported."
 App.AppStatus = "STARTING"
@@ -319,6 +338,58 @@ function App:Tween(instance, properties, duration)
     return tween
 end
 
+function App:GetPageAccent(pageName)
+    return self.PageAccents[pageName] or self.Colors.Accent
+end
+
+function App:PulseGlow(guiObject, color)
+    if not guiObject or not guiObject.Parent then
+        return
+    end
+
+    local pulse = Instance.new("Frame")
+    pulse.Name = "ClickGlow"
+    pulse.AnchorPoint = Vector2.new(0.5, 0.5)
+    pulse.Position = UDim2.fromScale(0.5, 0.5)
+    pulse.Size = UDim2.new(1, 2, 1, 2)
+    pulse.BackgroundTransparency = 1
+    pulse.BorderSizePixel = 0
+    pulse.ZIndex = math.max(1, guiObject.ZIndex - 1)
+    pulse.Parent = guiObject
+    makeCorner(pulse, 12)
+
+    local stroke = makeStroke(pulse, color or self.Colors.Accent, 3, 0.10)
+    self:Tween(pulse, {Size = UDim2.new(1, 18, 1, 18)}, 0.22)
+    self:Tween(stroke, {Transparency = 1, Thickness = 1}, 0.22)
+
+    task.delay(0.24, function()
+        if pulse then
+            pcall(function()
+                pulse:Destroy()
+            end)
+        end
+    end)
+end
+
+function App:BindButtonFeedback(button, color)
+    if not button or button:GetAttribute("SquidNoMoFeedback") then
+        return
+    end
+
+    button:SetAttribute("SquidNoMoFeedback", true)
+
+    self:Track(button.MouseButton1Down:Connect(function()
+        self:PulseGlow(button, color or self.Colors.Accent)
+        self:Tween(button, {BackgroundTransparency = math.min(0.18, button.BackgroundTransparency + 0.08)}, 0.08)
+    end))
+
+    self:Track(button.MouseButton1Up:Connect(function()
+        if button and button.Parent then
+            self:Tween(button, {BackgroundTransparency = 0}, 0.12)
+        end
+    end))
+end
+
 function App:SafeCall(label, callback)
     local ok, result = xpcall(callback, function(message)
         return debug.traceback(tostring(message), 2)
@@ -365,6 +436,9 @@ function App:GetOrCreateSession()
             UserClosed = false,
             DetectionStatus = "UNKNOWN",
             DetectionDetail = "No status signal has been reported.",
+            FreeRoamEnabled = false,
+            FullScreenEnabled = false,
+            LastSafePosition = nil,
         }
         environment.__SquidNoMoSession = session
     end
@@ -518,6 +592,10 @@ function App:Init(loader)
     self.TermsAccepted = self.Session.TermsAccepted == true
     self.DetectionStatus = self.Session.DetectionStatus or "UNKNOWN"
     self.DetectionDetail = self.Session.DetectionDetail or "No status signal has been reported."
+    self.FreeRoamEnabled = self.Session.FreeRoamEnabled == true
+    self.IsFullScreen = self.Session.FullScreenEnabled == true
+    self.LastSafePosition = self.Session.LastSafePosition
+    self.MinimizedByFreeRoam = false
     self.AppStatus = "STARTING"
 
     self:ApplyDeviceProfile()
@@ -745,15 +823,26 @@ end
 function App:CalculateScale()
     local viewport = self:GetViewportSize()
     local safePosition, safeSize = self:GetSafeRect()
-    local designSize = self:GetDesignSize(viewport)
+    local baseDesignSize = self:GetDesignSize(viewport)
+
+    if self.IsFullScreen then
+        local scale = viewport.Y / baseDesignSize.Y
+        local dynamicWidth = viewport.X / scale
+        local designSize = Vector2.new(dynamicWidth, baseDesignSize.Y)
+
+        if dynamicWidth < baseDesignSize.X then
+            scale = viewport.X / baseDesignSize.X
+            designSize = Vector2.new(baseDesignSize.X, viewport.Y / scale)
+        end
+
+        return scale, Vector2.new(0, 0), viewport, viewport, designSize
+    end
 
     local targetPosition = safePosition
     local targetSize = safeSize
     local fill = self.Profile.RestoreFill
 
     if self.IsMaximized then
-        -- Full expansion always touches the top and bottom of the viewport.
-        -- Width still uses aspect-ratio fitting so the interface never stretches.
         targetPosition = Vector2.new(0, 0)
         targetSize = viewport
         fill = 1
@@ -762,42 +851,33 @@ function App:CalculateScale()
     local targetWidth = targetSize.X * fill
     local targetHeight = targetSize.Y * fill
     local fitScale = math.min(
-        targetWidth / designSize.X,
-        targetHeight / designSize.Y
+        targetWidth / baseDesignSize.X,
+        targetHeight / baseDesignSize.Y
     )
 
     local scale = math.min(fitScale, self.Config.MaximumScale)
     scale = math.max(scale, math.min(self.Config.MinimumScale, fitScale))
 
     local visualSize = Vector2.new(
-        math.max(1, math.floor(designSize.X * scale)),
-        math.max(1, math.floor(designSize.Y * scale))
+        math.max(1, math.floor(baseDesignSize.X * scale)),
+        math.max(1, math.floor(baseDesignSize.Y * scale))
     )
 
-    -- Eliminate rounding gaps at the top or bottom in maximized mode.
     if self.IsMaximized then
+        scale = viewport.Y / baseDesignSize.Y
         visualSize = Vector2.new(
-            visualSize.X,
+            math.floor(baseDesignSize.X * scale),
             viewport.Y
         )
-        scale = viewport.Y / designSize.Y
     end
 
-    return scale, targetPosition, targetSize, visualSize, designSize
+    return scale, targetPosition, targetSize, visualSize, baseDesignSize
 end
 
-function App:ClampHostPosition(position)
+function App:GetBoundedHostPosition(position)
     local viewport = self:GetViewportSize()
     local visualSize = self.CurrentVisualSize
     local padding = self.Config.WindowEdgePadding or 4
-
-    if self.IsMaximized then
-        local maxX = math.max(0, viewport.X - visualSize.X)
-        return Vector2.new(
-            math.clamp(position.X, 0, maxX),
-            0
-        )
-    end
 
     local minX = padding
     local minY = padding
@@ -807,6 +887,103 @@ function App:ClampHostPosition(position)
     return Vector2.new(
         math.clamp(position.X, minX, maxX),
         math.clamp(position.Y, minY, maxY)
+    )
+end
+
+function App:IsPositionFullyUsable(position)
+    local viewport = self:GetViewportSize()
+    local visualSize = self.CurrentVisualSize
+    local padding = self.Config.WindowEdgePadding or 4
+
+    return position.X >= padding
+        and position.Y >= padding
+        and position.X + visualSize.X <= viewport.X - padding
+        and position.Y + visualSize.Y <= viewport.Y - padding
+end
+
+function App:SaveLastSafePosition(position)
+    if not position or self.IsFullScreen or self.IsMaximized then
+        return
+    end
+
+    local safe = self:GetBoundedHostPosition(position)
+    self.LastSafePosition = safe
+
+    if self.Session then
+        self.Session.LastSafePosition = safe
+    end
+end
+
+function App:GetRecoveryPosition()
+    if typeof(self.LastSafePosition) == "Vector2" then
+        return self:GetBoundedHostPosition(self.LastSafePosition)
+    end
+
+    local viewport = self:GetViewportSize()
+    local visualSize = self.CurrentVisualSize
+    return self:GetBoundedHostPosition(Vector2.new(
+        (viewport.X - visualSize.X) / 2,
+        (viewport.Y - visualSize.Y) / 2
+    ))
+end
+
+function App:GetVisibleWindowRatio(position)
+    local viewport = self:GetViewportSize()
+    local visualSize = self.CurrentVisualSize
+
+    local left = math.max(0, position.X)
+    local top = math.max(0, position.Y)
+    local right = math.min(viewport.X, position.X + visualSize.X)
+    local bottom = math.min(viewport.Y, position.Y + visualSize.Y)
+    local width = math.max(0, right - left)
+    local height = math.max(0, bottom - top)
+    local totalArea = math.max(1, visualSize.X * visualSize.Y)
+
+    return (width * height) / totalArea
+end
+
+function App:ShouldAutoMinimizeFreeRoam(position)
+    if not self.FreeRoamEnabled or self.IsFullScreen or self.IsMaximized then
+        return false
+    end
+
+    local viewport = self:GetViewportSize()
+    local visualSize = self.CurrentVisualSize
+    local titleHeight = math.max(1, self.Config.TopbarHeight * self.CurrentScale)
+
+    local titleLeft = math.max(0, position.X)
+    local titleTop = math.max(0, position.Y)
+    local titleRight = math.min(viewport.X, position.X + visualSize.X)
+    local titleBottom = math.min(viewport.Y, position.Y + titleHeight)
+    local visibleTitleWidth = math.max(0, titleRight - titleLeft)
+    local visibleTitleHeight = math.max(0, titleBottom - titleTop)
+
+    return self:GetVisibleWindowRatio(position) < self.Config.FreeRoamAutoMinimizeVisibleRatio
+        or visibleTitleWidth < self.Config.FreeRoamMinimumTitleWidth
+        or visibleTitleHeight < self.Config.FreeRoamMinimumTitleHeight
+end
+
+function App:ClampHostPosition(position)
+    local viewport = self:GetViewportSize()
+    local visualSize = self.CurrentVisualSize
+
+    if self.IsFullScreen then
+        return Vector2.new(0, 0)
+    end
+
+    if self.IsMaximized then
+        local maxX = math.max(0, viewport.X - visualSize.X)
+        return Vector2.new(math.clamp(position.X, 0, maxX), 0)
+    end
+
+    if not self.FreeRoamEnabled then
+        return self:GetBoundedHostPosition(position)
+    end
+
+    local visible = self.Config.DragVisiblePixels or 48
+    return Vector2.new(
+        math.clamp(position.X, -visualSize.X + visible, viewport.X - visible),
+        math.clamp(position.Y, -visualSize.Y + visible, viewport.Y - visible)
     )
 end
 
@@ -841,7 +1018,9 @@ function App:UpdateResponsive(forceCenter)
 
     local targetPosition
 
-    if self.IsMaximized then
+    if self.IsFullScreen then
+        targetPosition = Vector2.new(0, 0)
+    elseif self.IsMaximized then
         targetPosition = Vector2.new(
             (viewport.X - visualSize.X) / 2,
             0
@@ -860,6 +1039,10 @@ function App:UpdateResponsive(forceCenter)
 
     targetPosition = self:ClampHostPosition(targetPosition)
     self.Host.Position = UDim2.fromOffset(targetPosition.X, targetPosition.Y)
+
+    if self:IsPositionFullyUsable(targetPosition) then
+        self:SaveLastSafePosition(targetPosition)
+    end
 
     if self.ReopenButton and self.ReopenButton.Visible then
         self:PositionReopenButton(false)
@@ -985,30 +1168,43 @@ function App:CreateTopbar()
 
     local moveHandle = Instance.new("TextButton")
     moveHandle.Name = "MoveHandle"
-    moveHandle.Position = UDim2.fromOffset(10, 5)
-    moveHandle.Size = UDim2.new(1, -(minimizeOffset + buttonSize + 18), 1, -10)
-    moveHandle.BackgroundColor3 = self.Colors.CardAlt
-    moveHandle.BackgroundTransparency = 0.56
+    moveHandle.Position = UDim2.fromOffset(8, 4)
+    moveHandle.Size = UDim2.new(1, -(minimizeOffset + buttonSize + 16), 1, -8)
+    moveHandle.BackgroundTransparency = 1
     moveHandle.BorderSizePixel = 0
     moveHandle.AutoButtonColor = false
-    moveHandle.Font = Enum.Font.GothamBold
-    moveHandle.Text = "Tip: to move the app tap here and move"
-    moveHandle.TextSize = mobile and 12 or 11
-    moveHandle.TextColor3 = self.Colors.Muted
-    moveHandle.TextXAlignment = Enum.TextXAlignment.Left
-    moveHandle.TextTruncate = Enum.TextTruncate.AtEnd
+    moveHandle.Text = ""
     moveHandle.ZIndex = 1022
     moveHandle.Parent = topbar
-    makeCorner(moveHandle, 9)
 
-    local movePadding = Instance.new("UIPadding")
-    movePadding.PaddingLeft = UDim.new(0, 12)
-    movePadding.Parent = moveHandle
+    local grip = Instance.new("Frame")
+    grip.Name = "DragGrip"
+    grip.AnchorPoint = Vector2.new(0.5, 0.5)
+    grip.Position = UDim2.fromScale(0.5, 0.5)
+    grip.Size = UDim2.fromOffset(30, 16)
+    grip.BackgroundTransparency = 1
+    grip.BorderSizePixel = 0
+    grip.ZIndex = 1023
+    grip.Parent = moveHandle
+
+    for row = 0, 1 do
+        for column = 0, 2 do
+            local dot = Instance.new("Frame")
+            dot.Position = UDim2.fromOffset(5 + (column * 9), 3 + (row * 9))
+            dot.Size = UDim2.fromOffset(4, 4)
+            dot.BackgroundColor3 = self.Colors.Muted
+            dot.BackgroundTransparency = 0.22
+            dot.BorderSizePixel = 0
+            dot.ZIndex = 1024
+            dot.Parent = grip
+            makeCorner(dot, 999)
+        end
+    end
 
     self:EnableDragging(moveHandle)
 
     local minimize = self:CreateTopbarButton(topbar, "Minimize", "—", minimizeOffset, self.Colors.Minimize)
-    local maximize = self:CreateTopbarButton(topbar, "MaximizeRestore", self.IsMaximized and "❐" or "□", maximizeOffset, self.Colors.Maximize)
+    local maximize = self:CreateTopbarButton(topbar, "MaximizeRestore", (self.IsMaximized or self.IsFullScreen) and "❐" or "□", maximizeOffset, self.Colors.Maximize)
     local close = self:CreateTopbarButton(topbar, "Close", "×", closeOffset, self.Colors.Close)
 
     minimize.MouseButton1Click:Connect(function()
@@ -1016,8 +1212,11 @@ function App:CreateTopbar()
     end)
 
     maximize.MouseButton1Click:Connect(function()
-        self:SetMaximized(not self.IsMaximized)
-        maximize.Text = self.IsMaximized and "❐" or "□"
+        if self.IsFullScreen then
+            self:SetFullScreen(false)
+        else
+            self:SetMaximized(not self.IsMaximized)
+        end
     end)
 
     close.MouseButton1Click:Connect(function()
@@ -1026,6 +1225,7 @@ function App:CreateTopbar()
 
     self.Topbar = topbar
     self.MaximizeButton = maximize
+    self:RefreshWindowModeControls()
 end
 
 function App:CreateTopbarButton(parent, name, textValue, rightOffset, baseColor)
@@ -1058,6 +1258,7 @@ function App:CreateTopbarButton(parent, name, textValue, rightOffset, baseColor)
         self:Tween(button, {BackgroundTransparency = 0}, 0.12)
     end)
 
+    self:BindButtonFeedback(button, baseColor)
     return button
 end
 
@@ -1072,6 +1273,7 @@ function App:EnableDragging(dragBar)
     local dragInput = nil
     local dragStart = nil
     local startPosition = nil
+    local shouldAutoMinimize = false
 
     self:Track(dragBar.InputBegan:Connect(function(input)
         local inputType = input.UserInputType
@@ -1080,12 +1282,21 @@ function App:EnableDragging(dragBar)
             return
         end
 
+        if self.IsFullScreen or self.IsMaximized or self.IsMinimized then
+            return
+        end
+
         dragging = true
+        shouldAutoMinimize = false
         dragStart = Vector2.new(input.Position.X, input.Position.Y)
         startPosition = Vector2.new(
             self.Host.Position.X.Offset,
             self.Host.Position.Y.Offset
         )
+
+        if self:IsPositionFullyUsable(startPosition) then
+            self:SaveLastSafePosition(startPosition)
+        end
 
         if inputType == Enum.UserInputType.Touch then
             dragInput = input
@@ -1095,6 +1306,12 @@ function App:EnableDragging(dragBar)
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
                 dragInput = nil
+
+                if shouldAutoMinimize then
+                    task.defer(function()
+                        self:AutoMinimizeFromFreeRoam()
+                    end)
+                end
             end
         end))
     end))
@@ -1117,7 +1334,22 @@ function App:EnableDragging(dragBar)
 
         self.Host.Position = UDim2.fromOffset(target.X, target.Y)
         self.HasBeenDragged = true
+
+        if self:IsPositionFullyUsable(target) then
+            self:SaveLastSafePosition(target)
+        end
+
+        shouldAutoMinimize = self:ShouldAutoMinimizeFreeRoam(target)
     end))
+end
+
+function App:AutoMinimizeFromFreeRoam()
+    if not self.FreeRoamEnabled or self.IsMinimized then
+        return
+    end
+
+    self.MinimizedByFreeRoam = true
+    self:SetMinimized(true)
 end
 
 function App:ClampReopenButtonPosition(position)
@@ -1270,6 +1502,13 @@ end
 function App:SetMinimized(state)
     self.IsMinimized = state and true or false
 
+    if not self.IsMinimized and self.MinimizedByFreeRoam and self.Host then
+        local recovery = self:GetRecoveryPosition()
+        self.Host.Position = UDim2.fromOffset(recovery.X, recovery.Y)
+        self.HasBeenDragged = true
+        self.MinimizedByFreeRoam = false
+    end
+
     if self.Host then
         self.Host.Visible = not self.IsMinimized
     end
@@ -1286,14 +1525,116 @@ end
 -- Sidebar and important notice
 ----------------------------------------------------------
 
-function App:SetMaximized(state)
-    self.IsMaximized = state and true or false
+function App:RefreshWindowModeControls()
+    if self.MaximizeButton then
+        self.MaximizeButton.Text = (self.IsMaximized or self.IsFullScreen) and "❐" or "□"
+    end
+
+    self:RefreshWindowSettings()
+end
+
+function App:SetFreeRoamEnabled(state)
+    self.FreeRoamEnabled = state and true or false
+
+    if self.Session then
+        self.Session.FreeRoamEnabled = self.FreeRoamEnabled
+    end
+
+    if not self.FreeRoamEnabled and self.Host and not self.IsMaximized and not self.IsFullScreen then
+        local current = Vector2.new(self.Host.Position.X.Offset, self.Host.Position.Y.Offset)
+        local bounded = self:GetBoundedHostPosition(current)
+        self.Host.Position = UDim2.fromOffset(bounded.X, bounded.Y)
+        self:SaveLastSafePosition(bounded)
+    end
+
+    self:RefreshWindowSettings()
+end
+
+function App:SetFullScreen(state)
+    local desired = state and true or false
+    local recovery = nil
+
+    if desired and self.Host and not self.IsMaximized then
+        local current = Vector2.new(self.Host.Position.X.Offset, self.Host.Position.Y.Offset)
+        if self:IsPositionFullyUsable(current) then
+            self:SaveLastSafePosition(current)
+        end
+    elseif not desired then
+        recovery = self:GetRecoveryPosition()
+    end
+
+    self.IsFullScreen = desired
+    if desired then
+        self.IsMaximized = false
+    end
+
+    if self.Session then
+        self.Session.FullScreenEnabled = self.IsFullScreen
+    end
+
     self.HasBeenDragged = false
     self:UpdateResponsive(true)
 
-    if self.MaximizeButton then
-        self.MaximizeButton.Text = self.IsMaximized and "❐" or "□"
+    if not desired and self.Host and recovery then
+        local bounded = self:GetBoundedHostPosition(recovery)
+        self.Host.Position = UDim2.fromOffset(bounded.X, bounded.Y)
+        self.HasBeenDragged = true
+        self:SaveLastSafePosition(bounded)
     end
+
+    self:RefreshWindowModeControls()
+end
+
+function App:SetMaximized(state)
+    local desired = state and true or false
+    local recovery = nil
+
+    if desired and self.Host and not self.IsFullScreen then
+        local current = Vector2.new(self.Host.Position.X.Offset, self.Host.Position.Y.Offset)
+        if self:IsPositionFullyUsable(current) then
+            self:SaveLastSafePosition(current)
+        end
+    elseif not desired then
+        recovery = self:GetRecoveryPosition()
+    end
+
+    self.IsMaximized = desired
+    if desired then
+        self.IsFullScreen = false
+        if self.Session then
+            self.Session.FullScreenEnabled = false
+        end
+    end
+
+    self.HasBeenDragged = false
+    self:UpdateResponsive(true)
+
+    if not desired and self.Host and recovery then
+        local bounded = self:GetBoundedHostPosition(recovery)
+        self.Host.Position = UDim2.fromOffset(bounded.X, bounded.Y)
+        self.HasBeenDragged = true
+        self:SaveLastSafePosition(bounded)
+    end
+
+    self:RefreshWindowModeControls()
+end
+
+function App:ResetWindowPosition()
+    if self.IsFullScreen then
+        self:SetFullScreen(false)
+    elseif self.IsMaximized then
+        self:SetMaximized(false)
+    end
+
+    self.HasBeenDragged = false
+    self:UpdateResponsive(true)
+
+    if self.Host then
+        local position = Vector2.new(self.Host.Position.X.Offset, self.Host.Position.Y.Offset)
+        self:SaveLastSafePosition(position)
+    end
+
+    self:RefreshWindowSettings()
 end
 
 function App:BringToFront()
@@ -1381,6 +1722,8 @@ function App:ShowCloseConfirmation()
     confirm.ZIndex = 3602
     confirm.Parent = panel
     makeCorner(confirm, 11)
+    self:BindButtonFeedback(cancel, self.Colors.Muted)
+    self:BindButtonFeedback(confirm, self.Colors.Close)
 
     cancel.MouseButton1Click:Connect(function()
         overlay:Destroy()
@@ -1906,6 +2249,8 @@ function App:ShowSupportQR(serviceName, tag, relativePath, accentColor)
     copyButton.ZIndex = 3202
     copyButton.Parent = modal
     makeCorner(copyButton, 10)
+    self:BindButtonFeedback(close, self.Colors.Close)
+    self:BindButtonFeedback(copyButton, accentColor or self.Colors.Accent)
 
     close.MouseButton1Click:Connect(function()
         overlay:Destroy()
@@ -2039,8 +2384,11 @@ function App:CreateNavigationButton(definition)
     button.Name = definition.Name
     local mobile = self:IsMobile()
     local buttonHeight = self.NavigationButtonHeight or 48
+    local accent = self:GetPageAccent(definition.Name)
+
     button.Size = UDim2.new(1, 0, 0, buttonHeight)
     button.BackgroundColor3 = self.Colors.Sidebar
+    button.BackgroundTransparency = 0
     button.BorderSizePixel = 0
     button.AutoButtonColor = false
     button.Text = ""
@@ -2048,6 +2396,21 @@ function App:CreateNavigationButton(definition)
     button.ZIndex = 1014
     button.Parent = self.NavigationHolder
     makeCorner(button, 12)
+
+    local selectedStroke = makeStroke(button, accent, 2, 1)
+
+    local selectedGlow = Instance.new("Frame")
+    selectedGlow.Name = "SelectedGlow"
+    selectedGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+    selectedGlow.Position = UDim2.fromScale(0.5, 0.5)
+    selectedGlow.Size = UDim2.new(1, 8, 1, 8)
+    selectedGlow.BackgroundColor3 = accent
+    selectedGlow.BackgroundTransparency = 0.86
+    selectedGlow.BorderSizePixel = 0
+    selectedGlow.Visible = false
+    selectedGlow.ZIndex = 1013
+    selectedGlow.Parent = button
+    makeCorner(selectedGlow, 14)
 
     local icon = Instance.new("Frame")
     local iconSize = mobile and 28 or 30
@@ -2082,24 +2445,31 @@ function App:CreateNavigationButton(definition)
     label.Size = UDim2.new(1, -62, 1, 0)
     label.Font = Enum.Font.GothamMedium
     label.Text = definition.Name
-    label.TextSize = mobile and 13 or 13
+    label.TextSize = 13
     label.TextColor3 = self.Colors.Text
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 1015
     label.Parent = button
 
     local function setSelected(selected)
+        selectedGlow.Visible = selected
         self:Tween(button, {
-            BackgroundColor3 = selected and self.Colors.Accent or self.Colors.Sidebar,
+            BackgroundColor3 = selected and accent or self.Colors.Sidebar,
+            BackgroundTransparency = selected and 0.72 or 0,
+        }, 0.16)
+        self:Tween(selectedStroke, {
+            Color = accent,
+            Transparency = selected and 0.04 or 1,
+            Thickness = selected and 2 or 1,
         }, 0.16)
         self:Tween(icon, {
-            BackgroundColor3 = selected and Color3.fromRGB(255,255,255) or self.Colors.CardAlt,
+            BackgroundColor3 = selected and Color3.fromRGB(255, 255, 255) or self.Colors.CardAlt,
         }, 0.16)
         self:Tween(iconImage, {
-            ImageColor3 = selected and self.Colors.Accent or self.Colors.Text,
+            ImageColor3 = selected and accent or self.Colors.Text,
         }, 0.16)
         self:Tween(label, {
-            TextColor3 = Color3.fromRGB(255,255,255),
+            TextColor3 = selected and Color3.fromRGB(255, 255, 255) or self.Colors.Text,
         }, 0.16)
     end
 
@@ -2111,17 +2481,22 @@ function App:CreateNavigationButton(definition)
 
     button.MouseLeave:Connect(function()
         if self.CurrentPage ~= definition.Name then
-            self:Tween(button, {BackgroundColor3 = self.Colors.Sidebar}, 0.12)
+            self:Tween(button, {
+                BackgroundColor3 = self.Colors.Sidebar,
+                BackgroundTransparency = 0,
+            }, 0.12)
         end
     end)
 
     button.MouseButton1Click:Connect(function()
+        self:PulseGlow(button, accent)
         self:OpenPage(definition.Name)
     end)
 
     self.NavigationButtons[definition.Name] = {
         Instance = button,
         SetSelected = setSelected,
+        Accent = accent,
     }
 end
 
@@ -2225,7 +2600,7 @@ function App:BuildPageDefinitions()
     end, 7)
 
     self:RegisterPage("Settings", "ST", function(page)
-        self:BuildExternalPage(page, self.Loader.Settings, "Settings")
+        self:BuildSettingsPage(page)
     end, 8)
 
     if type(self.Loader.Pages) == "table" then
@@ -2272,6 +2647,224 @@ function App:BuildExternalPage(page, module, pageName)
         pageName,
         "This module has not been connected yet. The universal app shell is running correctly."
     )
+end
+
+function App:CreateWindowToggleCard(parent, title, description, color, layoutOrder, getter, setter)
+    local phone = self.DeviceClass == "Phone"
+    local card = self:CreateCard(parent, UDim2.new(0.333333, -8, 1, 0), {
+        Color = Color3.fromRGB(17, 12, 24),
+        BorderColor = color,
+        BorderTransparency = 0.14,
+        Radius = phone and 12 or 15,
+    })
+    card.LayoutOrder = layoutOrder
+
+    self:CreateText(card, title, UDim2.new(1, -94, 0, 24), UDim2.fromOffset(16, 14), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = phone and 12 or 14,
+        Color = color,
+        ZIndex = 1013,
+    })
+
+    local descriptionLabel = self:CreateText(card, description, UDim2.new(1, -32, 0, phone and 58 or 64), UDim2.fromOffset(16, 46), {
+        Font = Enum.Font.GothamMedium,
+        TextSize = phone and 9 or 10,
+        Color = self.Colors.Text,
+        Wrapped = true,
+        YAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 1013,
+    })
+
+    local switch = Instance.new("Frame")
+    switch.AnchorPoint = Vector2.new(1, 0)
+    switch.Position = UDim2.new(1, -16, 0, 14)
+    switch.Size = UDim2.fromOffset(phone and 48 or 52, phone and 26 or 28)
+    switch.BackgroundColor3 = Color3.fromRGB(68, 64, 78)
+    switch.BorderSizePixel = 0
+    switch.ZIndex = 1013
+    switch.Parent = card
+    makeCorner(switch, 999)
+
+    local knob = Instance.new("Frame")
+    knob.Position = UDim2.fromOffset(3, 3)
+    knob.Size = UDim2.fromOffset(phone and 20 or 22, phone and 20 or 22)
+    knob.BackgroundColor3 = Color3.fromRGB(245, 242, 248)
+    knob.BorderSizePixel = 0
+    knob.ZIndex = 1014
+    knob.Parent = switch
+    makeCorner(knob, 999)
+
+    local stateLabel = self:CreateText(card, "OFF", UDim2.new(1, -32, 0, 22), UDim2.new(0, 16, 1, -34), {
+        Font = Enum.Font.GothamBold,
+        TextSize = phone and 10 or 11,
+        Color = self.Colors.Muted,
+        ZIndex = 1013,
+    })
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.fromScale(1, 1)
+    button.BackgroundTransparency = 1
+    button.BorderSizePixel = 0
+    button.AutoButtonColor = false
+    button.Text = ""
+    button.ZIndex = 1015
+    button.Parent = card
+
+    button.MouseButton1Click:Connect(function()
+        self:PulseGlow(card, color)
+        setter(not getter())
+    end)
+
+    return {
+        Card = card,
+        Switch = switch,
+        Knob = knob,
+        State = stateLabel,
+        Color = color,
+        Getter = getter,
+        Description = descriptionLabel,
+    }
+end
+
+function App:CreateWindowActionCard(parent, title, description, color, layoutOrder, buttonText, callback)
+    local phone = self.DeviceClass == "Phone"
+    local card = self:CreateCard(parent, UDim2.new(0.333333, -8, 1, 0), {
+        Color = Color3.fromRGB(17, 12, 24),
+        BorderColor = color,
+        BorderTransparency = 0.14,
+        Radius = phone and 12 or 15,
+    })
+    card.LayoutOrder = layoutOrder
+
+    self:CreateText(card, title, UDim2.new(1, -32, 0, 24), UDim2.fromOffset(16, 14), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = phone and 12 or 14,
+        Color = color,
+        ZIndex = 1013,
+    })
+
+    self:CreateText(card, description, UDim2.new(1, -32, 0, phone and 54 or 60), UDim2.fromOffset(16, 46), {
+        Font = Enum.Font.GothamMedium,
+        TextSize = phone and 9 or 10,
+        Color = self.Colors.Text,
+        Wrapped = true,
+        YAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 1013,
+    })
+
+    local action = Instance.new("TextButton")
+    action.AnchorPoint = Vector2.new(0.5, 1)
+    action.Position = UDim2.new(0.5, 0, 1, -14)
+    action.Size = UDim2.new(1, -32, 0, phone and 36 or 40)
+    action.BackgroundColor3 = color
+    action.BackgroundTransparency = 0.08
+    action.BorderSizePixel = 0
+    action.AutoButtonColor = false
+    action.Font = Enum.Font.GothamBold
+    action.Text = buttonText
+    action.TextSize = phone and 10 or 11
+    action.TextColor3 = Color3.fromRGB(255, 255, 255)
+    action.ZIndex = 1014
+    action.Parent = card
+    makeCorner(action, 10)
+    makeStroke(action, Color3.fromRGB(255, 255, 255), 1, 0.70)
+    self:BindButtonFeedback(action, color)
+
+    action.MouseButton1Click:Connect(function()
+        callback()
+    end)
+
+    return {Card = card, Button = action}
+end
+
+function App:RefreshWindowSettings()
+    local widgets = self.WindowSettingsWidgets
+    if not widgets then
+        return
+    end
+
+    local function refreshToggle(refs, enabled)
+        if not refs or not refs.Card or not refs.Card.Parent then
+            return
+        end
+
+        local trackWidth = refs.Switch.Size.X.Offset
+        local knobWidth = refs.Knob.Size.X.Offset
+        refs.Switch.BackgroundColor3 = enabled and refs.Color or Color3.fromRGB(68, 64, 78)
+        refs.Knob.Position = UDim2.fromOffset(enabled and (trackWidth - knobWidth - 3) or 3, 3)
+        refs.State.Text = enabled and "ON" or "OFF"
+        refs.State.TextColor3 = enabled and refs.Color or self.Colors.Muted
+    end
+
+    refreshToggle(widgets.FreeRoam, self.FreeRoamEnabled)
+    refreshToggle(widgets.FullScreen, self.IsFullScreen)
+end
+
+function App:BuildSettingsPage(page)
+    page:ClearAllChildren()
+
+    local padding = self.Profile.ContentPadding
+    local root = Instance.new("Frame")
+    root.Position = UDim2.fromOffset(padding, padding)
+    root.Size = UDim2.new(1, -(padding * 2), 0, 230)
+    root.BackgroundTransparency = 1
+    root.BorderSizePixel = 0
+    root.Parent = page
+
+    self:CreateText(root, "WINDOW & DISPLAY", UDim2.new(1, 0, 0, 30), UDim2.fromOffset(0, 0), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = self.DeviceClass == "Phone" and 17 or 20,
+        Color = self:GetPageAccent("Settings"),
+        ZIndex = 1012,
+    })
+
+    self:CreateText(root, "Universal three-column controls for movement, recovery, and full-screen scaling.", UDim2.new(1, 0, 0, 22), UDim2.fromOffset(0, 30), {
+        Font = Enum.Font.GothamMedium,
+        TextSize = self.DeviceClass == "Phone" and 10 or 11,
+        Color = self.Colors.Muted,
+        ZIndex = 1012,
+    })
+
+    local row = self:CreateEqualThreeColumnRow(root, 62, 154, "WindowSettingsRow")
+
+    local freeRoam = self:CreateWindowToggleCard(
+        row,
+        "FREE ROAM WINDOW",
+        "Move across the entire game screen. If too much of the app leaves the usable area, it minimizes to the recovery bubble.",
+        self:GetPageAccent("Players"),
+        1,
+        function() return self.FreeRoamEnabled end,
+        function(value) self:SetFreeRoamEnabled(value) end
+    )
+
+    local fullScreen = self:CreateWindowToggleCard(
+        row,
+        "FULL SCREEN MODE",
+        "Fill the complete usable viewport. The virtual canvas expands to the screen shape so the interface is not stretched.",
+        self:GetPageAccent("Detective"),
+        2,
+        function() return self.IsFullScreen end,
+        function(value) self:SetFullScreen(value) end
+    )
+
+    local reset = self:CreateWindowActionCard(
+        row,
+        "RESET WINDOW",
+        "Restore the app to a centered, safe, movable position and leave maximized or full-screen mode.",
+        self:GetPageAccent("Settings"),
+        3,
+        "RESET POSITION",
+        function() self:ResetWindowPosition() end
+    )
+
+    self.WindowSettingsWidgets = {
+        Root = root,
+        FreeRoam = freeRoam,
+        FullScreen = fullScreen,
+        Reset = reset,
+    }
+
+    self:RefreshWindowSettings()
 end
 
 function App:OpenPage(name)
@@ -2770,6 +3363,7 @@ function App:CreateFeatureCategoryCard(parent, categoryKey, title, description, 
     makeCorner(knob, 999)
 
     button.MouseButton1Click:Connect(function()
+        self:PulseGlow(card, color)
         local summary = self:GetFeatureOverview()
         local category = summary.Categories[categoryKey]
 
@@ -3202,20 +3796,21 @@ function App:CreateTermsModal()
     overlay.Name = "TermsOverlay"
     overlay.Size = UDim2.fromScale(1, 1)
     overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    overlay.BackgroundTransparency = 0.24
+    overlay.BackgroundTransparency = 0.20
     overlay.BorderSizePixel = 0
     overlay.Active = true
     overlay.ZIndex = 3000
     overlay.Parent = self.Window
 
-    local modalWidth = mobile and 800 or 720
-    local bodyHeight = mobile and 230 or 205
-    local bodyY = 108
+    local modalWidth = mobile and 820 or 760
+    local headerHeight = 112
+    local bodyHeight = mobile and 244 or 224
+    local bodyY = headerHeight + 8
     local acceptY = bodyY + bodyHeight + 14
-    local acceptHeight = 56
-    local buttonsY = acceptY + acceptHeight + 14
-    local buttonHeight = 58
-    local footerY = buttonsY + buttonHeight + 8
+    local acceptHeight = 58
+    local buttonsY = acceptY + acceptHeight + 16
+    local buttonHeight = 60
+    local footerY = buttonsY + buttonHeight + 10
     local modalHeight = footerY + 28
 
     local modal = Instance.new("Frame")
@@ -3230,44 +3825,26 @@ function App:CreateTermsModal()
     makeCorner(modal, 22)
     makeStroke(modal, self.Colors.Border, 2, 0.02)
 
-    local icon = Instance.new("TextLabel")
-    icon.BackgroundTransparency = 1
-    icon.Position = UDim2.fromOffset(30, 18)
-    icon.Size = UDim2.fromOffset(64, 64)
-    icon.Font = Enum.Font.SourceSansBold
-    icon.Text = "⚠"
-    icon.TextSize = mobile and 52 or 48
-    icon.TextColor3 = self.Colors.Warning
-    icon.ZIndex = 3003
-    icon.Parent = modal
-
-    self:CreateText(modal, "BEFORE YOU CONTINUE", UDim2.new(1, -138, 0, 34), UDim2.fromOffset(104, 24), {
+    self:CreateText(modal, "!   BEFORE YOU CONTINUE   !", UDim2.new(1, -48, 0, 42), UDim2.fromOffset(24, 18), {
         Font = Enum.Font.GothamBlack,
-        TextSize = mobile and 27 or 25,
-        Color = self.Colors.Text,
+        TextSize = mobile and 30 or 28,
+        Color = self.Colors.Warning,
+        XAlignment = Enum.TextXAlignment.Center,
         ZIndex = 3003,
     })
 
-    self:CreateText(modal, "READ AND ACCEPT THESE RISKS BEFORE ACCESSING SQUIDNOMO", UDim2.new(1, -138, 0, 24), UDim2.fromOffset(105, 58), {
+    self:CreateText(modal, "!   READ AND ACCEPT THESE RISKS BEFORE ACCESSING SQUIDNOMO   !", UDim2.new(1, -56, 0, 30), UDim2.fromOffset(28, 64), {
         Font = Enum.Font.GothamBold,
-        TextSize = mobile and 12 or 11,
+        TextSize = mobile and 15 or 14,
         Color = self.Colors.Accent,
+        XAlignment = Enum.TextXAlignment.Center,
         ZIndex = 3003,
     })
-
-    local dragLabel = self:CreateText(modal, "HOLD THIS HEADER TO DRAG", UDim2.fromOffset(180, 20), UDim2.new(1, -204, 0, 78), {
-        Font = Enum.Font.GothamBold,
-        TextSize = 10,
-        Color = self.Colors.Muted,
-        XAlignment = Enum.TextXAlignment.Right,
-        ZIndex = 3003,
-    })
-    dragLabel.TextTransparency = 0.18
 
     local headerDragHandle = Instance.new("TextButton")
     headerDragHandle.Name = "TermsDragHandle"
     headerDragHandle.Position = UDim2.fromOffset(0, 0)
-    headerDragHandle.Size = UDim2.new(1, 0, 0, 96)
+    headerDragHandle.Size = UDim2.new(1, 0, 0, headerHeight)
     headerDragHandle.BackgroundTransparency = 1
     headerDragHandle.BorderSizePixel = 0
     headerDragHandle.AutoButtonColor = false
@@ -3277,7 +3854,7 @@ function App:CreateTermsModal()
     self:EnableDragging(headerDragHandle)
 
     local divider = Instance.new("Frame")
-    divider.Position = UDim2.fromOffset(28, 96)
+    divider.Position = UDim2.fromOffset(28, headerHeight - 1)
     divider.Size = UDim2.new(1, -56, 0, 1)
     divider.BackgroundColor3 = self.Colors.BorderSoft
     divider.BorderSizePixel = 0
@@ -3296,13 +3873,13 @@ function App:CreateTermsModal()
 
     local body = Instance.new("TextLabel")
     body.BackgroundTransparency = 1
-    body.Position = UDim2.fromOffset(20, 16)
-    body.Size = UDim2.new(1, -40, 1, -32)
-    body.Font = Enum.Font.Gotham
+    body.Position = UDim2.fromOffset(24, 18)
+    body.Size = UDim2.new(1, -48, 1, -36)
+    body.Font = Enum.Font.GothamMedium
     body.TextWrapped = true
-    body.TextYAlignment = Enum.TextYAlignment.Top
-    body.TextXAlignment = Enum.TextXAlignment.Left
-    body.TextSize = mobile and 17 or 16
+    body.TextYAlignment = Enum.TextYAlignment.Center
+    body.TextXAlignment = Enum.TextXAlignment.Center
+    body.TextSize = mobile and 18 or 17
     body.TextColor3 = self.Colors.Text
     body.Text = [=[Using this software may violate the game's Terms of Service. Your account may be warned, restricted, suspended, or banned.
 
@@ -3312,7 +3889,7 @@ Only continue if you fully understand and accept these risks.]=]
     body.ZIndex = 3003
     body.Parent = bodyCard
     pcall(function()
-        body.LineHeight = 1.08
+        body.LineHeight = 1.12
     end)
 
     local acceptRow = Instance.new("TextButton")
@@ -3329,7 +3906,7 @@ Only continue if you fully understand and accept these risks.]=]
 
     local checkbox = Instance.new("Frame")
     checkbox.AnchorPoint = Vector2.new(0, 0.5)
-    checkbox.Position = UDim2.new(0, 14, 0.5, 0)
+    checkbox.Position = UDim2.new(0, 16, 0.5, 0)
     checkbox.Size = UDim2.fromOffset(34, 34)
     checkbox.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
     checkbox.BorderSizePixel = 0
@@ -3341,7 +3918,7 @@ Only continue if you fully understand and accept these risks.]=]
     local check = Instance.new("TextLabel")
     check.BackgroundTransparency = 1
     check.Size = UDim2.fromScale(1, 1)
-    check.Font = Enum.Font.GothamBold
+    check.Font = Enum.Font.GothamBlack
     check.Text = "✓"
     check.TextSize = 22
     check.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -3349,44 +3926,64 @@ Only continue if you fully understand and accept these risks.]=]
     check.ZIndex = 3004
     check.Parent = checkbox
 
-    self:CreateText(acceptRow, "I understand and accept these risks.", UDim2.new(1, -66, 1, 0), UDim2.fromOffset(62, 0), {
+    self:CreateText(acceptRow, "I UNDERSTAND AND ACCEPT THESE RISKS", UDim2.new(1, -78, 1, 0), UDim2.fromOffset(66, 0), {
         Font = Enum.Font.GothamBold,
         TextSize = mobile and 17 or 16,
         Color = self.Colors.Text,
+        XAlignment = Enum.TextXAlignment.Center,
         ZIndex = 3003,
     })
 
+    local buttonRow = Instance.new("Frame")
+    buttonRow.Position = UDim2.fromOffset(32, buttonsY)
+    buttonRow.Size = UDim2.new(1, -64, 0, buttonHeight)
+    buttonRow.BackgroundTransparency = 1
+    buttonRow.BorderSizePixel = 0
+    buttonRow.ZIndex = 3002
+    buttonRow.Parent = modal
+
+    local buttonLayout = Instance.new("UIListLayout")
+    buttonLayout.FillDirection = Enum.FillDirection.Horizontal
+    buttonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    buttonLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    buttonLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    buttonLayout.Padding = UDim.new(0, 16)
+    buttonLayout.Parent = buttonRow
+
     local exitButton = Instance.new("TextButton")
-    exitButton.Position = UDim2.fromOffset(32, buttonsY)
-    exitButton.Size = UDim2.new(0.34, -8, 0, buttonHeight)
+    exitButton.Size = UDim2.new(0.34, -8, 1, 0)
     exitButton.BackgroundColor3 = self.Colors.CardAlt
     exitButton.BorderSizePixel = 0
     exitButton.AutoButtonColor = false
     exitButton.Font = Enum.Font.GothamBold
     exitButton.Text = "EXIT"
-    exitButton.TextSize = mobile and 17 or 16
+    exitButton.TextSize = mobile and 18 or 17
     exitButton.TextColor3 = self.Colors.Text
+    exitButton.LayoutOrder = 1
     exitButton.ZIndex = 3002
-    exitButton.Parent = modal
+    exitButton.Parent = buttonRow
     makeCorner(exitButton, 13)
-    makeStroke(exitButton, self.Colors.BorderSoft, 1, 0.15)
+    makeStroke(exitButton, self.Colors.Close, 1.5, 0.12)
+    self:BindButtonFeedback(exitButton, self.Colors.Close)
 
     local continueButton = Instance.new("TextButton")
-    continueButton.Position = UDim2.new(0.34, 8, 0, buttonsY)
-    continueButton.Size = UDim2.new(0.66, -40, 0, buttonHeight)
+    continueButton.Size = UDim2.new(0.66, -8, 1, 0)
     continueButton.BackgroundColor3 = self.Colors.CardAlt
     continueButton.BorderSizePixel = 0
     continueButton.AutoButtonColor = false
     continueButton.Font = Enum.Font.GothamBold
     continueButton.Text = "I UNDERSTAND — CONTINUE"
-    continueButton.TextSize = mobile and 17 or 16
+    continueButton.TextSize = mobile and 18 or 17
     continueButton.TextColor3 = self.Colors.Text
+    continueButton.LayoutOrder = 2
     continueButton.ZIndex = 3002
-    continueButton.Parent = modal
+    continueButton.Parent = buttonRow
     makeCorner(continueButton, 13)
-    local continueStroke = makeStroke(continueButton, self.Colors.BorderSoft, 1.2, 0.12)
+    local continueStroke = makeStroke(continueButton, self.Colors.BorderSoft, 1.5, 0.12)
+    self:BindButtonFeedback(continueButton, self.Colors.Accent)
+    self:BindButtonFeedback(acceptRow, self.Colors.Accent)
 
-    self:CreateText(modal, self.Version .. "  •  TERMS VERSION 1.1  •  ACCEPTANCE REQUIRED", UDim2.new(1, -64, 0, 18), UDim2.fromOffset(32, footerY), {
+    self:CreateText(modal, self.Version .. "  •  TERMS VERSION 1.2  •  ACCEPTANCE REQUIRED", UDim2.new(1, -64, 0, 18), UDim2.fromOffset(32, footerY), {
         Font = Enum.Font.GothamMedium,
         TextSize = 10,
         Color = self.Colors.Muted,
@@ -3638,6 +4235,8 @@ function App:Destroy(keepSession)
     self.CurrentPage = nil
     self.HasBeenDragged = false
     self.IsMinimized = false
+    self.MinimizedByFreeRoam = false
+    self.WindowSettingsWidgets = {}
     self.ReopenButtonHasBeenDragged = false
     self._featureTrackingStarted = false
 

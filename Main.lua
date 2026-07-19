@@ -1,6 +1,6 @@
 --// SquidNoMo entry point
 
-print("[SquidNoMo] Starting v0.5.5")
+print("[SquidNoMo] Starting v0.5.6-beta")
 
 local LoaderSource = game:HttpGet(
     "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Loader.lua"

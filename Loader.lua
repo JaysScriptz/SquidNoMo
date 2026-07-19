@@ -1,4 +1,4 @@
---// SquidNoMo loader v0.5.5
+--// SquidNoMo loader v0.5.6-beta
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -100,6 +100,9 @@ if type(Session) ~= "table" or Session.JobId ~= game.JobId then
         JobId = game.JobId,
         TermsAccepted = false,
         UserClosed = false,
+        FreeRoamEnabled = false,
+        FullScreenEnabled = false,
+        LastSafePosition = nil,
     }
     Environment.__SquidNoMoSession = Session
 end
