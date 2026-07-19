@@ -68,7 +68,7 @@ App.Config = {
 
     -- Delta mobile landscape gets its own denser canvas. It contains the
     -- same pages and dashboard cards, but starts larger and uses less dead space.
-    MobileDesignWidth = 1100,
+    MobileDesignWidth = 1225,
     MobileDesignHeight = 620,
 
     -- Kept for compatibility with modules that read these older names.
@@ -76,16 +76,16 @@ App.Config = {
     DesignHeight = 730,
 
     DesktopFill = 0.80,
-    MobileSafeFill = 0.995,
+    MobileSafeFill = 1.0,
 
     MinimumScale = 0.55,
-    MaximumScale = 1.25,
+    MaximumScale = 1.50,
 
     -- Safe zone based on the supplied Delta landscape screenshots.
     MobileLandscapeMargins = {
-        Left = 0.130,
-        Right = 0.170,
-        Top = 0.095,
+        Left = 0.010,
+        Right = 0.010,
+        Top = 0.012,
         Bottom = 0.012,
     },
 
@@ -105,8 +105,14 @@ App.Config = {
 
     DisplayOrder = 999999,
     SidebarWidth = 248,
-    TopbarHeight = 42,
+    TopbarHeight = 52,
     CornerRadius = 18,
+
+    -- Allow the app to move across the full viewport while retaining a
+    -- substantial visible portion so the window cannot be completely lost.
+    AllowPartialOffscreenDrag = true,
+    DragVisiblePixels = 150,
+    WindowEdgePadding = 4,
 
     -- Larger small text on touch devices without changing desktop typography.
     MobileTextBoost = true,
@@ -643,14 +649,30 @@ function App:CalculateScale()
 end
 
 function App:ClampHostPosition(position)
-    local safePosition = self.CurrentSafePosition
-    local safeSize = self.CurrentSafeSize
+    local viewport = self:GetViewportSize()
     local visualSize = self.CurrentVisualSize
+    local edgePadding = self.Config.WindowEdgePadding or 4
 
-    local minX = safePosition.X
-    local minY = safePosition.Y
-    local maxX = safePosition.X + math.max(0, safeSize.X - visualSize.X)
-    local maxY = safePosition.Y + math.max(0, safeSize.Y - visualSize.Y)
+    local minX
+    local maxX
+    local minY
+    local maxY
+
+    if self.Config.AllowPartialOffscreenDrag then
+        local requestedVisible = self.Config.DragVisiblePixels or 120
+        local visibleX = math.min(requestedVisible, math.max(1, visualSize.X))
+        local visibleY = math.min(requestedVisible, math.max(1, visualSize.Y))
+
+        minX = -visualSize.X + visibleX
+        maxX = viewport.X - visibleX
+        minY = -visualSize.Y + visibleY
+        maxY = viewport.Y - visibleY
+    else
+        minX = edgePadding
+        minY = edgePadding
+        maxX = math.max(edgePadding, viewport.X - visualSize.X - edgePadding)
+        maxY = math.max(edgePadding, viewport.Y - visualSize.Y - edgePadding)
+    end
 
     return Vector2.new(
         math.clamp(position.X, minX, maxX),
@@ -662,10 +684,6 @@ function App:UpdateResponsive(forceCenter)
     if not self.Host or not self.WindowScale then
         return
     end
-
-    local oldSafePosition = self.CurrentSafePosition
-    local oldSafeSize = self.CurrentSafeSize
-    local oldVisualSize = self.CurrentVisualSize
 
     local scale, safePosition, safeSize, visualSize, designSize = self:CalculateScale()
 
@@ -687,31 +705,10 @@ function App:UpdateResponsive(forceCenter)
             safePosition.Y + ((safeSize.Y - visualSize.Y) / 2)
         )
     else
-        local current = Vector2.new(self.Host.Position.X.Offset, self.Host.Position.Y.Offset)
-
-        if oldSafeSize.X > 0 and oldSafeSize.Y > 0 then
-            local oldTravel = Vector2.new(
-                math.max(1, oldSafeSize.X - oldVisualSize.X),
-                math.max(1, oldSafeSize.Y - oldVisualSize.Y)
-            )
-
-            local normalized = Vector2.new(
-                math.clamp((current.X - oldSafePosition.X) / oldTravel.X, 0, 1),
-                math.clamp((current.Y - oldSafePosition.Y) / oldTravel.Y, 0, 1)
-            )
-
-            local newTravel = Vector2.new(
-                math.max(0, safeSize.X - visualSize.X),
-                math.max(0, safeSize.Y - visualSize.Y)
-            )
-
-            targetPosition = Vector2.new(
-                safePosition.X + (newTravel.X * normalized.X),
-                safePosition.Y + (newTravel.Y * normalized.Y)
-            )
-        else
-            targetPosition = current
-        end
+        targetPosition = Vector2.new(
+            self.Host.Position.X.Offset,
+            self.Host.Position.Y.Offset
+        )
     end
 
     targetPosition = self:ClampHostPosition(targetPosition)
@@ -834,6 +831,21 @@ function App:CreateTopbar()
     accentLine.ZIndex = 1021
     accentLine.Parent = topbar
 
+    local dragHint = Instance.new("TextLabel")
+    dragHint.Name = "DragHint"
+    dragHint.Position = UDim2.fromOffset(18, 0)
+    dragHint.Size = UDim2.new(1, -150, 1, 0)
+    dragHint.BackgroundTransparency = 1
+    dragHint.Font = Enum.Font.GothamBold
+    dragHint.Text = self:IsMobile() and "HOLD + DRAG TO MOVE WINDOW" or "DRAG TO MOVE WINDOW"
+    dragHint.TextSize = self:IsMobile() and 12 or 11
+    dragHint.TextColor3 = self.Colors.Muted
+    dragHint.TextTransparency = 0.12
+    dragHint.TextXAlignment = Enum.TextXAlignment.Left
+    dragHint.ZIndex = 1022
+    dragHint.Parent = topbar
+    self:EnableDragging(dragHint)
+
     local minimize = self:CreateTopbarButton(topbar, "—", self:IsMobile() and 62 or 54)
     local close = self:CreateTopbarButton(topbar, "×", self:IsMobile() and 14 or 12)
 
@@ -879,6 +891,12 @@ function App:CreateTopbarButton(parent, text, rightOffset)
 end
 
 function App:EnableDragging(dragBar)
+    if not dragBar then
+        return
+    end
+
+    dragBar.Active = true
+
     local dragging = false
     local activeInput = nil
     local startInput = nil
@@ -1164,6 +1182,18 @@ function App:CreateSidebar()
     version.ZIndex = 1012
     version.Parent = sidebar
 
+    local sidebarDragHandle = Instance.new("TextButton")
+    sidebarDragHandle.Name = "SidebarDragHandle"
+    sidebarDragHandle.Position = UDim2.fromOffset(0, 0)
+    sidebarDragHandle.Size = UDim2.fromOffset(sidebarWidth, 84)
+    sidebarDragHandle.BackgroundTransparency = 1
+    sidebarDragHandle.BorderSizePixel = 0
+    sidebarDragHandle.AutoButtonColor = false
+    sidebarDragHandle.Text = ""
+    sidebarDragHandle.ZIndex = 1018
+    sidebarDragHandle.Parent = sidebar
+    self:EnableDragging(sidebarDragHandle)
+
     self.NavigationButtonHeight = mobile and 42 or 44
     self.NavigationButtonPadding = 6
 
@@ -1319,16 +1349,35 @@ function App:ShowSupportQR(serviceName, tag, relativePath, accentColor)
     overlay.ZIndex = 3200
     overlay.Parent = self.Window
 
+    local modalWidth = self:IsMobile() and 430 or 420
+    local qrHolderSize = modalWidth - 56
+    local qrHolderY = 62
+    local tagY = qrHolderY + qrHolderSize + 8
+    local buttonY = tagY + 36
+    local modalHeight = buttonY + 48
+
     local modal = Instance.new("Frame")
     modal.AnchorPoint = Vector2.new(0.5, 0.5)
     modal.Position = UDim2.fromScale(0.5, 0.52)
-    modal.Size = self:IsMobile() and UDim2.fromOffset(430, 500) or UDim2.fromOffset(420, 490)
+    modal.Size = UDim2.fromOffset(modalWidth, modalHeight)
     modal.BackgroundColor3 = Color3.fromRGB(15, 11, 23)
     modal.BorderSizePixel = 0
     modal.ZIndex = 3201
     modal.Parent = overlay
     makeCorner(modal, 20)
     makeStroke(modal, accentColor or self.Colors.Accent, 1.5, 0.02)
+
+    local supportDragHandle = Instance.new("TextButton")
+    supportDragHandle.Name = "SupportDragHandle"
+    supportDragHandle.Position = UDim2.fromOffset(0, 0)
+    supportDragHandle.Size = UDim2.new(1, -74, 0, 58)
+    supportDragHandle.BackgroundTransparency = 1
+    supportDragHandle.BorderSizePixel = 0
+    supportDragHandle.AutoButtonColor = false
+    supportDragHandle.Text = ""
+    supportDragHandle.ZIndex = 3204
+    supportDragHandle.Parent = modal
+    self:EnableDragging(supportDragHandle)
 
     self:CreateText(modal, "SUPPORT VIA " .. string.upper(serviceName), UDim2.new(1, -80, 0, 34), UDim2.fromOffset(24, 18), {
         Font = Enum.Font.GothamBlack,
@@ -1353,19 +1402,23 @@ function App:ShowSupportQR(serviceName, tag, relativePath, accentColor)
     makeCorner(close, 10)
 
     local imageHolder = Instance.new("Frame")
-    imageHolder.Position = UDim2.fromOffset(28, 66)
-    imageHolder.Size = UDim2.new(1, -56, 0, 336)
+    imageHolder.Position = UDim2.fromOffset(28, qrHolderY)
+    imageHolder.Size = UDim2.fromOffset(qrHolderSize, qrHolderSize)
     imageHolder.BackgroundColor3 = Color3.fromRGB(255,255,255)
     imageHolder.BorderSizePixel = 0
+    imageHolder.ClipsDescendants = true
     imageHolder.ZIndex = 3202
     imageHolder.Parent = modal
     makeCorner(imageHolder, 16)
 
     local qrImage = Instance.new("ImageLabel")
     qrImage.BackgroundTransparency = 1
-    qrImage.Position = UDim2.fromOffset(12, 12)
-    qrImage.Size = UDim2.new(1, -24, 1, -24)
+    qrImage.Position = UDim2.fromOffset(4, 4)
+    qrImage.Size = UDim2.new(1, -8, 1, -8)
     qrImage.ScaleType = Enum.ScaleType.Fit
+    pcall(function()
+        qrImage.ResampleMode = Enum.ResamplerMode.Pixelated
+    end)
     qrImage.Image = ""
     qrImage.ZIndex = 3203
     qrImage.Parent = imageHolder
@@ -1378,7 +1431,7 @@ function App:ShowSupportQR(serviceName, tag, relativePath, accentColor)
         ZIndex = 3204,
     })
 
-    self:CreateText(modal, serviceName .. ": " .. tostring(tag or ""), UDim2.new(1, -56, 0, 28), UDim2.fromOffset(28, 414), {
+    self:CreateText(modal, serviceName .. ": " .. tostring(tag or ""), UDim2.new(1, -56, 0, 28), UDim2.fromOffset(28, tagY), {
         Font = Enum.Font.GothamBold,
         TextSize = 15,
         Color = self.Colors.Text,
@@ -1387,7 +1440,7 @@ function App:ShowSupportQR(serviceName, tag, relativePath, accentColor)
     })
 
     local copyButton = Instance.new("TextButton")
-    copyButton.Position = UDim2.fromOffset(28, 450)
+    copyButton.Position = UDim2.fromOffset(28, buttonY)
     copyButton.Size = UDim2.new(1, -56, 0, 34)
     copyButton.BackgroundColor3 = accentColor or self.Colors.Accent
     copyButton.BorderSizePixel = 0
@@ -2201,6 +2254,26 @@ function App:BuildFeatureStats(parent)
     end
 end
 
+function App:CreateThreeColumnRow(parent, height, layoutOrder)
+    local row = Instance.new("Frame")
+    row.Name = "StatsRow"
+    row.Size = UDim2.new(1, 0, 0, height or 208)
+    row.BackgroundTransparency = 1
+    row.BorderSizePixel = 0
+    row.LayoutOrder = layoutOrder or 1
+    row.Parent = parent
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 12)
+    layout.Parent = row
+
+    return row
+end
+
 function App:BuildBottomStatsRow(parent)
     local row = self:CreateThreeColumnRow(parent, 208, 3)
     local left = self:CreateCard(row, UDim2.new(0.5, -6, 1, 0), {
@@ -2362,136 +2435,217 @@ function App:CreateTermsModal()
         return
     end
 
+    local mobile = self:IsMobile()
+
     local overlay = Instance.new("Frame")
     overlay.Name = "TermsOverlay"
     overlay.Size = UDim2.fromScale(1, 1)
     overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    overlay.BackgroundTransparency = 0.38
+    overlay.BackgroundTransparency = 0.24
     overlay.BorderSizePixel = 0
     overlay.Active = true
     overlay.ZIndex = 3000
     overlay.Parent = self.Window
 
+    local modalWidth = mobile and 800 or 720
+    local bodyHeight = mobile and 230 or 205
+    local bodyY = 108
+    local acceptY = bodyY + bodyHeight + 14
+    local acceptHeight = 56
+    local buttonsY = acceptY + acceptHeight + 14
+    local buttonHeight = 58
+    local footerY = buttonsY + buttonHeight + 8
+    local modalHeight = footerY + 28
+
     local modal = Instance.new("Frame")
     modal.AnchorPoint = Vector2.new(0.5, 0.5)
-    modal.Position = UDim2.fromScale(0.5, 0.52)
-    modal.Size = self:IsMobile() and UDim2.fromOffset(600, 360) or UDim2.fromOffset(560, 350)
+    modal.Position = UDim2.fromScale(0.5, 0.5)
+    modal.Size = UDim2.fromOffset(modalWidth, modalHeight)
     modal.BackgroundColor3 = Color3.fromRGB(15, 11, 23)
     modal.BorderSizePixel = 0
+    modal.ClipsDescendants = true
     modal.ZIndex = 3001
     modal.Parent = overlay
-    makeCorner(modal, 20)
-    makeStroke(modal, self.Colors.Border, 1.5, 0.02)
+    makeCorner(modal, 22)
+    makeStroke(modal, self.Colors.Border, 2, 0.02)
 
     local icon = Instance.new("TextLabel")
     icon.BackgroundTransparency = 1
-    icon.Position = UDim2.fromOffset(26, 18)
-    icon.Size = UDim2.fromOffset(80, 80)
+    icon.Position = UDim2.fromOffset(30, 18)
+    icon.Size = UDim2.fromOffset(64, 64)
     icon.Font = Enum.Font.SourceSansBold
     icon.Text = "⚠"
-    icon.TextSize = 50
-    icon.TextColor3 = self.Colors.Accent
-    icon.ZIndex = 3002
+    icon.TextSize = mobile and 52 or 48
+    icon.TextColor3 = self.Colors.Warning
+    icon.ZIndex = 3003
     icon.Parent = modal
 
-    self:CreateText(modal, "BEFORE YOU CONTINUE", UDim2.new(1, -130, 0, 44), UDim2.fromOffset(110, 28), {
+    self:CreateText(modal, "BEFORE YOU CONTINUE", UDim2.new(1, -138, 0, 34), UDim2.fromOffset(104, 24), {
         Font = Enum.Font.GothamBlack,
-        TextSize = 24,
+        TextSize = mobile and 27 or 25,
         Color = self.Colors.Text,
-        ZIndex = 3002,
+        ZIndex = 3003,
     })
 
+    self:CreateText(modal, "READ AND ACCEPT THESE RISKS BEFORE ACCESSING SQUIDNOMO", UDim2.new(1, -138, 0, 24), UDim2.fromOffset(105, 58), {
+        Font = Enum.Font.GothamBold,
+        TextSize = mobile and 12 or 11,
+        Color = self.Colors.Accent,
+        ZIndex = 3003,
+    })
+
+    local dragLabel = self:CreateText(modal, "HOLD THIS HEADER TO DRAG", UDim2.fromOffset(180, 20), UDim2.new(1, -204, 0, 78), {
+        Font = Enum.Font.GothamBold,
+        TextSize = 10,
+        Color = self.Colors.Muted,
+        XAlignment = Enum.TextXAlignment.Right,
+        ZIndex = 3003,
+    })
+    dragLabel.TextTransparency = 0.18
+
+    local headerDragHandle = Instance.new("TextButton")
+    headerDragHandle.Name = "TermsDragHandle"
+    headerDragHandle.Position = UDim2.fromOffset(0, 0)
+    headerDragHandle.Size = UDim2.new(1, 0, 0, 96)
+    headerDragHandle.BackgroundTransparency = 1
+    headerDragHandle.BorderSizePixel = 0
+    headerDragHandle.AutoButtonColor = false
+    headerDragHandle.Text = ""
+    headerDragHandle.ZIndex = 3004
+    headerDragHandle.Parent = modal
+    self:EnableDragging(headerDragHandle)
+
     local divider = Instance.new("Frame")
-    divider.Position = UDim2.fromOffset(26, 94)
-    divider.Size = UDim2.new(1, -52, 0, 1)
+    divider.Position = UDim2.fromOffset(28, 96)
+    divider.Size = UDim2.new(1, -56, 0, 1)
     divider.BackgroundColor3 = self.Colors.BorderSoft
     divider.BorderSizePixel = 0
     divider.ZIndex = 3002
     divider.Parent = modal
 
+    local bodyCard = Instance.new("Frame")
+    bodyCard.Position = UDim2.fromOffset(32, bodyY)
+    bodyCard.Size = UDim2.new(1, -64, 0, bodyHeight)
+    bodyCard.BackgroundColor3 = self.Colors.Card
+    bodyCard.BorderSizePixel = 0
+    bodyCard.ZIndex = 3002
+    bodyCard.Parent = modal
+    makeCorner(bodyCard, 14)
+    makeStroke(bodyCard, self.Colors.BorderSoft, 1, 0.14)
+
     local body = Instance.new("TextLabel")
     body.BackgroundTransparency = 1
-    body.Position = UDim2.fromOffset(34, 112)
-    body.Size = UDim2.new(1, -68, 0, 132)
+    body.Position = UDim2.fromOffset(20, 16)
+    body.Size = UDim2.new(1, -40, 1, -32)
     body.Font = Enum.Font.Gotham
     body.TextWrapped = true
     body.TextYAlignment = Enum.TextYAlignment.Top
     body.TextXAlignment = Enum.TextXAlignment.Left
-    body.TextSize = 14
+    body.TextSize = mobile and 17 or 16
     body.TextColor3 = self.Colors.Text
-    body.Text = "This software may violate the game's Terms of Service and could result in account restrictions or other consequences.\n\nUse it entirely at your own risk. The developers are not responsible for account actions, data loss, interrupted functionality, or other outcomes resulting from its use."
-    body.ZIndex = 3002
-    body.Parent = modal
+    body.Text = [=[Using this software may violate the game's Terms of Service. Your account may be warned, restricted, suspended, or banned.
 
-    local checkbox = Instance.new("TextButton")
-    checkbox.Position = UDim2.fromOffset(34, 248)
-    checkbox.Size = UDim2.fromOffset(28, 28)
+Use it entirely at your own risk. The developers are not responsible for account actions, lost progress or data, crashes, interrupted gameplay, device problems, or any other consequences resulting from its use.
+
+Only continue if you fully understand and accept these risks.]=]
+    body.ZIndex = 3003
+    body.Parent = bodyCard
+    pcall(function()
+        body.LineHeight = 1.08
+    end)
+
+    local acceptRow = Instance.new("TextButton")
+    acceptRow.Position = UDim2.fromOffset(32, acceptY)
+    acceptRow.Size = UDim2.new(1, -64, 0, acceptHeight)
+    acceptRow.BackgroundColor3 = self.Colors.CardAlt
+    acceptRow.BorderSizePixel = 0
+    acceptRow.AutoButtonColor = false
+    acceptRow.Text = ""
+    acceptRow.ZIndex = 3002
+    acceptRow.Parent = modal
+    makeCorner(acceptRow, 13)
+    local acceptStroke = makeStroke(acceptRow, self.Colors.BorderSoft, 1.2, 0.12)
+
+    local checkbox = Instance.new("Frame")
+    checkbox.AnchorPoint = Vector2.new(0, 0.5)
+    checkbox.Position = UDim2.new(0, 14, 0.5, 0)
+    checkbox.Size = UDim2.fromOffset(34, 34)
     checkbox.BackgroundColor3 = Color3.fromRGB(10, 8, 15)
     checkbox.BorderSizePixel = 0
-    checkbox.AutoButtonColor = false
-    checkbox.Text = ""
-    checkbox.ZIndex = 3002
-    checkbox.Parent = modal
-    makeCorner(checkbox, 8)
-    makeStroke(checkbox, self.Colors.Border, 1.2, 0.12)
+    checkbox.ZIndex = 3003
+    checkbox.Parent = acceptRow
+    makeCorner(checkbox, 9)
+    local checkboxStroke = makeStroke(checkbox, self.Colors.Border, 1.5, 0.08)
 
     local check = Instance.new("TextLabel")
     check.BackgroundTransparency = 1
     check.Size = UDim2.fromScale(1, 1)
     check.Font = Enum.Font.GothamBold
     check.Text = "✓"
-    check.TextSize = 19
-    check.TextColor3 = self.Colors.Accent
+    check.TextSize = 22
+    check.TextColor3 = Color3.fromRGB(255, 255, 255)
     check.Visible = false
-    check.ZIndex = 3003
+    check.ZIndex = 3004
     check.Parent = checkbox
 
-    self:CreateText(modal, "I understand and accept these risks.", UDim2.new(1, -84, 0, 28), UDim2.fromOffset(74, 248), {
-        Font = Enum.Font.GothamMedium,
-        TextSize = 14,
+    self:CreateText(acceptRow, "I understand and accept these risks.", UDim2.new(1, -66, 1, 0), UDim2.fromOffset(62, 0), {
+        Font = Enum.Font.GothamBold,
+        TextSize = mobile and 17 or 16,
         Color = self.Colors.Text,
-        ZIndex = 3002,
+        ZIndex = 3003,
     })
 
     local exitButton = Instance.new("TextButton")
-    exitButton.Position = UDim2.fromOffset(34, 294)
-    exitButton.Size = UDim2.new(0.36, -10, 0, 42)
+    exitButton.Position = UDim2.fromOffset(32, buttonsY)
+    exitButton.Size = UDim2.new(0.34, -8, 0, buttonHeight)
     exitButton.BackgroundColor3 = self.Colors.CardAlt
     exitButton.BorderSizePixel = 0
     exitButton.AutoButtonColor = false
     exitButton.Font = Enum.Font.GothamBold
     exitButton.Text = "EXIT"
-    exitButton.TextSize = 15
+    exitButton.TextSize = mobile and 17 or 16
     exitButton.TextColor3 = self.Colors.Text
     exitButton.ZIndex = 3002
     exitButton.Parent = modal
-    makeCorner(exitButton, 12)
+    makeCorner(exitButton, 13)
     makeStroke(exitButton, self.Colors.BorderSoft, 1, 0.15)
 
     local continueButton = Instance.new("TextButton")
-    continueButton.Position = UDim2.new(0.36, 8, 0, 294)
-    continueButton.Size = UDim2.new(0.64, -42, 0, 42)
+    continueButton.Position = UDim2.new(0.34, 8, 0, buttonsY)
+    continueButton.Size = UDim2.new(0.66, -40, 0, buttonHeight)
     continueButton.BackgroundColor3 = self.Colors.CardAlt
     continueButton.BorderSizePixel = 0
     continueButton.AutoButtonColor = false
     continueButton.Font = Enum.Font.GothamBold
     continueButton.Text = "I UNDERSTAND — CONTINUE"
-    continueButton.TextSize = 15
+    continueButton.TextSize = mobile and 17 or 16
     continueButton.TextColor3 = self.Colors.Text
     continueButton.ZIndex = 3002
     continueButton.Parent = modal
-    makeCorner(continueButton, 12)
-    local continueStroke = makeStroke(continueButton, self.Colors.BorderSoft, 1, 0.15)
+    makeCorner(continueButton, 13)
+    local continueStroke = makeStroke(continueButton, self.Colors.BorderSoft, 1.2, 0.12)
+
+    self:CreateText(modal, self.Version .. "  •  TERMS VERSION 1.1  •  ACCEPTANCE REQUIRED", UDim2.new(1, -64, 0, 18), UDim2.fromOffset(32, footerY), {
+        Font = Enum.Font.GothamMedium,
+        TextSize = 10,
+        Color = self.Colors.Muted,
+        XAlignment = Enum.TextXAlignment.Center,
+        ZIndex = 3002,
+    })
 
     local accepted = false
+
     local function refresh()
         check.Visible = accepted
+        checkbox.BackgroundColor3 = accepted and self.Colors.Accent or Color3.fromRGB(10, 8, 15)
+        checkboxStroke.Color = accepted and self.Colors.Accent or self.Colors.Border
+        acceptStroke.Color = accepted and self.Colors.Accent or self.Colors.BorderSoft
         continueButton.BackgroundColor3 = accepted and self.Colors.Accent or self.Colors.CardAlt
-        continueButton.TextTransparency = accepted and 0 or 0.28
+        continueButton.TextTransparency = accepted and 0 or 0.24
         continueStroke.Color = accepted and self.Colors.Accent or self.Colors.BorderSoft
     end
 
-    checkbox.MouseButton1Click:Connect(function()
+    acceptRow.MouseButton1Click:Connect(function()
         accepted = not accepted
         refresh()
     end)
@@ -2504,7 +2658,7 @@ function App:CreateTermsModal()
         if not accepted then
             if self.Notifications and type(self.Notifications.Warning) == "function" then
                 pcall(function()
-                    self.Notifications:Warning("Terms", "Please accept the risks before continuing", 3)
+                    self.Notifications:Warning("Terms", "Tap the acceptance box before continuing.", 3)
                 end)
             end
             return
@@ -2513,7 +2667,6 @@ function App:CreateTermsModal()
         self.TermsAccepted = true
         overlay:Destroy()
         self.TermsModal = nil
-    self.SupportModal = nil
     end)
 
     refresh()
