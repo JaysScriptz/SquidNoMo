@@ -482,15 +482,6 @@ end)
 	-- Players Page Ready
 	------------------------------------------------------
 
-	Notifications:Success(
-
-		"Players",
-
-		"Players page loaded.",
-
-		2
-
-	)
 
 end
 

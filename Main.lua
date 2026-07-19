@@ -1,13 +1,22 @@
 --// SquidNoMo entry point
 
-print("[SquidNoMo] Starting Beta 5.0")
+print("[SquidNoMo] Starting v0.5.0 Beta")
 
 local LoaderSource = game:HttpGet(
     "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Loader.lua"
 )
 
-local Loader = loadstring(LoaderSource)()
+local LoaderChunk, CompileError = loadstring(LoaderSource)
 
-print("[SquidNoMo] Loader executed")
+if not LoaderChunk then
+    error("[SquidNoMo] Loader compile failed: " .. tostring(CompileError))
+end
 
-return Loader
+local Success, LoaderOrError = pcall(LoaderChunk)
+
+if not Success then
+    error("[SquidNoMo] Loader failed: " .. tostring(LoaderOrError))
+end
+
+print("[SquidNoMo] Dashboard ready")
+return LoaderOrError

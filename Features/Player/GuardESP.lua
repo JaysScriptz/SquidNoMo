@@ -152,4 +152,14 @@ function GuardESP:Disable()
 
 end
 
+----------------------------------------------------------
+-- Status (dashboard state)
+----------------------------------------------------------
+
+function GuardESP:IsEnabled()
+
+	return Enabled
+
+end
+
 return GuardESP

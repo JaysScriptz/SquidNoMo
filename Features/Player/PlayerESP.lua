@@ -152,4 +152,14 @@ function PlayerESP:Disable()
 
 end
 
+----------------------------------------------------------
+-- Status (dashboard state)
+----------------------------------------------------------
+
+function PlayerESP:IsEnabled()
+
+	return Enabled
+
+end
+
 return PlayerESP

@@ -1,6 +1,6 @@
 --//========================================================--
 --// SquidNoMo
---// Beta 5.0
+--// v0.5.0 Beta
 --// Loader.lua
 --//========================================================--
 
@@ -9,96 +9,88 @@ local Config = loadstring(game:HttpGet(
 ))()
 
 local function Load(Path)
-
-    print("[Loader] " .. Path)
+    if Config.Debug then
+        print("[SquidNoMo Loader] " .. Path)
+    end
 
     local Url = Config.Repository .. Path
     local Source = game:HttpGet(Url)
     local Chunk, CompileError = loadstring(Source)
 
     if not Chunk then
-        error(string.format("[Loader] Compile failed for %s: %s", Path, tostring(CompileError)))
+        error(string.format("[SquidNoMo Loader] Compile failed for %s: %s", Path, tostring(CompileError)))
     end
 
     local Success, Result = pcall(Chunk)
 
     if not Success then
-        error(string.format("[Loader] Execution failed for %s: %s", Path, tostring(Result)))
+        error(string.format("[SquidNoMo Loader] Execution failed for %s: %s", Path, tostring(Result)))
     end
 
     return Result
-
 end
+
+local Loader = {
+    Config = Config,
+    Features = {},
+}
 
 ----------------------------------------------------------
 -- Core
 ----------------------------------------------------------
 
-local Loader = {}
-Loader.Config = Config
-
-Loader.Theme         = Load("Core/Theme.lua")
-Loader.Components    = Load("Core/Components.lua")
-Loader.Navigation    = Load("Core/Navigation.lua")
-Loader.Utilities     = Load("Core/Utilities.lua")
+Loader.Theme = Load("Core/Theme.lua")
+Loader.Icons = Load("Core/Icons.lua")
+Loader.Components = Load("Core/Components.lua")
+Loader.Navigation = Load("Core/Navigation.lua")
+Loader.Utilities = Load("Core/Utilities.lua")
 Loader.Notifications = Load("Core/Notifications.lua")
+Loader.FeatureRegistry = Load("Core/FeatureRegistry.lua")
+Loader.RuntimeStats = Load("Core/RuntimeStats.lua")
 
 ----------------------------------------------------------
--- Features
+-- Existing feature layer
 ----------------------------------------------------------
 
 Loader.FeatureManager = Load("Features/FeatureManager.lua")
-Loader.Features = {}
+
+local FeaturesLoaded, FeaturesOrError = pcall(function()
+    return Loader.FeatureManager:Initialize(Loader)
+end)
+
+if FeaturesLoaded then
+    Loader.Features = FeaturesOrError or {}
+    if Config.Debug then
+        print("[SquidNoMo Loader] Existing features initialized")
+    end
+else
+    warn("[SquidNoMo Loader] Feature initialization failed:", FeaturesOrError)
+    Loader.Features = {}
+end
 
 ----------------------------------------------------------
--- App
+-- App and pages
 ----------------------------------------------------------
 
 Loader.App = Load("Core/App.lua")
 
-----------------------------------------------------------
--- Pages
-----------------------------------------------------------
-
 Loader.Home = Load("Modules/Home.lua")
+Loader.Games = Load("Modules/Games.lua")
 Loader.Players = Load("Modules/Players.lua")
+Loader.Guards = Load("Modules/Guards.lua")
+Loader.Detective = Load("Modules/Detective.lua")
+Loader.Farming = Load("Modules/Farming.lua")
+Loader.UI = Load("Modules/UI.lua")
+Loader.Settings = Load("Modules/Settings.lua")
 
-----------------------------------------------------------
--- Home Modules
-----------------------------------------------------------
-
-Loader.HeroBanner = Load("Modules/Home/HeroBanner.lua")
-Loader.FeatureGroups = Load("Modules/Home/FeatureGroups.lua")
-Loader.ServerStatus = Load("Modules/Home/ServerStatus.lua")
-Loader.NOMOAI = Load("Modules/Home/NOMOAI.lua")
-Loader.SupportDevelopment = Load("Modules/Home/SupportDevelopment.lua")
-Loader.DevelopmentGoal = Load("Modules/Home/DevelopmentGoal.lua")
-Loader.Supporters = Load("Modules/Home/Supporters.lua")
-Loader.ImportantNotice = Load("Modules/Home/ImportantNotice.lua")
-Loader.Footer = Load("Modules/Home/Footer.lua")
+Loader.HomeHero = Load("Modules/Home/Hero.lua")
+Loader.HomeFeatureStats = Load("Modules/Home/FeatureStats.lua")
+Loader.HomeStatusPanels = Load("Modules/Home/StatusPanels.lua")
 
 ----------------------------------------------------------
 -- Launch
 ----------------------------------------------------------
 
 Loader.App:Build(Loader)
-
-----------------------------------------------------------
--- Feature Initialization
-----------------------------------------------------------
-
-local FeaturesLoaded, FeaturesOrError = pcall(function()
-	return Loader.FeatureManager:Initialize(Loader)
-end)
-
-if FeaturesLoaded then
-	Loader.Features = FeaturesOrError
-	Loader.App.Features = FeaturesOrError
-	print("[Loader] Features ready")
-else
-	warn("[Loader] Feature initialization failed:", FeaturesOrError)
-	Loader.Features = {}
-	Loader.App.Features = Loader.Features
-end
 
 return Loader
