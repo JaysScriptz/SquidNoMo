@@ -1,8 +1,34 @@
 --//========================================================--
---// SquidNoMo
---// Beta 5.0
+--// SquidNoMo - Universal App Runtime
 --// Core/App.lua
+--// Designed for Roblox Studio and common client executors
+--// Mobile-first target: Delta landscape
 --//========================================================--
+
+--[[
+    PURPOSE
+    -------
+    This file owns only the application shell:
+      • top-layer ScreenGui creation
+      • mobile safe-zone placement
+      • full-suite uniform scaling
+      • mouse + touch dragging
+      • navigation and page mounting
+      • visible error reporting
+      • compatibility with the existing modular Loader
+
+    It does not contain game automation or feature logic.
+
+    EXPECTED LOADER CALL
+    --------------------
+        local App = loadstring(game:HttpGet(URL_TO_THIS_FILE))()
+        App:Build(Loader)
+
+    DIRECT UI TEST
+    --------------
+        local App = loadstring(game:HttpGet(URL_TO_THIS_FILE))()
+        App:Build({})
+]]
 
 ----------------------------------------------------------
 -- Services
@@ -14,6 +40,7 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local GuiService = game:GetService("GuiService")
 local CoreGui = game:GetService("CoreGui")
+local Stats = game:GetService("Stats")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -22,908 +49,2222 @@ local LocalPlayer = Players.LocalPlayer
 ----------------------------------------------------------
 
 local App = {}
+App.__index = App
 
-----------------------------------------------------------
--- Version
-----------------------------------------------------------
-
+App.Name = "SquidNoMo"
 App.Version = "Beta 5.0"
+App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
--- Core Modules
+-- Easy configuration
+-- These values are intentionally grouped in one place.
 ----------------------------------------------------------
 
+App.Config = {
+    -- Fixed desktop composition. The complete suite is scaled as one unit.
+    DesignWidth = 1225,
+    DesignHeight = 730,
+
+    -- Desktop occupies about 78% of the available game viewport.
+    DesktopFill = 0.78,
+
+    -- Mobile occupies almost all of the known free region, not the whole screen.
+    MobileSafeFill = 0.96,
+
+    -- Minimum / maximum uniform scale.
+    MinimumScale = 0.45,
+    MaximumScale = 1.15,
+
+    -- Safe region measured from the supplied Delta mobile landscape screenshot.
+    -- Left and right avoid the game buttons; top avoids Roblox/top controls.
+    MobileLandscapeMargins = {
+        Left = 0.135,
+        Right = 0.185,
+        Top = 0.115,
+        Bottom = 0.030,
+    },
+
+    -- Portrait keeps the full desktop suite and scales it down.
+    MobilePortraitMargins = {
+        Left = 0.045,
+        Right = 0.045,
+        Top = 0.090,
+        Bottom = 0.100,
+    },
+
+    DesktopMargins = {
+        Left = 0.025,
+        Right = 0.025,
+        Top = 0.035,
+        Bottom = 0.035,
+    },
+
+    DisplayOrder = 999999,
+    SidebarWidth = 220,
+    TopbarHeight = 46,
+    CornerRadius = 18,
+
+    -- Set true only when testing a mobile layout in Studio device emulation.
+    ForceMobile = false,
+}
+
+----------------------------------------------------------
+-- Canonical palette from the approved rendering
+----------------------------------------------------------
+
+App.Colors = {
+    Backdrop = Color3.fromRGB(7, 10, 9),
+    Window = Color3.fromRGB(11, 15, 13),
+    Sidebar = Color3.fromRGB(15, 20, 17),
+    Topbar = Color3.fromRGB(14, 19, 16),
+    Card = Color3.fromRGB(19, 25, 21),
+    CardAlt = Color3.fromRGB(23, 31, 26),
+    CardHover = Color3.fromRGB(29, 39, 33),
+    Border = Color3.fromRGB(48, 66, 56),
+    BorderSoft = Color3.fromRGB(33, 47, 40),
+    Accent = Color3.fromRGB(0, 255, 143),
+    AccentDark = Color3.fromRGB(0, 161, 91),
+    AccentSoft = Color3.fromRGB(38, 112, 78),
+    Pink = Color3.fromRGB(255, 66, 145),
+    PinkDark = Color3.fromRGB(150, 38, 85),
+    Warning = Color3.fromRGB(255, 190, 65),
+    Error = Color3.fromRGB(255, 76, 76),
+    Text = Color3.fromRGB(240, 248, 243),
+    Muted = Color3.fromRGB(151, 170, 160),
+    Dim = Color3.fromRGB(95, 112, 103),
+    Black = Color3.fromRGB(0, 0, 0),
+}
+
+----------------------------------------------------------
+-- Runtime state
+----------------------------------------------------------
+
+App.Loader = nil
 App.Theme = nil
 App.Components = nil
 App.Navigation = nil
 App.Utilities = nil
 App.Notifications = nil
-
-----------------------------------------------------------
--- References
-----------------------------------------------------------
+App.Features = nil
 
 App.Gui = nil
+App.Host = nil
 App.Window = nil
-App.Header = nil
-App.Banner = nil
+App.WindowScale = nil
 App.Sidebar = nil
+App.Topbar = nil
 App.PageContainer = nil
-
-----------------------------------------------------------
--- Storage
-----------------------------------------------------------
+App.ReopenButton = nil
 
 App.Pages = {}
-
+App.PageDefinitions = {}
 App.NavigationButtons = {}
+App.Connections = {}
+App.ModuleErrors = {}
 
-App.SubNavigationButtons = {}
-
-----------------------------------------------------------
--- Responsive / Floating Overlay
-----------------------------------------------------------
-
--- Logical desktop canvas. The complete desktop suite is kept intact and
--- uniformly scaled into the device-safe placement zone.
-App.DesignSize = Vector2.new(1440, 820)
-
--- The red-box free area measured from the supplied Squid Game X screenshot.
--- These percentages are only used for touch devices in landscape orientation.
-App.MobileLandscapeMargins = {
-	Left = 0.135,
-	Right = 0.185,
-	Top = 0.115,
-	Bottom = 0.030,
-}
-
--- Portrait still keeps the full desktop suite; it is simply scaled further.
-App.MobilePortraitMargins = {
-	Left = 0.035,
-	Right = 0.035,
-	Top = 0.075,
-	Bottom = 0.100,
-}
-
-App.DesktopViewportFill = 0.78
-App.TouchLandscapeFill = 0.96
-App.TouchPortraitFill = 0.78
-
-App.MinimumScale = 0.28
-App.MaximumScale = 1.15
-
--- Relative location inside the safe zone. 0.5 / 0.5 is centered.
-App.WindowPositionRatio = Vector2.new(0.5, 0.5)
-App.WindowWasDragged = false
+App.CurrentPage = nil
+App.CurrentScale = 1
+App.CurrentVisualSize = Vector2.new(App.Config.DesignWidth, App.Config.DesignHeight)
+App.CurrentSafePosition = Vector2.new(0, 0)
+App.CurrentSafeSize = Vector2.new(App.Config.DesignWidth, App.Config.DesignHeight)
+App.HasBeenDragged = false
+App.IsMinimized = false
+App._building = false
 
 ----------------------------------------------------------
--- Initialize
+-- Small utilities
 ----------------------------------------------------------
 
-function App:Init(Loader)
+local function isGuiObject(value)
+    return typeof(value) == "Instance" and value:IsA("GuiObject")
+end
 
-	self.Loader = Loader
+local function makeCorner(parent, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius)
+    corner.Parent = parent
+    return corner
+end
 
-	self.Theme = Loader.Theme
+local function makeStroke(parent, color, thickness, transparency)
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = color
+    stroke.Thickness = thickness or 1
+    stroke.Transparency = transparency or 0
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = parent
+    return stroke
+end
 
-	self.Components = Loader.Components
+local function makePadding(parent, left, right, top, bottom)
+    local padding = Instance.new("UIPadding")
+    padding.PaddingLeft = UDim.new(0, left or 0)
+    padding.PaddingRight = UDim.new(0, right or 0)
+    padding.PaddingTop = UDim.new(0, top or 0)
+    padding.PaddingBottom = UDim.new(0, bottom or 0)
+    padding.Parent = parent
+    return padding
+end
 
-	self.Navigation = Loader.Navigation
+local function makeGradient(parent, colorSequence, rotation)
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = colorSequence
+    gradient.Rotation = rotation or 0
+    gradient.Parent = parent
+    return gradient
+end
 
-	self.Utilities = Loader.Utilities
+local function safeDisconnect(connection)
+    if connection then
+        pcall(function()
+            connection:Disconnect()
+        end)
+    end
+end
 
-	self.Notifications = Loader.Notifications
-	self.Config = Loader.Config
-	self.Features = Loader.Features
+function App:Track(connection)
+    table.insert(self.Connections, connection)
+    return connection
+end
 
-	if self.Components and self.Components.Initialize then
-		self.Components:Initialize(self.Theme)
-	end
+function App:Tween(instance, properties, duration)
+    if not instance or not instance.Parent then
+        return nil
+    end
 
+    local tween = TweenService:Create(
+        instance,
+        TweenInfo.new(duration or 0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        properties
+    )
+
+    tween:Play()
+    return tween
+end
+
+function App:SafeCall(label, callback)
+    local ok, result = xpcall(callback, function(message)
+        return debug.traceback(tostring(message), 2)
+    end)
+
+    if not ok then
+        self.ModuleErrors[label] = result
+        warn("[SquidNoMo][" .. tostring(label) .. "] " .. tostring(result))
+    end
+
+    return ok, result
 end
 
 ----------------------------------------------------------
--- UI Parent
+-- Parent selection
+-- Studio uses PlayerGui. Executors prefer gethui/CoreGui.
 ----------------------------------------------------------
 
-function App:GetUIParent()
-	if type(gethui) == "function" then
-		local Success, Result = pcall(gethui)
+function App:GetPlayerGui()
+    if not LocalPlayer then
+        LocalPlayer = Players.LocalPlayer
+    end
 
-		if Success and Result then
-			return Result
-		end
-	end
+    if not LocalPlayer then
+        return nil
+    end
 
-	return CoreGui
+    return LocalPlayer:FindFirstChildOfClass("PlayerGui")
+        or LocalPlayer:WaitForChild("PlayerGui", 10)
+end
+
+function App:GetGuiParent()
+    if RunService:IsStudio() then
+        return self:GetPlayerGui()
+    end
+
+    local executorParent = nil
+
+    if type(gethui) == "function" then
+        pcall(function()
+            executorParent = gethui()
+        end)
+    end
+
+    if executorParent then
+        return executorParent
+    end
+
+    local protectedCoreGui = CoreGui
+
+    if type(cloneref) == "function" then
+        pcall(function()
+            protectedCoreGui = cloneref(CoreGui)
+        end)
+    end
+
+    if protectedCoreGui then
+        return protectedCoreGui
+    end
+
+    return self:GetPlayerGui()
+end
+
+function App:DestroyOldCopies()
+    local parents = {}
+
+    local function addParent(parent)
+        if parent and not table.find(parents, parent) then
+            table.insert(parents, parent)
+        end
+    end
+
+    addParent(self:GetPlayerGui())
+    addParent(CoreGui)
+
+    if type(gethui) == "function" then
+        pcall(function()
+            addParent(gethui())
+        end)
+    end
+
+    for _, parent in ipairs(parents) do
+        local existing = parent:FindFirstChild(self.Name)
+        if existing then
+            pcall(function()
+                existing:Destroy()
+            end)
+        end
+    end
 end
 
 ----------------------------------------------------------
--- Create ScreenGui
+-- Loader and component compatibility
+----------------------------------------------------------
+
+function App:Init(loader)
+    self.Loader = loader or {}
+
+    self.Theme = self.Loader.Theme
+    self.Components = self.Loader.Components
+    self.Navigation = self.Loader.Navigation
+    self.Utilities = self.Loader.Utilities
+    self.Notifications = self.Loader.Notifications
+    self.Features = self.Loader.Features or self.Loader.FeatureManager
+
+    -- Main.lua in the current project calls Loader.Home.Load().
+    -- Add a harmless compatibility method so that call cannot kill launch.
+    if self.Loader.Home and type(self.Loader.Home.Load) ~= "function" then
+        self.Loader.Home.Load = function()
+            return true
+        end
+    end
+
+    self:PatchComponents()
+end
+
+function App:PatchComponents()
+    local components = self.Components
+
+    if not components then
+        return
+    end
+
+    if type(components.Initialize) == "function" then
+        pcall(function()
+            components:Initialize(self.Theme or self.Colors)
+        end)
+    else
+        components.Theme = self.Theme or self.Colors
+    end
+
+    if components.__SquidNoMoUniversalCompatibility then
+        return
+    end
+
+    components.__SquidNoMoUniversalCompatibility = true
+    components.__SquidNoMoRawMethods = components.__SquidNoMoRawMethods or {}
+
+    local raw = components.__SquidNoMoRawMethods
+
+    local function save(name)
+        if type(components[name]) == "function" and not raw[name] then
+            raw[name] = components[name]
+        end
+    end
+
+    save("CreateCard")
+    save("CreateSection")
+    save("CreateButton")
+    save("CreateToggle")
+    save("CreateSlider")
+    save("CreateDropdown")
+    save("CreateTextbox")
+    save("CreateLabel")
+    save("CreateSpacer")
+    save("CreateDivider")
+
+    if raw.CreateCard then
+        components.CreateCard = function(this, parent, second, third)
+            local size = nil
+
+            if typeof(second) == "UDim2" then
+                size = second
+            elseif typeof(third) == "UDim2" then
+                size = third
+            end
+
+            size = size or UDim2.new(1, 0, 0, 120)
+            return raw.CreateCard(this, parent, size)
+        end
+    end
+
+    if raw.CreateSection then
+        components.CreateSection = function(this, parent, second, third)
+            local title = type(second) == "string" and second or third
+            return raw.CreateSection(this, parent, tostring(title or "Section"))
+        end
+    end
+
+    if raw.CreateButton then
+        components.CreateButton = function(this, parent, second, third)
+            local text = type(second) == "string" and second or third
+            return raw.CreateButton(this, parent, tostring(text or "Button"))
+        end
+    end
+
+    if raw.CreateToggle then
+        components.CreateToggle = function(this, parent, second, third)
+            local text = type(second) == "string" and second or third
+            return raw.CreateToggle(this, parent, tostring(text or "Toggle"))
+        end
+    end
+
+    if raw.CreateSlider then
+        components.CreateSlider = function(this, parent, a, b, c, d, e)
+            if type(a) == "string" then
+                return raw.CreateSlider(this, parent, a, b, c, d)
+            end
+
+            return raw.CreateSlider(this, parent, b, c, d, e)
+        end
+    end
+
+    if raw.CreateDropdown then
+        components.CreateDropdown = function(this, parent, a, b, c)
+            if type(a) == "string" then
+                return raw.CreateDropdown(this, parent, a, b)
+            end
+
+            return raw.CreateDropdown(this, parent, b, c)
+        end
+    end
+
+    if raw.CreateTextbox then
+        components.CreateTextbox = function(this, parent, second, third)
+            local placeholder = type(second) == "string" and second or third
+            return raw.CreateTextbox(this, parent, tostring(placeholder or "Enter text"))
+        end
+    end
+
+    if raw.CreateLabel then
+        components.CreateLabel = function(this, parent, second, third)
+            local text = type(second) == "string" and second or third
+            return raw.CreateLabel(this, parent, tostring(text or ""))
+        end
+    end
+
+    if raw.CreateSpacer then
+        components.CreateSpacer = function(this, parent, second, third)
+            local height = type(second) == "number" and second or third
+            return raw.CreateSpacer(this, parent, height)
+        end
+    end
+
+    if raw.CreateDivider then
+        components.CreateDivider = function(this, parent)
+            return raw.CreateDivider(this, parent)
+        end
+    end
+
+    if type(components.CreateTitle) ~= "function" then
+        function components:CreateTitle(parent, second, third)
+            local theme = self.Theme or App.Theme or App.Colors
+            local text = type(second) == "string" and second or third
+
+            local label = Instance.new("TextLabel")
+            label.Name = "Title"
+            label.BackgroundTransparency = 1
+            label.Position = UDim2.fromOffset(18, 14)
+            label.Size = UDim2.new(1, -36, 0, 26)
+            label.Font = theme.FontBlack or Enum.Font.GothamBold
+            label.Text = tostring(text or "")
+            label.TextSize = 19
+            label.TextColor3 = theme.Text or App.Colors.Text
+            label.TextXAlignment = Enum.TextXAlignment.Left
+            label.Parent = parent
+            return label
+        end
+    end
+end
+
+----------------------------------------------------------
+-- Screen and safe region calculations
+----------------------------------------------------------
+
+function App:GetViewportSize()
+    local camera = workspace.CurrentCamera
+
+    if camera and camera.ViewportSize.X > 0 and camera.ViewportSize.Y > 0 then
+        return camera.ViewportSize
+    end
+
+    return Vector2.new(1280, 720)
+end
+
+function App:IsMobile(viewport)
+    viewport = viewport or self:GetViewportSize()
+    return self.Config.ForceMobile or UserInputService.TouchEnabled
+end
+
+function App:GetSafeRect()
+    local viewport = self:GetViewportSize()
+    local mobile = self:IsMobile(viewport)
+    local landscape = viewport.X >= viewport.Y
+
+    local margins
+    if mobile and landscape then
+        margins = self.Config.MobileLandscapeMargins
+    elseif mobile then
+        margins = self.Config.MobilePortraitMargins
+    else
+        margins = self.Config.DesktopMargins
+    end
+
+    local left = viewport.X * margins.Left
+    local right = viewport.X * margins.Right
+    local top = viewport.Y * margins.Top
+    local bottom = viewport.Y * margins.Bottom
+
+    local ok, insetTopLeft, insetBottomRight = pcall(function()
+        return GuiService:GetGuiInset()
+    end)
+
+    if ok then
+        left = math.max(left, insetTopLeft.X)
+        top = math.max(top, insetTopLeft.Y)
+        right = math.max(right, insetBottomRight.X)
+        bottom = math.max(bottom, insetBottomRight.Y)
+    end
+
+    local position = Vector2.new(math.floor(left), math.floor(top))
+    local size = Vector2.new(
+        math.max(260, math.floor(viewport.X - left - right)),
+        math.max(240, math.floor(viewport.Y - top - bottom))
+    )
+
+    return position, size
+end
+
+function App:CalculateScale()
+    local viewport = self:GetViewportSize()
+    local mobile = self:IsMobile(viewport)
+    local safePosition, safeSize = self:GetSafeRect()
+
+    local fill = mobile and self.Config.MobileSafeFill or self.Config.DesktopFill
+    local targetWidth = safeSize.X * fill
+    local targetHeight = safeSize.Y * fill
+
+    local scale = math.min(
+        targetWidth / self.Config.DesignWidth,
+        targetHeight / self.Config.DesignHeight
+    )
+
+    scale = math.clamp(scale, self.Config.MinimumScale, self.Config.MaximumScale)
+
+    local visualSize = Vector2.new(
+        math.floor(self.Config.DesignWidth * scale),
+        math.floor(self.Config.DesignHeight * scale)
+    )
+
+    return scale, safePosition, safeSize, visualSize
+end
+
+function App:ClampHostPosition(position)
+    local safePosition = self.CurrentSafePosition
+    local safeSize = self.CurrentSafeSize
+    local visualSize = self.CurrentVisualSize
+
+    local minX = safePosition.X
+    local minY = safePosition.Y
+    local maxX = safePosition.X + math.max(0, safeSize.X - visualSize.X)
+    local maxY = safePosition.Y + math.max(0, safeSize.Y - visualSize.Y)
+
+    return Vector2.new(
+        math.clamp(position.X, minX, maxX),
+        math.clamp(position.Y, minY, maxY)
+    )
+end
+
+function App:UpdateResponsive(forceCenter)
+    if not self.Host or not self.WindowScale then
+        return
+    end
+
+    local oldSafePosition = self.CurrentSafePosition
+    local oldSafeSize = self.CurrentSafeSize
+    local oldVisualSize = self.CurrentVisualSize
+
+    local scale, safePosition, safeSize, visualSize = self:CalculateScale()
+
+    self.CurrentScale = scale
+    self.CurrentSafePosition = safePosition
+    self.CurrentSafeSize = safeSize
+    self.CurrentVisualSize = visualSize
+
+    self.WindowScale.Scale = scale
+    self.Host.Size = UDim2.fromOffset(visualSize.X, visualSize.Y)
+
+    local targetPosition
+
+    if forceCenter or not self.HasBeenDragged then
+        targetPosition = Vector2.new(
+            safePosition.X + ((safeSize.X - visualSize.X) / 2),
+            safePosition.Y + ((safeSize.Y - visualSize.Y) / 2)
+        )
+    else
+        local current = Vector2.new(self.Host.Position.X.Offset, self.Host.Position.Y.Offset)
+
+        if oldSafeSize.X > 0 and oldSafeSize.Y > 0 then
+            local oldTravel = Vector2.new(
+                math.max(1, oldSafeSize.X - oldVisualSize.X),
+                math.max(1, oldSafeSize.Y - oldVisualSize.Y)
+            )
+
+            local normalized = Vector2.new(
+                math.clamp((current.X - oldSafePosition.X) / oldTravel.X, 0, 1),
+                math.clamp((current.Y - oldSafePosition.Y) / oldTravel.Y, 0, 1)
+            )
+
+            local newTravel = Vector2.new(
+                math.max(0, safeSize.X - visualSize.X),
+                math.max(0, safeSize.Y - visualSize.Y)
+            )
+
+            targetPosition = Vector2.new(
+                safePosition.X + (newTravel.X * normalized.X),
+                safePosition.Y + (newTravel.Y * normalized.Y)
+            )
+        else
+            targetPosition = current
+        end
+    end
+
+    targetPosition = self:ClampHostPosition(targetPosition)
+    self.Host.Position = UDim2.fromOffset(targetPosition.X, targetPosition.Y)
+
+    if self.ReopenButton and self.ReopenButton.Visible then
+        self:PositionReopenButton()
+    end
+end
+
+----------------------------------------------------------
+-- Gui creation
 ----------------------------------------------------------
 
 function App:CreateGui()
-	local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-	local PreferredParent = self:GetUIParent()
+    self:DestroyOldCopies()
 
-	-- Remove stale copies from both common locations.
-	for _, Parent in ipairs({PreferredParent, PlayerGui}) do
-		if Parent then
-			local Existing = Parent:FindFirstChild("SquidNoMo")
+    local gui = Instance.new("ScreenGui")
+    gui.Name = self.Name
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = self.Config.DisplayOrder
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 
-			if Existing then
-				Existing:Destroy()
-			end
-		end
-	end
+    pcall(function()
+        gui.ScreenInsets = Enum.ScreenInsets.None
+    end)
 
-	local Gui = Instance.new("ScreenGui")
-	Gui.Name = "SquidNoMo"
-	Gui.IgnoreGuiInset = true
-	Gui.ResetOnSpawn = false
-	Gui.DisplayOrder = 1000000
-	Gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+    pcall(function()
+        gui.SafeAreaCompatibility = Enum.SafeAreaCompatibility.None
+    end)
 
-	pcall(function()
-		Gui.ScreenInsets = Enum.ScreenInsets.None
-		Gui.SafeAreaCompatibility = Enum.SafeAreaCompatibility.None
-		Gui.ClipToDeviceSafeArea = false
-	end)
+    pcall(function()
+        gui.ClipToDeviceSafeArea = false
+    end)
 
-	if syn and type(syn.protect_gui) == "function" then
-		pcall(syn.protect_gui, Gui)
-	end
+    if type(syn) == "table" and type(syn.protect_gui) == "function" then
+        pcall(function()
+            syn.protect_gui(gui)
+        end)
+    end
 
-	local ParentSuccess = pcall(function()
-		Gui.Parent = PreferredParent
-	end)
+    local parent = self:GetGuiParent()
+    assert(parent, "No valid GUI parent was available")
 
-	if not ParentSuccess then
-		Gui.Parent = PlayerGui
-	end
+    gui.Parent = parent
+    self.Gui = gui
 
-	self.Gui = Gui
-
-	if self.Notifications then
-		self.Notifications:Init(Gui, self.Theme)
-	end
+    if self.Notifications and type(self.Notifications.Init) == "function" then
+        pcall(function()
+            self.Notifications:Init(gui, self.Theme or self.Colors)
+        end)
+    end
 end
-
-----------------------------------------------------------
--- Safe Placement Zone
-----------------------------------------------------------
-
-function App:GetSafeRect()
-	local Camera = workspace.CurrentCamera
-	local Viewport = Camera and Camera.ViewportSize or self.DesignSize
-
-	local Left = 10
-	local Right = 10
-	local Top = 10
-	local Bottom = 10
-
-	local InsetSuccess, TopLeftInset, BottomRightInset = pcall(function()
-		return GuiService:GetGuiInset()
-	end)
-
-	if InsetSuccess then
-		Left = math.max(Left, TopLeftInset.X)
-		Top = math.max(Top, TopLeftInset.Y)
-		Right = math.max(Right, BottomRightInset.X)
-		Bottom = math.max(Bottom, BottomRightInset.Y)
-	end
-
-	local IsTouch = UserInputService.TouchEnabled
-	local IsLandscape = Viewport.X > Viewport.Y
-
-	if IsTouch and IsLandscape then
-		local Margins = self.MobileLandscapeMargins
-		Left = math.max(Left, Viewport.X * Margins.Left)
-		Right = math.max(Right, Viewport.X * Margins.Right)
-		Top = math.max(Top, Viewport.Y * Margins.Top)
-		Bottom = math.max(Bottom, Viewport.Y * Margins.Bottom)
-	elseif IsTouch then
-		local Margins = self.MobilePortraitMargins
-		Left = math.max(Left, Viewport.X * Margins.Left)
-		Right = math.max(Right, Viewport.X * Margins.Right)
-		Top = math.max(Top, Viewport.Y * Margins.Top)
-		Bottom = math.max(Bottom, Viewport.Y * Margins.Bottom)
-	end
-
-	local Position = Vector2.new(Left, Top)
-	local Size = Vector2.new(
-		math.max(240, Viewport.X - Left - Right),
-		math.max(180, Viewport.Y - Top - Bottom)
-	)
-
-	return Position, Size
-end
-
-----------------------------------------------------------
--- Window Metrics
-----------------------------------------------------------
-
-function App:GetWindowMetrics()
-	local SafePosition, SafeSize = self:GetSafeRect()
-	local Viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or self.DesignSize
-	local IsTouch = UserInputService.TouchEnabled
-	local IsLandscape = Viewport.X > Viewport.Y
-
-	local Fill = self.DesktopViewportFill
-
-	if IsTouch and IsLandscape then
-		Fill = self.TouchLandscapeFill
-	elseif IsTouch then
-		Fill = self.TouchPortraitFill
-	end
-
-	local TargetWidth = SafeSize.X * Fill
-	local TargetHeight = SafeSize.Y * Fill
-
-	local Scale = math.min(
-		TargetWidth / self.DesignSize.X,
-		TargetHeight / self.DesignSize.Y
-	)
-
-	Scale = math.clamp(Scale, self.MinimumScale, self.MaximumScale)
-
-	local DisplaySize = Vector2.new(
-		self.DesignSize.X * Scale,
-		self.DesignSize.Y * Scale
-	)
-
-	-- Never let an enforced minimum scale push the suite beyond the safe zone.
-	if DisplaySize.X > SafeSize.X or DisplaySize.Y > SafeSize.Y then
-		Scale = math.min(
-			SafeSize.X / self.DesignSize.X,
-			SafeSize.Y / self.DesignSize.Y
-		)
-
-		DisplaySize = Vector2.new(
-			self.DesignSize.X * Scale,
-			self.DesignSize.Y * Scale
-		)
-	end
-
-	local Travel = Vector2.new(
-		math.max(0, SafeSize.X - DisplaySize.X),
-		math.max(0, SafeSize.Y - DisplaySize.Y)
-	)
-
-	local Position = SafePosition + Vector2.new(
-		Travel.X * self.WindowPositionRatio.X,
-		Travel.Y * self.WindowPositionRatio.Y
-	)
-
-	return Position, DisplaySize, Scale, SafePosition, SafeSize
-end
-
-----------------------------------------------------------
--- Clamp / Move Window
-----------------------------------------------------------
-
-function App:SetWindowScreenPosition(X, Y, RememberPosition)
-	if not self.Window then
-		return
-	end
-
-	local _, DisplaySize, _, SafePosition, SafeSize = self:GetWindowMetrics()
-	local MaxX = SafePosition.X + math.max(0, SafeSize.X - DisplaySize.X)
-	local MaxY = SafePosition.Y + math.max(0, SafeSize.Y - DisplaySize.Y)
-
-	local ClampedX = math.clamp(X, SafePosition.X, MaxX)
-	local ClampedY = math.clamp(Y, SafePosition.Y, MaxY)
-
-	self.Window.Position = UDim2.fromOffset(ClampedX, ClampedY)
-
-	if RememberPosition then
-		local TravelX = math.max(0, MaxX - SafePosition.X)
-		local TravelY = math.max(0, MaxY - SafePosition.Y)
-
-		self.WindowPositionRatio = Vector2.new(
-			TravelX > 0 and ((ClampedX - SafePosition.X) / TravelX) or 0.5,
-			TravelY > 0 and ((ClampedY - SafePosition.Y) / TravelY) or 0.5
-		)
-
-		self.WindowWasDragged = true
-	end
-end
-
-----------------------------------------------------------
--- Resize / Reposition Window
-----------------------------------------------------------
-
-function App:UpdateWindow()
-	if not self.Window then
-		return
-	end
-
-	local Position, _, Scale = self:GetWindowMetrics()
-
-	self.Window.Size = UDim2.fromOffset(
-		self.DesignSize.X,
-		self.DesignSize.Y
-	)
-
-	if self.WindowScale then
-		self.WindowScale.Scale = Scale
-	end
-
-	self.Window.Position = UDim2.fromOffset(Position.X, Position.Y)
-
-	task.defer(function()
-		self:UpdateLayout()
-	end)
-end
-
-----------------------------------------------------------
--- Create Window
-----------------------------------------------------------
 
 function App:CreateWindow()
-	local Theme = self.Theme
-	local Position, _, Scale = self:GetWindowMetrics()
+    local host = Instance.new("Frame")
+    host.Name = "FloatingHost"
+    host.BackgroundTransparency = 1
+    host.BorderSizePixel = 0
+    host.Active = true
+    host.ZIndex = 1000
+    host.Parent = self.Gui
+    self.Host = host
 
-	local Window = Instance.new("Frame")
-	Window.Name = "Window"
-	Window.AnchorPoint = Vector2.zero
-	Window.Position = UDim2.fromOffset(Position.X, Position.Y)
-	Window.Size = UDim2.fromOffset(self.DesignSize.X, self.DesignSize.Y)
-	Window.BackgroundColor3 = Theme.Background
-	Window.BorderSizePixel = 0
-	Window.ClipsDescendants = true
-	Window.Active = true
-	Window.ZIndex = 1
-	Window.Parent = self.Gui
+    local window = Instance.new("Frame")
+    window.Name = "Window"
+    window.Size = UDim2.fromOffset(self.Config.DesignWidth, self.Config.DesignHeight)
+    window.BackgroundColor3 = self.Colors.Window
+    window.BorderSizePixel = 0
+    window.ClipsDescendants = true
+    window.Active = true
+    window.ZIndex = 1001
+    window.Parent = host
+    makeCorner(window, self.Config.CornerRadius)
+    makeStroke(window, self.Colors.Border, 1, 0.15)
 
-	local WindowScale = Instance.new("UIScale")
-	WindowScale.Name = "ResponsiveScale"
-	WindowScale.Scale = Scale
-	WindowScale.Parent = Window
+    local scale = Instance.new("UIScale")
+    scale.Name = "ResponsiveScale"
+    scale.Scale = 1
+    scale.Parent = window
 
-	local Corner = Instance.new("UICorner")
-	Corner.CornerRadius = UDim.new(0,18)
-	Corner.Parent = Window
+    local blocker = Instance.new("Frame")
+    blocker.Name = "InputShield"
+    blocker.Size = UDim2.fromScale(1, 1)
+    blocker.BackgroundTransparency = 1
+    blocker.BorderSizePixel = 0
+    blocker.Active = true
+    blocker.ZIndex = 1001
+    blocker.Parent = window
 
-	local Stroke = Instance.new("UIStroke")
-	Stroke.Color = Theme.BorderDark
-	Stroke.Thickness = 1
-	Stroke.Parent = Window
-
-	self.Window = Window
-	self.WindowScale = WindowScale
+    self.Window = window
+    self.WindowScale = scale
 end
 
 ----------------------------------------------------------
--- Responsive Layout
+-- Topbar, dragging, minimize, close
 ----------------------------------------------------------
 
-function App:UpdateLayout()
-	if not self.Window then
-		return
-	end
+function App:CreateTopbar()
+    local topbar = Instance.new("Frame")
+    topbar.Name = "Topbar"
+    topbar.Position = UDim2.fromOffset(self.Config.SidebarWidth, 0)
+    topbar.Size = UDim2.new(1, -self.Config.SidebarWidth, 0, self.Config.TopbarHeight)
+    topbar.BackgroundColor3 = self.Colors.Topbar
+    topbar.BorderSizePixel = 0
+    topbar.Active = true
+    topbar.ZIndex = 1020
+    topbar.Parent = self.Window
 
-	-- Keep the complete desktop navigation on touch devices.
-	local SidebarWidth = 220
+    local divider = Instance.new("Frame")
+    divider.AnchorPoint = Vector2.new(0, 1)
+    divider.Position = UDim2.new(0, 0, 1, 0)
+    divider.Size = UDim2.new(1, 0, 0, 1)
+    divider.BackgroundColor3 = self.Colors.BorderSoft
+    divider.BorderSizePixel = 0
+    divider.ZIndex = 1021
+    divider.Parent = topbar
 
-	if self.Sidebar then
-		self.Sidebar.Size = UDim2.new(0, SidebarWidth, 1, -256)
-	end
+    local title = Instance.new("TextLabel")
+    title.Name = "PageTitle"
+    title.BackgroundTransparency = 1
+    title.Position = UDim2.fromOffset(18, 0)
+    title.Size = UDim2.new(1, -150, 1, 0)
+    title.Font = Enum.Font.GothamBold
+    title.Text = "HOME"
+    title.TextSize = 14
+    title.TextColor3 = self.Colors.Muted
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.ZIndex = 1022
+    title.Parent = topbar
+    self.PageTitle = title
 
-	if self.PageContainer then
-		local Left = 18 + SidebarWidth + 18
-		self.PageContainer.Position = UDim2.fromOffset(Left, 238)
-		self.PageContainer.Size = UDim2.new(1, -(Left + 18), 1, -256)
-	end
+    local statusDot = Instance.new("Frame")
+    statusDot.AnchorPoint = Vector2.new(1, 0.5)
+    statusDot.Position = UDim2.new(1, -116, 0.5, 0)
+    statusDot.Size = UDim2.fromOffset(7, 7)
+    statusDot.BackgroundColor3 = self.Colors.Accent
+    statusDot.BorderSizePixel = 0
+    statusDot.ZIndex = 1022
+    statusDot.Parent = topbar
+    makeCorner(statusDot, 99)
 
-	for _, Button in pairs(self.NavigationButtons) do
-		if Button.SetCompact then
-			Button:SetCompact(false)
-		end
-	end
+    local status = Instance.new("TextLabel")
+    status.AnchorPoint = Vector2.new(1, 0.5)
+    status.Position = UDim2.new(1, -72, 0.5, 0)
+    status.Size = UDim2.fromOffset(38, 18)
+    status.BackgroundTransparency = 1
+    status.Font = Enum.Font.GothamMedium
+    status.Text = "READY"
+    status.TextSize = 10
+    status.TextColor3 = self.Colors.Accent
+    status.ZIndex = 1022
+    status.Parent = topbar
+
+    local minimize = self:CreateTopbarButton(topbar, "—", 62)
+    local close = self:CreateTopbarButton(topbar, "×", 18)
+
+    minimize.MouseButton1Click:Connect(function()
+        self:SetMinimized(true)
+    end)
+
+    close.MouseButton1Click:Connect(function()
+        self:Destroy()
+    end)
+
+    local dragHandle = Instance.new("Frame")
+    dragHandle.Name = "DragHandle"
+    dragHandle.Size = UDim2.new(1, -142, 1, 0)
+    dragHandle.BackgroundTransparency = 1
+    dragHandle.BorderSizePixel = 0
+    dragHandle.Active = true
+    dragHandle.ZIndex = 1021
+    dragHandle.Parent = topbar
+
+    -- Keep the visible title above the transparent drag handle.
+    title.ZIndex = 1022
+
+    self.Topbar = topbar
+    self:EnableDragging(dragHandle)
+end
+
+function App:CreateTopbarButton(parent, text, rightOffset)
+    local button = Instance.new("TextButton")
+    button.AnchorPoint = Vector2.new(1, 0.5)
+    button.Position = UDim2.new(1, -rightOffset, 0.5, 0)
+    button.Size = UDim2.fromOffset(38, 32)
+    button.BackgroundColor3 = self.Colors.CardAlt
+    button.BorderSizePixel = 0
+    button.AutoButtonColor = false
+    button.Font = Enum.Font.GothamBold
+    button.Text = text
+    button.TextSize = 18
+    button.TextColor3 = self.Colors.Text
+    button.ZIndex = 1030
+    button.Parent = parent
+    makeCorner(button, 9)
+    makeStroke(button, self.Colors.BorderSoft, 1, 0.25)
+
+    button.MouseEnter:Connect(function()
+        self:Tween(button, {BackgroundColor3 = self.Colors.CardHover}, 0.14)
+    end)
+
+    button.MouseLeave:Connect(function()
+        self:Tween(button, {BackgroundColor3 = self.Colors.CardAlt}, 0.14)
+    end)
+
+    return button
+end
+
+function App:EnableDragging(dragBar)
+    local dragging = false
+    local activeInput = nil
+    local startInput = nil
+    local startPosition = nil
+
+    self:Track(dragBar.InputBegan:Connect(function(input)
+        local inputType = input.UserInputType
+        if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then
+            return
+        end
+
+        dragging = true
+        activeInput = input
+        startInput = Vector2.new(input.Position.X, input.Position.Y)
+        startPosition = Vector2.new(self.Host.Position.X.Offset, self.Host.Position.Y.Offset)
+    end))
+
+    self:Track(UserInputService.InputChanged:Connect(function(input)
+        if not dragging or not activeInput then
+            return
+        end
+
+        local correctInput = input == activeInput
+            or (activeInput.UserInputType == Enum.UserInputType.MouseButton1
+                and input.UserInputType == Enum.UserInputType.MouseMovement)
+
+        if not correctInput then
+            return
+        end
+
+        local current = Vector2.new(input.Position.X, input.Position.Y)
+        local delta = current - startInput
+        local target = self:ClampHostPosition(startPosition + delta)
+
+        self.Host.Position = UDim2.fromOffset(target.X, target.Y)
+        self.HasBeenDragged = true
+    end))
+
+    self:Track(UserInputService.InputEnded:Connect(function(input)
+        if not dragging then
+            return
+        end
+
+        if input == activeInput
+            or input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            activeInput = nil
+        end
+    end))
+end
+
+function App:CreateReopenButton()
+    local button = Instance.new("TextButton")
+    button.Name = "Reopen"
+    button.Size = UDim2.fromOffset(56, 56)
+    button.BackgroundColor3 = self.Colors.Window
+    button.BorderSizePixel = 0
+    button.AutoButtonColor = false
+    button.Font = Enum.Font.GothamBlack
+    button.Text = "SN"
+    button.TextSize = 17
+    button.TextColor3 = self.Colors.Accent
+    button.Visible = false
+    button.ZIndex = 5000
+    button.Parent = self.Gui
+    makeCorner(button, 16)
+    makeStroke(button, self.Colors.Accent, 2, 0.05)
+
+    button.MouseButton1Click:Connect(function()
+        self:SetMinimized(false)
+    end)
+
+    self.ReopenButton = button
+end
+
+function App:PositionReopenButton()
+    if not self.ReopenButton then
+        return
+    end
+
+    local safePosition, safeSize = self:GetSafeRect()
+    self.ReopenButton.Position = UDim2.fromOffset(
+        safePosition.X + 8,
+        safePosition.Y + math.max(8, (safeSize.Y - 56) / 2)
+    )
+end
+
+function App:SetMinimized(state)
+    self.IsMinimized = state and true or false
+
+    if self.Host then
+        self.Host.Visible = not self.IsMinimized
+    end
+
+    if self.ReopenButton then
+        self.ReopenButton.Visible = self.IsMinimized
+        if self.IsMinimized then
+            self:PositionReopenButton()
+        end
+    end
 end
 
 ----------------------------------------------------------
--- Mouse + Touch Dragging
-----------------------------------------------------------
-
-function App:EnableWindowDragging(DragBar)
-	if not DragBar or not self.Window then
-		return
-	end
-
-	DragBar.Active = true
-
-	local Dragging = false
-	local DragInput = nil
-	local DragStart = nil
-	local StartPosition = nil
-
-	local function IsDragStart(Input)
-		return Input.UserInputType == Enum.UserInputType.MouseButton1
-			or Input.UserInputType == Enum.UserInputType.Touch
-	end
-
-	DragBar.InputBegan:Connect(function(Input)
-		if not IsDragStart(Input) then
-			return
-		end
-
-		Dragging = true
-		DragInput = Input
-		DragStart = Input.Position
-		StartPosition = Vector2.new(
-			self.Window.Position.X.Offset,
-			self.Window.Position.Y.Offset
-		)
-
-		Input.Changed:Connect(function()
-			if Input.UserInputState == Enum.UserInputState.End then
-				Dragging = false
-				DragInput = nil
-			end
-		end)
-	end)
-
-	UserInputService.InputChanged:Connect(function(Input)
-		if not Dragging or not DragStart or not StartPosition then
-			return
-		end
-
-		local IsTouchMove = DragInput
-			and DragInput.UserInputType == Enum.UserInputType.Touch
-			and Input == DragInput
-
-		local IsMouseMove = DragInput
-			and DragInput.UserInputType == Enum.UserInputType.MouseButton1
-			and Input.UserInputType == Enum.UserInputType.MouseMovement
-
-		if not IsTouchMove and not IsMouseMove then
-			return
-		end
-
-		local Delta = Input.Position - DragStart
-
-		self:SetWindowScreenPosition(
-			StartPosition.X + Delta.X,
-			StartPosition.Y + Delta.Y,
-			true
-		)
-	end)
-
-	UserInputService.InputEnded:Connect(function(Input)
-		if not Dragging then
-			return
-		end
-
-		if Input.UserInputType == Enum.UserInputType.MouseButton1
-			or Input.UserInputType == Enum.UserInputType.Touch then
-			Dragging = false
-			DragInput = nil
-		end
-	end)
-end
-
-----------------------------------------------------------
--- Responsive Updates
-----------------------------------------------------------
-
-function App:StartResponsive()
-	task.spawn(function()
-		local Camera = workspace.CurrentCamera
-
-		while not Camera do
-			task.wait()
-			Camera = workspace.CurrentCamera
-		end
-
-		self:UpdateWindow()
-
-		if self.ViewportConnection then
-			self.ViewportConnection:Disconnect()
-		end
-
-		self.ViewportConnection = Camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-			self:UpdateWindow()
-		end)
-	end)
-end
-
-----------------------------------------------------------
--- Header
-----------------------------------------------------------
-
-function App:CreateHeader()
-	local Theme = self.Theme
-
-	local Header = Instance.new("Frame")
-	Header.Name = "Header"
-	Header.Size = UDim2.new(1,0,0,56)
-	Header.BackgroundColor3 = Theme.Header
-	Header.BorderSizePixel = 0
-	Header.Active = true
-	Header.ZIndex = 10
-	Header.Parent = self.Window
-
-	self.Header = Header
-
-	local Stroke = Instance.new("UIStroke")
-	Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	Stroke.Color = Theme.BorderDark
-	Stroke.Thickness = 1
-	Stroke.Parent = Header
-
-	local Title = Instance.new("TextLabel")
-	Title.BackgroundTransparency = 1
-	Title.Position = UDim2.fromOffset(18,8)
-	Title.Size = UDim2.new(0,240,0,26)
-	Title.Font = Theme.FontBlack
-	Title.Text = "SquidNoMo"
-	Title.TextSize = 24
-	Title.TextColor3 = Theme.Text
-	Title.TextXAlignment = Enum.TextXAlignment.Left
-	Title.ZIndex = 11
-	Title.Parent = Header
-
-	self.HeaderTitle = Title
-
-	local Version = Instance.new("TextLabel")
-	Version.BackgroundTransparency = 1
-	Version.Position = UDim2.fromOffset(20,30)
-	Version.Size = UDim2.new(0,150,0,18)
-	Version.Font = Theme.Font
-	Version.Text = self.Version
-	Version.TextSize = 13
-	Version.TextColor3 = Theme.SubText
-	Version.TextXAlignment = Enum.TextXAlignment.Left
-	Version.ZIndex = 11
-	Version.Parent = Header
-
-	-- Large transparent touch target with the original compact visual button.
-	local CloseHitbox = Instance.new("TextButton")
-	CloseHitbox.Name = "CloseHitbox"
-	CloseHitbox.Size = UDim2.fromOffset(72,56)
-	CloseHitbox.AnchorPoint = Vector2.new(1,0)
-	CloseHitbox.Position = UDim2.new(1,0,0,0)
-	CloseHitbox.BackgroundTransparency = 1
-	CloseHitbox.Text = ""
-	CloseHitbox.AutoButtonColor = false
-	CloseHitbox.ZIndex = 20
-	CloseHitbox.Parent = Header
-
-	local Close = Instance.new("TextLabel")
-	Close.Name = "Visual"
-	Close.Size = UDim2.fromOffset(38,38)
-	Close.AnchorPoint = Vector2.new(0.5,0.5)
-	Close.Position = UDim2.fromScale(0.5,0.5)
-	Close.BackgroundColor3 = Theme.Card
-	Close.Text = "✕"
-	Close.Font = Theme.FontBlack
-	Close.TextSize = 18
-	Close.TextColor3 = Theme.Text
-	Close.ZIndex = 21
-	Close.Parent = CloseHitbox
-
-	local Corner = Instance.new("UICorner")
-	Corner.CornerRadius = UDim.new(0,10)
-	Corner.Parent = Close
-
-	CloseHitbox.MouseButton1Click:Connect(function()
-		self.Gui.Enabled = false
-	end)
-
-	self.CloseButton = CloseHitbox
-	self:EnableWindowDragging(Header)
-end
-
-----------------------------------------------------------
--- Banner
-----------------------------------------------------------
-
-function App:CreateBanner()
-
-	local Theme =
-		self.Theme
-
-	local Banner =
-		Instance.new("Frame")
-
-	Banner.Name =
-		"Banner"
-
-	Banner.Position =
-		UDim2.fromOffset(18,72)
-
-	Banner.Size =
-		UDim2.new(1,-36,0,150)
-
-	Banner.BackgroundColor3 =
-		Theme.Card
-
-	Banner.BorderSizePixel = 0
-
-	Banner.Parent =
-		self.Window
-
-	local Corner =
-		Instance.new("UICorner")
-
-	Corner.CornerRadius =
-		UDim.new(0,18)
-
-	Corner.Parent =
-		Banner
-
-------------------------------------------------------
--- Welcome
-------------------------------------------------------
-
-	local Welcome =
-		Instance.new("TextLabel")
-
-	Welcome.BackgroundTransparency = 1
-
-	Welcome.Position =
-		UDim2.fromOffset(20,20)
-
-	Welcome.Size =
-		UDim2.new(1,-40,0,34)
-
-	Welcome.Font =
-		Theme.FontBlack
-
-	Welcome.Text =
-		"Welcome to SquidNoMo"
-
-	Welcome.TextSize = 28
-
-	Welcome.TextColor3 =
-		Theme.Text
-
-	Welcome.TextXAlignment =
-		Enum.TextXAlignment.Left
-
-	Welcome.Parent =
-		Banner
-
-------------------------------------------------------
--- Subtitle
-------------------------------------------------------
-
-	local Subtitle =
-		Instance.new("TextLabel")
-
-	Subtitle.BackgroundTransparency = 1
-
-	Subtitle.Position =
-		UDim2.fromOffset(20,58)
-
-	Subtitle.Size =
-		UDim2.new(1,-40,0,48)
-
-	Subtitle.Font =
-		Theme.Font
-
-	Subtitle.TextWrapped = true
-
-	Subtitle.Text =
-		"Advanced automation, ESP and utilities for Squid Game X."
-
-	Subtitle.TextSize = 16
-
-	Subtitle.TextColor3 =
-		Theme.SubText
-
-	Subtitle.TextXAlignment =
-		Enum.TextXAlignment.Left
-
-	Subtitle.TextYAlignment =
-		Enum.TextYAlignment.Top
-
-	Subtitle.Parent =
-		Banner
-
-	self.Banner =
-		Banner
-
-end
-
-----------------------------------------------------------
--- Sidebar
+-- Sidebar and important notice
 ----------------------------------------------------------
 
 function App:CreateSidebar()
+    local sidebar = Instance.new("Frame")
+    sidebar.Name = "Sidebar"
+    sidebar.Size = UDim2.new(0, self.Config.SidebarWidth, 1, 0)
+    sidebar.BackgroundColor3 = self.Colors.Sidebar
+    sidebar.BorderSizePixel = 0
+    sidebar.ZIndex = 1010
+    sidebar.Parent = self.Window
 
-	local Theme =
-		self.Theme
+    local rightBorder = Instance.new("Frame")
+    rightBorder.AnchorPoint = Vector2.new(1, 0)
+    rightBorder.Position = UDim2.new(1, 0, 0, 0)
+    rightBorder.Size = UDim2.new(0, 1, 1, 0)
+    rightBorder.BackgroundColor3 = self.Colors.BorderSoft
+    rightBorder.BorderSizePixel = 0
+    rightBorder.ZIndex = 1011
+    rightBorder.Parent = sidebar
 
-	local Sidebar =
-		Instance.new("ScrollingFrame")
+    local logoMark = Instance.new("Frame")
+    logoMark.Position = UDim2.fromOffset(18, 18)
+    logoMark.Size = UDim2.fromOffset(44, 44)
+    logoMark.BackgroundColor3 = self.Colors.Accent
+    logoMark.BorderSizePixel = 0
+    logoMark.ZIndex = 1012
+    logoMark.Parent = sidebar
+    makeCorner(logoMark, 13)
 
-	Sidebar.Name =
-		"Sidebar"
+    local logoText = Instance.new("TextLabel")
+    logoText.Size = UDim2.fromScale(1, 1)
+    logoText.BackgroundTransparency = 1
+    logoText.Font = Enum.Font.GothamBlack
+    logoText.Text = "S"
+    logoText.TextSize = 25
+    logoText.TextColor3 = self.Colors.Black
+    logoText.ZIndex = 1013
+    logoText.Parent = logoMark
 
-	Sidebar.Position =
-		UDim2.fromOffset(18,238)
+    local brand = Instance.new("TextLabel")
+    brand.BackgroundTransparency = 1
+    brand.Position = UDim2.fromOffset(72, 17)
+    brand.Size = UDim2.new(1, -84, 0, 25)
+    brand.Font = Enum.Font.GothamBlack
+    brand.Text = "SQUIDNOMO"
+    brand.TextSize = 17
+    brand.TextColor3 = self.Colors.Text
+    brand.TextXAlignment = Enum.TextXAlignment.Left
+    brand.ZIndex = 1012
+    brand.Parent = sidebar
 
-	Sidebar.Size =
-		UDim2.new(0,220,1,-256)
+    local version = Instance.new("TextLabel")
+    version.BackgroundTransparency = 1
+    version.Position = UDim2.fromOffset(73, 42)
+    version.Size = UDim2.new(1, -85, 0, 17)
+    version.Font = Enum.Font.GothamMedium
+    version.Text = self.Version .. "  •  UNIVERSAL"
+    version.TextSize = 9
+    version.TextColor3 = self.Colors.Accent
+    version.TextXAlignment = Enum.TextXAlignment.Left
+    version.ZIndex = 1012
+    version.Parent = sidebar
 
-	Sidebar.BackgroundColor3 =
-		Theme.Card
+    local navLabel = Instance.new("TextLabel")
+    navLabel.BackgroundTransparency = 1
+    navLabel.Position = UDim2.fromOffset(18, 82)
+    navLabel.Size = UDim2.new(1, -36, 0, 18)
+    navLabel.Font = Enum.Font.GothamBold
+    navLabel.Text = "NAVIGATION"
+    navLabel.TextSize = 9
+    navLabel.TextColor3 = self.Colors.Dim
+    navLabel.TextXAlignment = Enum.TextXAlignment.Left
+    navLabel.ZIndex = 1012
+    navLabel.Parent = sidebar
 
-	Sidebar.BorderSizePixel = 0
-	Sidebar.CanvasSize = UDim2.new(0,0,0,0)
-	Sidebar.AutomaticCanvasSize = Enum.AutomaticSize.Y
-	Sidebar.ScrollBarThickness = 3
-	Sidebar.ScrollBarImageColor3 = Theme.Accent
+    local nav = Instance.new("Frame")
+    nav.Name = "Navigation"
+    nav.Position = UDim2.fromOffset(12, 103)
+    nav.Size = UDim2.new(1, -24, 0, 370)
+    nav.BackgroundTransparency = 1
+    nav.ZIndex = 1012
+    nav.Parent = sidebar
 
-	Sidebar.Parent =
-		self.Window
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 4)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = nav
 
-	local Corner =
-		Instance.new("UICorner")
+    self.Sidebar = sidebar
+    self.NavigationHolder = nav
+    self:CreateSidebarNotice(sidebar)
+end
 
-	Corner.CornerRadius =
-		UDim.new(0,18)
+function App:CreateSidebarNotice(sidebar)
+    local notice = Instance.new("Frame")
+    notice.Name = "ImportantNotice"
+    notice.AnchorPoint = Vector2.new(0, 1)
+    notice.Position = UDim2.new(0, 12, 1, -14)
+    notice.Size = UDim2.new(1, -24, 0, 190)
+    notice.BackgroundColor3 = Color3.fromRGB(29, 22, 17)
+    notice.BorderSizePixel = 0
+    notice.ZIndex = 1012
+    notice.Parent = sidebar
+    makeCorner(notice, 13)
+    makeStroke(notice, self.Colors.Warning, 1, 0.25)
 
-	Corner.Parent =
-		Sidebar
+    local heading = Instance.new("TextLabel")
+    heading.BackgroundTransparency = 1
+    heading.Position = UDim2.fromOffset(13, 10)
+    heading.Size = UDim2.new(1, -26, 0, 22)
+    heading.Font = Enum.Font.GothamBold
+    heading.Text = "!  IMPORTANT NOTICE"
+    heading.TextSize = 11
+    heading.TextColor3 = self.Colors.Warning
+    heading.TextXAlignment = Enum.TextXAlignment.Left
+    heading.ZIndex = 1013
+    heading.Parent = notice
 
-	local Layout =
-		Instance.new("UIListLayout")
+    local body = Instance.new("TextLabel")
+    body.BackgroundTransparency = 1
+    body.Position = UDim2.fromOffset(13, 38)
+    body.Size = UDim2.new(1, -26, 0, 113)
+    body.Font = Enum.Font.Gotham
+    body.Text = "Third-party tools may violate a game's Terms of Service. No feature guarantees protection from detection or enforcement. You are responsible for how this software is used."
+    body.TextWrapped = true
+    body.TextSize = 10
+    body.TextColor3 = self.Colors.Muted
+    body.TextXAlignment = Enum.TextXAlignment.Left
+    body.TextYAlignment = Enum.TextYAlignment.Top
+    body.ZIndex = 1013
+    body.Parent = notice
 
-	Layout.Padding =
-		UDim.new(0,8)
+    local riskDot = Instance.new("Frame")
+    riskDot.Position = UDim2.fromOffset(13, 162)
+    riskDot.Size = UDim2.fromOffset(8, 8)
+    riskDot.BackgroundColor3 = self.Colors.Warning
+    riskDot.BorderSizePixel = 0
+    riskDot.ZIndex = 1013
+    riskDot.Parent = notice
+    makeCorner(riskDot, 99)
 
-	Layout.HorizontalAlignment =
-		Enum.HorizontalAlignment.Center
+    local risk = Instance.new("TextLabel")
+    risk.BackgroundTransparency = 1
+    risk.Position = UDim2.fromOffset(28, 155)
+    risk.Size = UDim2.new(1, -40, 0, 22)
+    risk.Font = Enum.Font.GothamBold
+    risk.Text = "CURRENT RISK: UNKNOWN"
+    risk.TextSize = 9
+    risk.TextColor3 = self.Colors.Text
+    risk.TextXAlignment = Enum.TextXAlignment.Left
+    risk.ZIndex = 1013
+    risk.Parent = notice
+end
 
-	Layout.SortOrder =
-		Enum.SortOrder.LayoutOrder
+function App:CreateNavigationButton(definition)
+    local button = Instance.new("TextButton")
+    button.Name = definition.Name
+    button.Size = UDim2.new(1, 0, 0, 42)
+    button.BackgroundColor3 = self.Colors.Sidebar
+    button.BorderSizePixel = 0
+    button.AutoButtonColor = false
+    button.Text = ""
+    button.LayoutOrder = definition.Order or 0
+    button.ZIndex = 1014
+    button.Parent = self.NavigationHolder
+    makeCorner(button, 11)
 
-	Layout.Parent =
-		Sidebar
+    local indicator = Instance.new("Frame")
+    indicator.Name = "Indicator"
+    indicator.AnchorPoint = Vector2.new(0, 0.5)
+    indicator.Position = UDim2.new(0, 0, 0.5, 0)
+    indicator.Size = UDim2.fromOffset(3, 20)
+    indicator.BackgroundColor3 = self.Colors.Accent
+    indicator.BorderSizePixel = 0
+    indicator.Visible = false
+    indicator.ZIndex = 1015
+    indicator.Parent = button
+    makeCorner(indicator, 99)
 
-	local Padding =
-		Instance.new("UIPadding")
+    local icon = Instance.new("Frame")
+    icon.Position = UDim2.fromOffset(10, 7)
+    icon.Size = UDim2.fromOffset(28, 28)
+    icon.BackgroundColor3 = self.Colors.CardAlt
+    icon.BorderSizePixel = 0
+    icon.ZIndex = 1015
+    icon.Parent = button
+    makeCorner(icon, 8)
 
-	Padding.PaddingTop =
-		UDim.new(0,16)
+    local iconText = Instance.new("TextLabel")
+    iconText.Size = UDim2.fromScale(1, 1)
+    iconText.BackgroundTransparency = 1
+    iconText.Font = Enum.Font.GothamBold
+    iconText.Text = definition.Icon or string.sub(definition.Name, 1, 1)
+    iconText.TextSize = 11
+    iconText.TextColor3 = self.Colors.Muted
+    iconText.ZIndex = 1016
+    iconText.Parent = icon
 
-	Padding.PaddingBottom =
-		UDim.new(0,16)
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Position = UDim2.fromOffset(48, 0)
+    label.Size = UDim2.new(1, -58, 1, 0)
+    label.Font = Enum.Font.GothamMedium
+    label.Text = definition.Name
+    label.TextSize = 12
+    label.TextColor3 = self.Colors.Muted
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 1015
+    label.Parent = button
 
-	Padding.PaddingLeft =
-		UDim.new(0,12)
+    function button:SetSelected(selected)
+        indicator.Visible = selected
+        App:Tween(button, {
+            BackgroundColor3 = selected and App.Colors.CardAlt or App.Colors.Sidebar,
+        }, 0.16)
+        App:Tween(icon, {
+            BackgroundColor3 = selected and App.Colors.Accent or App.Colors.CardAlt,
+        }, 0.16)
+        App:Tween(iconText, {
+            TextColor3 = selected and App.Colors.Black or App.Colors.Muted,
+        }, 0.16)
+        App:Tween(label, {
+            TextColor3 = selected and App.Colors.Text or App.Colors.Muted,
+        }, 0.16)
+    end
 
-	Padding.PaddingRight =
-		UDim.new(0,12)
+    button.MouseEnter:Connect(function()
+        if self.CurrentPage ~= definition.Name then
+            self:Tween(button, {BackgroundColor3 = self.Colors.Card}, 0.12)
+        end
+    end)
 
-	Padding.Parent =
-		Sidebar
+    button.MouseLeave:Connect(function()
+        if self.CurrentPage ~= definition.Name then
+            self:Tween(button, {BackgroundColor3 = self.Colors.Sidebar}, 0.12)
+        end
+    end)
 
-	self.Sidebar =
-		Sidebar
+    button.MouseButton1Click:Connect(function()
+        self:OpenPage(definition.Name)
+    end)
 
+    self.NavigationButtons[definition.Name] = button
+    return button
 end
 
 ----------------------------------------------------------
--- Sidebar Button
+-- Page container and modular registry
 ----------------------------------------------------------
 
-function App:AddSidebarButton(
+function App:CreatePageContainer()
+    local container = Instance.new("Frame")
+    container.Name = "PageContainer"
+    container.Position = UDim2.fromOffset(
+        self.Config.SidebarWidth,
+        self.Config.TopbarHeight
+    )
+    container.Size = UDim2.new(
+        1,
+        -self.Config.SidebarWidth,
+        1,
+        -self.Config.TopbarHeight
+    )
+    container.BackgroundColor3 = self.Colors.Backdrop
+    container.BorderSizePixel = 0
+    container.ClipsDescendants = true
+    container.ZIndex = 1005
+    container.Parent = self.Window
 
-	Name,
-	Icon,
-	PageName
+    self.PageContainer = container
+end
 
-)
+function App:RegisterPage(name, icon, builder, order)
+    for index, definition in ipairs(self.PageDefinitions) do
+        if definition.Name == name then
+            definition.Icon = icon or definition.Icon
+            definition.Builder = builder or definition.Builder
+            definition.Order = order or definition.Order
+            return definition
+        end
+    end
 
-	local Button =
-		self.Components:SidebarButton(
+    local definition = {
+        Name = name,
+        Icon = icon or string.sub(name, 1, 1),
+        Builder = builder,
+        Order = order or (#self.PageDefinitions + 1),
+    }
 
-			self.Sidebar,
+    table.insert(self.PageDefinitions, definition)
+    return definition
+end
 
-			Name,
+function App:CreatePage(name)
+    local page = Instance.new("ScrollingFrame")
+    page.Name = name
+    page.Size = UDim2.fromScale(1, 1)
+    page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    page.ScrollBarThickness = 3
+    page.ScrollBarImageColor3 = self.Colors.AccentDark
+    page.ScrollingDirection = Enum.ScrollingDirection.Y
+    page.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+    page.Active = true
+    page.Visible = false
+    page.ZIndex = 1006
+    page.Parent = self.PageContainer
 
-			Icon
+    self.Pages[name] = page
+    return page
+end
 
-		)
+function App:BuildPageDefinitions()
+    self.PageDefinitions = {}
 
-	Button.MouseButton1Click:Connect(function()
+    self:RegisterPage("Home", "H", function(page)
+        self:BuildHome(page)
+    end, 1)
 
-		self:OpenPage(
-			PageName
-		)
+    self:RegisterPage("Players", "P", function(page)
+        self:BuildExternalPage(page, self.Loader.Players, "Players")
+    end, 2)
 
-	end)
+    self:RegisterPage("Guards", "G", function(page)
+        self:BuildExternalPage(page, self.Loader.Guards, "Guards")
+    end, 3)
 
-	self.NavigationButtons[
-		PageName
-	] = Button
+    self:RegisterPage("Detective", "D", function(page)
+        self:BuildExternalPage(page, self.Loader.Detective, "Detective")
+    end, 4)
 
-	return Button
+    self:RegisterPage("Farming", "F", function(page)
+        self:BuildExternalPage(page, self.Loader.Farming, "Farming")
+    end, 5)
 
+    self:RegisterPage("Games", "M", function(page)
+        self:BuildExternalPage(page, self.Loader.Games, "Games")
+    end, 6)
+
+    self:RegisterPage("VIP", "V", function(page)
+        self:BuildExternalPage(page, self.Loader.VIP, "VIP")
+    end, 7)
+
+    self:RegisterPage("Settings", "S", function(page)
+        self:BuildExternalPage(page, self.Loader.Settings, "Settings")
+    end, 8)
+
+    -- Optional custom modules can register pages through Loader.Pages.
+    if type(self.Loader.Pages) == "table" then
+        for _, entry in ipairs(self.Loader.Pages) do
+            if type(entry) == "table" and entry.Name then
+                self:RegisterPage(
+                    entry.Name,
+                    entry.Icon,
+                    entry.Builder,
+                    entry.Order
+                )
+            end
+        end
+    end
+
+    table.sort(self.PageDefinitions, function(a, b)
+        return (a.Order or 0) < (b.Order or 0)
+    end)
+end
+
+function App:BuildPages()
+    for _, definition in ipairs(self.PageDefinitions) do
+        self:CreateNavigationButton(definition)
+        local page = self:CreatePage(definition.Name)
+
+        local ok, err = self:SafeCall(definition.Name .. " page", function()
+            if type(definition.Builder) == "function" then
+                definition.Builder(page, self)
+            else
+                self:BuildPlaceholder(page, definition.Name, "No page builder was registered.")
+            end
+        end)
+
+        if not ok then
+            page:ClearAllChildren()
+            self:BuildErrorPage(page, definition.Name, err)
+        end
+    end
+end
+
+function App:BuildExternalPage(page, module, pageName)
+    if type(module) == "table" and type(module.Create) == "function" then
+        module:Create(page, self)
+        return
+    end
+
+    self:BuildPlaceholder(
+        page,
+        pageName,
+        "This module has not been connected yet. The universal app shell is running correctly."
+    )
+end
+
+function App:OpenPage(name)
+    if not self.Pages[name] then
+        return false
+    end
+
+    for pageName, page in pairs(self.Pages) do
+        page.Visible = pageName == name
+    end
+
+    for pageName, button in pairs(self.NavigationButtons) do
+        if type(button.SetSelected) == "function" then
+            button:SetSelected(pageName == name)
+        end
+    end
+
+    self.CurrentPage = name
+
+    if self.PageTitle then
+        self.PageTitle.Text = string.upper(name)
+    end
+
+    return true
 end
 
 ----------------------------------------------------------
--- Build Sidebar
+-- Generic UI builders for the canonical dashboard
 ----------------------------------------------------------
 
-function App:BuildSidebar()
+function App:CreateCard(parent, size, options)
+    options = options or {}
 
-	self:AddSidebarButton(
+    local card = Instance.new("Frame")
+    card.Size = size
+    card.BackgroundColor3 = options.Color or self.Colors.Card
+    card.BackgroundTransparency = options.Transparency or 0
+    card.BorderSizePixel = 0
+    card.ClipsDescendants = options.ClipsDescendants ~= false
+    card.ZIndex = options.ZIndex or 1010
+    card.Parent = parent
+    makeCorner(card, options.Radius or 14)
+    makeStroke(
+        card,
+        options.BorderColor or self.Colors.BorderSoft,
+        options.BorderThickness or 1,
+        options.BorderTransparency or 0.15
+    )
 
-		"Home",
+    return card
+end
 
-		"🏠",
+function App:CreateText(parent, text, size, position, options)
+    options = options or {}
 
-		"Home"
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Size = size
+    label.Position = position or UDim2.fromOffset(0, 0)
+    label.Font = options.Font or Enum.Font.Gotham
+    label.Text = tostring(text or "")
+    label.TextSize = options.TextSize or 13
+    label.TextColor3 = options.Color or self.Colors.Text
+    label.TextTransparency = options.Transparency or 0
+    label.TextWrapped = options.Wrapped or false
+    label.TextXAlignment = options.XAlignment or Enum.TextXAlignment.Left
+    label.TextYAlignment = options.YAlignment or Enum.TextYAlignment.Center
+    label.RichText = options.RichText or false
+    label.ZIndex = options.ZIndex or 1012
+    label.Parent = parent
+    return label
+end
 
-	)
+function App:CreatePill(parent, text, color, position, width)
+    local pill = Instance.new("Frame")
+    pill.Position = position
+    pill.Size = UDim2.fromOffset(width or 90, 24)
+    pill.BackgroundColor3 = color
+    pill.BackgroundTransparency = 0.82
+    pill.BorderSizePixel = 0
+    pill.ZIndex = 1013
+    pill.Parent = parent
+    makeCorner(pill, 99)
+    makeStroke(pill, color, 1, 0.28)
 
-	self:AddSidebarButton(
+    self:CreateText(
+        pill,
+        text,
+        UDim2.fromScale(1, 1),
+        UDim2.fromOffset(0, 0),
+        {
+            Font = Enum.Font.GothamBold,
+            TextSize = 9,
+            Color = color,
+            XAlignment = Enum.TextXAlignment.Center,
+            ZIndex = 1014,
+        }
+    )
 
-		"Players",
+    return pill
+end
 
-		"👤",
+function App:CreateSectionTitle(parent, title, subtitle)
+    self:CreateText(
+        parent,
+        title,
+        UDim2.new(1, -28, 0, 24),
+        UDim2.fromOffset(14, 12),
+        {
+            Font = Enum.Font.GothamBold,
+            TextSize = 14,
+            Color = self.Colors.Text,
+        }
+    )
 
-		"Players"
+    if subtitle then
+        self:CreateText(
+            parent,
+            subtitle,
+            UDim2.new(1, -28, 0, 18),
+            UDim2.fromOffset(14, 35),
+            {
+                Font = Enum.Font.Gotham,
+                TextSize = 9,
+                Color = self.Colors.Muted,
+            }
+        )
+    end
+end
 
-	)
+function App:BuildHome(page)
+    local content = Instance.new("Frame")
+    content.Name = "HomeContent"
+    content.Size = UDim2.new(1, 0, 0, 0)
+    content.AutomaticSize = Enum.AutomaticSize.Y
+    content.BackgroundTransparency = 1
+    content.ZIndex = 1007
+    content.Parent = page
 
-	self:AddSidebarButton(
+    makePadding(content, 16, 16, 14, 18)
 
-		"Guards",
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 12)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.Parent = content
 
-		"🛡️",
+    self:BuildHero(content)
+    self:BuildPrimaryDashboardRow(content)
+    self:BuildSupportRow(content)
+    self:BuildFooter(content)
+end
 
-		"Guards"
+function App:BuildHero(parent)
+    local hero = self:CreateCard(parent, UDim2.new(1, 0, 0, 148), {
+        Color = Color3.fromRGB(13, 27, 20),
+        BorderColor = self.Colors.AccentDark,
+        BorderTransparency = 0.10,
+        Radius = 16,
+    })
+    hero.Name = "HeroBanner"
+    hero.LayoutOrder = 1
 
-	)
+    makeGradient(
+        hero,
+        ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(10, 45, 30)),
+            ColorSequenceKeypoint.new(0.55, Color3.fromRGB(10, 24, 18)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(7, 12, 10)),
+        }),
+        18
+    )
 
-	self:AddSidebarButton(
+    local glow = Instance.new("Frame")
+    glow.AnchorPoint = Vector2.new(0.5, 0.5)
+    glow.Position = UDim2.new(0.78, 0, 0.48, 0)
+    glow.Size = UDim2.fromOffset(270, 270)
+    glow.BackgroundColor3 = self.Colors.Accent
+    glow.BackgroundTransparency = 0.87
+    glow.BorderSizePixel = 0
+    glow.ZIndex = 1011
+    glow.Parent = hero
+    makeCorner(glow, 999)
 
-		"Detective",
+    local ring = Instance.new("Frame")
+    ring.AnchorPoint = Vector2.new(0.5, 0.5)
+    ring.Position = UDim2.new(0.80, 0, 0.50, 0)
+    ring.Size = UDim2.fromOffset(170, 170)
+    ring.BackgroundTransparency = 1
+    ring.BorderSizePixel = 0
+    ring.ZIndex = 1012
+    ring.Parent = hero
+    makeCorner(ring, 999)
+    makeStroke(ring, self.Colors.Accent, 2, 0.18)
 
-		"🕵️",
+    local triangle = Instance.new("TextLabel")
+    triangle.AnchorPoint = Vector2.new(0.5, 0.5)
+    triangle.Position = UDim2.new(0.80, 0, 0.50, 0)
+    triangle.Size = UDim2.fromOffset(110, 110)
+    triangle.BackgroundTransparency = 1
+    triangle.Font = Enum.Font.GothamBlack
+    triangle.Text = "△"
+    triangle.TextSize = 82
+    triangle.TextColor3 = self.Colors.Accent
+    triangle.TextTransparency = 0.08
+    triangle.ZIndex = 1013
+    triangle.Parent = hero
 
-		"Detective"
+    self:CreatePill(
+        hero,
+        "BETA 5.0",
+        self.Colors.Accent,
+        UDim2.fromOffset(22, 18),
+        82
+    )
 
-	)
+    self:CreateText(
+        hero,
+        "SQUIDNOMO",
+        UDim2.fromOffset(500, 42),
+        UDim2.fromOffset(22, 45),
+        {
+            Font = Enum.Font.GothamBlack,
+            TextSize = 31,
+            Color = self.Colors.Text,
+            ZIndex = 1014,
+        }
+    )
 
-	self:AddSidebarButton(
+    self:CreateText(
+        hero,
+        "MODERN  •  RESPONSIVE  •  MODULAR",
+        UDim2.fromOffset(520, 22),
+        UDim2.fromOffset(24, 86),
+        {
+            Font = Enum.Font.GothamBold,
+            TextSize = 11,
+            Color = self.Colors.Accent,
+            ZIndex = 1014,
+        }
+    )
 
-		"Farming",
+    self:CreateText(
+        hero,
+        "A complete floating control suite designed for desktop and touch devices.",
+        UDim2.fromOffset(560, 22),
+        UDim2.fromOffset(24, 112),
+        {
+            Font = Enum.Font.Gotham,
+            TextSize = 10,
+            Color = self.Colors.Muted,
+            ZIndex = 1014,
+        }
+    )
+end
 
-		"🌾",
+function App:CreateThreeColumnRow(parent, height, order)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, height)
+    row.BackgroundTransparency = 1
+    row.LayoutOrder = order
+    row.ZIndex = 1008
+    row.Parent = parent
 
-		"Farming"
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.Padding = UDim.new(0, 12)
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment = Enum.VerticalAlignment.Top
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = row
 
-	)
+    return row
+end
 
-	self:AddSidebarButton(
+function App:BuildPrimaryDashboardRow(parent)
+    local row = self:CreateThreeColumnRow(parent, 218, 2)
+    local width = UDim2.new(1 / 3, -8, 1, 0)
 
-		"Games",
+    local features = self:CreateCard(row, width, {
+        BorderColor = self.Colors.AccentDark,
+        BorderTransparency = 0.30,
+    })
+    features.LayoutOrder = 1
+    self:CreateSectionTitle(features, "FEATURE GROUP CONTROLS", "Quick access to the complete suite")
 
-		"🎮",
+    local featureNames = {
+        {"PLAYERS", "Players", "P"},
+        {"GUARDS + DETECTIVE", "Guards", "G"},
+        {"FARMING + GAMES", "Farming", "F"},
+        {"VIP + SETTINGS", "VIP", "V"},
+    }
 
-		"Games"
+    for index, item in ipairs(featureNames) do
+        local button = Instance.new("TextButton")
+        button.Position = UDim2.fromOffset(14, 56 + ((index - 1) * 37))
+        button.Size = UDim2.new(1, -28, 0, 31)
+        button.BackgroundColor3 = self.Colors.CardAlt
+        button.BorderSizePixel = 0
+        button.AutoButtonColor = false
+        button.Font = Enum.Font.GothamMedium
+        button.Text = "     " .. item[1]
+        button.TextSize = 10
+        button.TextColor3 = self.Colors.Text
+        button.TextXAlignment = Enum.TextXAlignment.Left
+        button.ZIndex = 1013
+        button.Parent = features
+        makeCorner(button, 8)
+        makeStroke(button, self.Colors.BorderSoft, 1, 0.35)
 
-	)
+        local badge = Instance.new("TextLabel")
+        badge.Position = UDim2.fromOffset(7, 5)
+        badge.Size = UDim2.fromOffset(21, 21)
+        badge.BackgroundColor3 = self.Colors.Accent
+        badge.BorderSizePixel = 0
+        badge.Font = Enum.Font.GothamBold
+        badge.Text = item[3]
+        badge.TextSize = 9
+        badge.TextColor3 = self.Colors.Black
+        badge.ZIndex = 1014
+        badge.Parent = button
+        makeCorner(badge, 6)
 
-	self:AddSidebarButton(
+        button.MouseButton1Click:Connect(function()
+            self:OpenPage(item[2])
+        end)
 
-		"VIP",
+        button.MouseEnter:Connect(function()
+            self:Tween(button, {BackgroundColor3 = self.Colors.CardHover}, 0.12)
+        end)
 
-		"⭐",
+        button.MouseLeave:Connect(function()
+            self:Tween(button, {BackgroundColor3 = self.Colors.CardAlt}, 0.12)
+        end)
+    end
 
-		"VIP"
+    local status = self:CreateCard(row, width, {
+        BorderColor = self.Colors.Border,
+        BorderTransparency = 0.30,
+    })
+    status.LayoutOrder = 2
+    self:CreateSectionTitle(status, "SERVER STATUS", "Live client and session information")
 
-	)
+    local rows = {
+        {"CLIENT", "READY"},
+        {"FPS", "--"},
+        {"PING", "--"},
+        {"PLAYERS", tostring(#Players:GetPlayers())},
+        {"SERVER AGE", "00:00"},
+    }
 
-	self:AddSidebarButton(
+    local statusLabels = {}
 
-		"Settings",
-		
+    for index, item in ipairs(rows) do
+        local y = 58 + ((index - 1) * 29)
+        self:CreateText(status, item[1], UDim2.fromOffset(126, 21), UDim2.fromOffset(15, y), {
+            Font = Enum.Font.GothamMedium,
+            TextSize = 9,
+            Color = self.Colors.Muted,
+        })
+
+        local value = self:CreateText(status, item[2], UDim2.new(1, -160, 0, 21), UDim2.fromOffset(145, y), {
+            Font = Enum.Font.GothamBold,
+            TextSize = 10,
+            Color = self.Colors.Accent,
+            XAlignment = Enum.TextXAlignment.Right,
+        })
+        statusLabels[item[1]] = value
+    end
+
+    task.spawn(function()
+        local startedAt = os.clock()
+
+        while status.Parent and self.Gui do
+            task.wait(1)
+
+            local fps = "--"
+            local ping = "--"
+
+            if self.Utilities and type(self.Utilities.GetFPS) == "function" then
+                pcall(function()
+                    fps = tostring(self.Utilities:GetFPS())
+                end)
+            end
+
+            if self.Utilities and type(self.Utilities.GetPing) == "function" then
+                pcall(function()
+                    ping = tostring(self.Utilities:GetPing()) .. " ms"
+                end)
+            else
+                pcall(function()
+                    ping = tostring(math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())) .. " ms"
+                end)
+            end
+
+            if statusLabels.FPS then
+                statusLabels.FPS.Text = fps
+            end
+            if statusLabels.PING then
+                statusLabels.PING.Text = ping
+            end
+            if statusLabels.PLAYERS then
+                statusLabels.PLAYERS.Text = tostring(#Players:GetPlayers())
+            end
+            if statusLabels["SERVER AGE"] then
+                local elapsed = math.floor(os.clock() - startedAt)
+                statusLabels["SERVER AGE"].Text = string.format("%02d:%02d", math.floor(elapsed / 60), elapsed % 60)
+            end
+        end
+    end)
+
+    local ai = self:CreateCard(row, width, {
+        BorderColor = self.Colors.Accent,
+        BorderTransparency = 0.20,
+    })
+    ai.LayoutOrder = 3
+    self:CreateSectionTitle(ai, "NOMO AI", "Runtime assistant and module diagnostics")
+    self:CreatePill(ai, "ONLINE", self.Colors.Accent, UDim2.new(1, -86, 0, 13), 72)
+
+    local terminal = Instance.new("Frame")
+    terminal.Position = UDim2.fromOffset(14, 60)
+    terminal.Size = UDim2.new(1, -28, 0, 104)
+    terminal.BackgroundColor3 = Color3.fromRGB(8, 13, 10)
+    terminal.BorderSizePixel = 0
+    terminal.ZIndex = 1012
+    terminal.Parent = ai
+    makeCorner(terminal, 10)
+    makeStroke(terminal, self.Colors.BorderSoft, 1, 0.25)
+
+    self:CreateText(terminal, "> APP SHELL INITIALIZED", UDim2.new(1, -20, 0, 20), UDim2.fromOffset(10, 10), {
+        Font = Enum.Font.Code,
+        TextSize = 10,
+        Color = self.Colors.Accent,
+    })
+    self:CreateText(terminal, "> SAFE-ZONE SCALING ACTIVE", UDim2.new(1, -20, 0, 20), UDim2.fromOffset(10, 34), {
+        Font = Enum.Font.Code,
+        TextSize = 10,
+        Color = self.Colors.Muted,
+    })
+    self:CreateText(terminal, "> TOUCH DRAGGING READY", UDim2.new(1, -20, 0, 20), UDim2.fromOffset(10, 58), {
+        Font = Enum.Font.Code,
+        TextSize = 10,
+        Color = self.Colors.Muted,
+    })
+    self:CreateText(terminal, "> MODULE ERRORS: " .. tostring(self:GetModuleErrorCount()), UDim2.new(1, -20, 0, 20), UDim2.fromOffset(10, 82), {
+        Font = Enum.Font.Code,
+        TextSize = 10,
+        Color = self:GetModuleErrorCount() > 0 and self.Colors.Warning or self.Colors.Accent,
+    })
+
+    local diagnostics = Instance.new("TextButton")
+    diagnostics.Position = UDim2.fromOffset(14, 174)
+    diagnostics.Size = UDim2.new(1, -28, 0, 30)
+    diagnostics.BackgroundColor3 = self.Colors.Accent
+    diagnostics.BorderSizePixel = 0
+    diagnostics.AutoButtonColor = false
+    diagnostics.Font = Enum.Font.GothamBold
+    diagnostics.Text = "OPEN SETTINGS"
+    diagnostics.TextSize = 10
+    diagnostics.TextColor3 = self.Colors.Black
+    diagnostics.ZIndex = 1013
+    diagnostics.Parent = ai
+    makeCorner(diagnostics, 8)
+
+    diagnostics.MouseButton1Click:Connect(function()
+        self:OpenPage("Settings")
+    end)
+end
+
+function App:BuildSupportRow(parent)
+    local row = self:CreateThreeColumnRow(parent, 165, 3)
+    local width = UDim2.new(1 / 3, -8, 1, 0)
+
+    local support = self:CreateCard(row, width, {
+        BorderColor = self.Colors.Pink,
+        BorderTransparency = 0.12,
+        Color = Color3.fromRGB(30, 18, 25),
+    })
+    support.LayoutOrder = 1
+    self:CreateSectionTitle(support, "SUPPORT THE DEVELOPMENT", "Help maintain and improve the project")
+
+    local heart = self:CreateText(support, "♥", UDim2.fromOffset(45, 45), UDim2.fromOffset(15, 61), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = 32,
+        Color = self.Colors.Pink,
+        XAlignment = Enum.TextXAlignment.Center,
+    })
+    heart.TextYAlignment = Enum.TextYAlignment.Center
+
+    self:CreateText(support, "Every contribution supports testing, UI work, and future modules.", UDim2.new(1, -82, 0, 47), UDim2.fromOffset(68, 61), {
+        Font = Enum.Font.Gotham,
+        TextSize = 10,
+        Color = self.Colors.Muted,
+        Wrapped = true,
+        YAlignment = Enum.TextYAlignment.Top,
+    })
+
+    local supportButton = Instance.new("TextButton")
+    supportButton.Position = UDim2.fromOffset(14, 118)
+    supportButton.Size = UDim2.new(1, -28, 0, 32)
+    supportButton.BackgroundColor3 = self.Colors.Pink
+    supportButton.BorderSizePixel = 0
+    supportButton.AutoButtonColor = false
+    supportButton.Font = Enum.Font.GothamBold
+    supportButton.Text = "SUPPORT PROJECT"
+    supportButton.TextSize = 10
+    supportButton.TextColor3 = self.Colors.Text
+    supportButton.ZIndex = 1013
+    supportButton.Parent = support
+    makeCorner(supportButton, 9)
+
+    local goal = self:CreateCard(row, width, {
+        BorderColor = self.Colors.PinkDark,
+        BorderTransparency = 0.18,
+        Color = Color3.fromRGB(25, 20, 23),
+    })
+    goal.LayoutOrder = 2
+    self:CreateSectionTitle(goal, "MONTHLY DEVELOPMENT GOAL", "Progress toward hosting and development costs")
+
+    local progressText = self:CreateText(goal, "$0  /  $100", UDim2.new(1, -28, 0, 24), UDim2.fromOffset(14, 69), {
+        Font = Enum.Font.GothamBold,
+        TextSize = 16,
+        Color = self.Colors.Text,
+    })
+    progressText.TextXAlignment = Enum.TextXAlignment.Center
+
+    local track = Instance.new("Frame")
+    track.Position = UDim2.fromOffset(14, 105)
+    track.Size = UDim2.new(1, -28, 0, 10)
+    track.BackgroundColor3 = self.Colors.CardAlt
+    track.BorderSizePixel = 0
+    track.ZIndex = 1012
+    track.Parent = goal
+    makeCorner(track, 99)
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(0.08, 0, 1, 0)
+    fill.BackgroundColor3 = self.Colors.Pink
+    fill.BorderSizePixel = 0
+    fill.ZIndex = 1013
+    fill.Parent = track
+    makeCorner(fill, 99)
+
+    self:CreateText(goal, "Goal resets monthly", UDim2.new(1, -28, 0, 20), UDim2.fromOffset(14, 126), {
+        Font = Enum.Font.Gotham,
+        TextSize = 9,
+        Color = self.Colors.Muted,
+        XAlignment = Enum.TextXAlignment.Center,
+    })
+
+    local supporters = self:CreateCard(row, width, {
+        BorderColor = self.Colors.Border,
+        BorderTransparency = 0.25,
+    })
+    supporters.LayoutOrder = 3
+    self:CreateSectionTitle(supporters, "LATEST SUPPORTERS", "Thank you for helping the project grow")
+
+    local names = {
+        {"Anonymous", "FOUNDING SUPPORTER"},
+        {"Community", "TESTING + FEEDBACK"},
+        {"You", "NEXT SUPPORTER"},
+    }
+
+    for index, entry in ipairs(names) do
+        local y = 59 + ((index - 1) * 33)
+        local avatar = Instance.new("Frame")
+        avatar.Position = UDim2.fromOffset(14, y)
+        avatar.Size = UDim2.fromOffset(25, 25)
+        avatar.BackgroundColor3 = index == 3 and self.Colors.PinkDark or self.Colors.AccentDark
+        avatar.BorderSizePixel = 0
+        avatar.ZIndex = 1012
+        avatar.Parent = supporters
+        makeCorner(avatar, 8)
+
+        self:CreateText(avatar, string.sub(entry[1], 1, 1), UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0), {
+            Font = Enum.Font.GothamBold,
+            TextSize = 10,
+            Color = self.Colors.Text,
+            XAlignment = Enum.TextXAlignment.Center,
+        })
+
+        self:CreateText(supporters, entry[1], UDim2.new(1, -60, 0, 15), UDim2.fromOffset(48, y - 1), {
+            Font = Enum.Font.GothamBold,
+            TextSize = 10,
+            Color = self.Colors.Text,
+        })
+
+        self:CreateText(supporters, entry[2], UDim2.new(1, -60, 0, 13), UDim2.fromOffset(48, y + 12), {
+            Font = Enum.Font.Gotham,
+            TextSize = 8,
+            Color = self.Colors.Muted,
+        })
+    end
+end
+
+function App:BuildFooter(parent)
+    local footer = self:CreateCard(parent, UDim2.new(1, 0, 0, 54), {
+        Color = Color3.fromRGB(13, 18, 15),
+        BorderColor = self.Colors.BorderSoft,
+        BorderTransparency = 0.30,
+    })
+    footer.LayoutOrder = 4
+
+    self:CreateText(footer, "SQUIDNOMO  •  " .. self.Version, UDim2.fromOffset(300, 54), UDim2.fromOffset(16, 0), {
+        Font = Enum.Font.GothamBold,
+        TextSize = 10,
+        Color = self.Colors.Muted,
+    })
+
+    self:CreateText(footer, "FLOATING  •  TOUCH READY  •  UNIVERSAL", UDim2.new(1, -332, 0, 54), UDim2.fromOffset(316, 0), {
+        Font = Enum.Font.GothamBold,
+        TextSize = 9,
+        Color = self.Colors.Accent,
+        XAlignment = Enum.TextXAlignment.Right,
+    })
+end
+
+function App:BuildPlaceholder(page, title, message)
+    local content = Instance.new("Frame")
+    content.Size = UDim2.new(1, 0, 0, 0)
+    content.AutomaticSize = Enum.AutomaticSize.Y
+    content.BackgroundTransparency = 1
+    content.Parent = page
+    makePadding(content, 16, 16, 16, 16)
+
+    local card = self:CreateCard(content, UDim2.new(1, 0, 0, 190), {
+        BorderColor = self.Colors.AccentDark,
+    })
+
+    self:CreateText(card, string.upper(title), UDim2.new(1, -40, 0, 35), UDim2.fromOffset(20, 20), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = 22,
+        Color = self.Colors.Text,
+    })
+
+    self:CreateText(card, message, UDim2.new(1, -40, 0, 70), UDim2.fromOffset(20, 67), {
+        Font = Enum.Font.Gotham,
+        TextSize = 12,
+        Color = self.Colors.Muted,
+        Wrapped = true,
+        YAlignment = Enum.TextYAlignment.Top,
+    })
+
+    self:CreatePill(card, "APP SHELL READY", self.Colors.Accent, UDim2.fromOffset(20, 145), 120)
+end
+
+function App:BuildErrorPage(page, title, errorText)
+    local content = Instance.new("Frame")
+    content.Size = UDim2.new(1, 0, 0, 0)
+    content.AutomaticSize = Enum.AutomaticSize.Y
+    content.BackgroundTransparency = 1
+    content.Parent = page
+    makePadding(content, 16, 16, 16, 16)
+
+    local card = self:CreateCard(content, UDim2.new(1, 0, 0, 260), {
+        Color = Color3.fromRGB(35, 15, 15),
+        BorderColor = self.Colors.Error,
+        BorderTransparency = 0.05,
+    })
+
+    self:CreateText(card, "MODULE COULD NOT BUILD: " .. string.upper(title), UDim2.new(1, -40, 0, 30), UDim2.fromOffset(20, 18), {
+        Font = Enum.Font.GothamBold,
+        TextSize = 14,
+        Color = self.Colors.Error,
+    })
+
+    self:CreateText(card, "The main app is still running. Copy the message below when asking for help.", UDim2.new(1, -40, 0, 38), UDim2.fromOffset(20, 52), {
+        Font = Enum.Font.Gotham,
+        TextSize = 11,
+        Color = self.Colors.Muted,
+        Wrapped = true,
+    })
+
+    local errorBox = Instance.new("TextBox")
+    errorBox.Position = UDim2.fromOffset(20, 100)
+    errorBox.Size = UDim2.new(1, -40, 0, 135)
+    errorBox.BackgroundColor3 = Color3.fromRGB(15, 8, 8)
+    errorBox.BorderSizePixel = 0
+    errorBox.ClearTextOnFocus = false
+    errorBox.MultiLine = true
+    errorBox.TextEditable = false
+    errorBox.TextWrapped = true
+    errorBox.Font = Enum.Font.Code
+    errorBox.Text = tostring(errorText or "Unknown module error")
+    errorBox.TextSize = 10
+    errorBox.TextColor3 = self.Colors.Text
+    errorBox.TextXAlignment = Enum.TextXAlignment.Left
+    errorBox.TextYAlignment = Enum.TextYAlignment.Top
+    errorBox.ZIndex = 1013
+    errorBox.Parent = card
+    makeCorner(errorBox, 9)
+    makePadding(errorBox, 10, 10, 8, 8)
+end
+
+function App:GetModuleErrorCount()
+    local count = 0
+    for _ in pairs(self.ModuleErrors) do
+        count = count + 1
+    end
+    return count
+end
+
+----------------------------------------------------------
+-- Responsive event binding
+----------------------------------------------------------
+
+function App:StartResponsive()
+    local cameraConnection = nil
+
+    local function bindCamera()
+        safeDisconnect(cameraConnection)
+        cameraConnection = nil
+
+        local camera = workspace.CurrentCamera
+        if camera then
+            cameraConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+                task.defer(function()
+                    self:UpdateResponsive(false)
+                end)
+            end)
+            table.insert(self.Connections, cameraConnection)
+        end
+    end
+
+    bindCamera()
+
+    self:Track(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+        bindCamera()
+        task.defer(function()
+            self:UpdateResponsive(false)
+        end)
+    end))
+
+    self:Track(UserInputService:GetPropertyChangedSignal("TouchEnabled"):Connect(function()
+        task.defer(function()
+            self:UpdateResponsive(false)
+        end)
+    end))
+end
+
+----------------------------------------------------------
+-- Visible emergency launch screen
+----------------------------------------------------------
+
+function App:CreateEmergencyGui(errorText)
+    pcall(function()
+        self:DestroyOldCopies()
+
+        local gui = Instance.new("ScreenGui")
+        gui.Name = self.Name
+        gui.ResetOnSpawn = false
+        gui.IgnoreGuiInset = true
+        gui.DisplayOrder = self.Config.DisplayOrder
+        gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+        gui.Parent = self:GetGuiParent() or self:GetPlayerGui()
+
+        local box = Instance.new("Frame")
+        box.AnchorPoint = Vector2.new(0.5, 0.5)
+        box.Position = UDim2.fromScale(0.5, 0.5)
+        box.Size = UDim2.fromOffset(520, 260)
+        box.BackgroundColor3 = Color3.fromRGB(27, 12, 12)
+        box.BorderSizePixel = 0
+        box.ZIndex = 9000
+        box.Parent = gui
+        makeCorner(box, 16)
+        makeStroke(box, self.Colors.Error, 2, 0)
+
+        self:CreateText(box, "SQUIDNOMO APP LAUNCH ERROR", UDim2.new(1, -40, 0, 35), UDim2.fromOffset(20, 18), {
+            Font = Enum.Font.GothamBlack,
+            TextSize = 18,
+            Color = self.Colors.Error,
+            ZIndex = 9001,
+        })
+
+        self:CreateText(box, "Delta may hide console errors, so this message is shown inside the game.", UDim2.new(1, -40, 0, 40), UDim2.fromOffset(20, 55), {
+            Font = Enum.Font.Gotham,
+            TextSize = 11,
+            Color = self.Colors.Muted,
+            Wrapped = true,
+            ZIndex = 9001,
+        })
+
+        local message = Instance.new("TextBox")
+        message.Position = UDim2.fromOffset(20, 105)
+        message.Size = UDim2.new(1, -40, 0, 130)
+        message.BackgroundColor3 = Color3.fromRGB(12, 6, 6)
+        message.BorderSizePixel = 0
+        message.ClearTextOnFocus = false
+        message.MultiLine = true
+        message.TextEditable = false
+        message.TextWrapped = true
+        message.Font = Enum.Font.Code
+        message.Text = tostring(errorText)
+        message.TextSize = 10
+        message.TextColor3 = self.Colors.Text
+        message.TextXAlignment = Enum.TextXAlignment.Left
+        message.TextYAlignment = Enum.TextYAlignment.Top
+        message.ZIndex = 9001
+        message.Parent = box
+        makeCorner(message, 10)
+        makePadding(message, 10, 10, 8, 8)
+
+        self.Gui = gui
+    end)
+end
+
+----------------------------------------------------------
+-- Public lifecycle
+----------------------------------------------------------
+
+function App:Build(loader)
+    if self._building then
+        return self
+    end
+
+    self._building = true
+    self:Destroy()
+    self.ModuleErrors = {}
+
+    local ok, err = xpcall(function()
+        self:Init(loader or {})
+        self:CreateGui()
+        self:CreateWindow()
+        self:CreateSidebar()
+        self:CreateTopbar()
+        self:CreatePageContainer()
+        self:CreateReopenButton()
+        self:BuildPageDefinitions()
+        self:BuildPages()
+        self:OpenPage("Home")
+        self:UpdateResponsive(true)
+        self:StartResponsive()
+
+        if self.Notifications and type(self.Notifications.Success) == "function" then
+            pcall(function()
+                self.Notifications:Success("SquidNoMo", "Universal app shell loaded")
+            end)
+        end
+    end, function(message)
+        return debug.traceback(tostring(message), 2)
+    end)
+
+    self._building = false
+
+    if not ok then
+        warn("[SquidNoMo] Launch failed: " .. tostring(err))
+        self:Destroy()
+        self:CreateEmergencyGui(err)
+    end
+
+    return self
+end
+
+function App:Destroy()
+    for _, connection in ipairs(self.Connections) do
+        safeDisconnect(connection)
+    end
+
+    self.Connections = {}
+
+    if self.Gui then
+        pcall(function()
+            self.Gui:Destroy()
+        end)
+    end
+
+    self.Gui = nil
+    self.Host = nil
+    self.Window = nil
+    self.WindowScale = nil
+    self.Sidebar = nil
+    self.Topbar = nil
+    self.PageContainer = nil
+    self.ReopenButton = nil
+    self.PageTitle = nil
+    self.Pages = {}
+    self.PageDefinitions = {}
+    self.NavigationButtons = {}
+    self.CurrentPage = nil
+    self.HasBeenDragged = false
+    self.IsMinimized = false
+end
+
+function App:GetPage(name)
+    return self.Pages[name]
+end
+
+function App:GetWindow()
+    return self.Window
+end
+
+function App:GetTheme()
+    return self.Theme or self.Colors
+end
+
+function App:IsVisible()
+    return self.Gui ~= nil and self.Gui.Parent ~= nil
+end
+
+return App
