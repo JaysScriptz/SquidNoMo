@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.5.1"
+App.Version = "v0.5.4"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -70,7 +70,7 @@ App.Config = {
             TopbarHeight = 56,
             StatusbarHeight = 34,
             SafeFill = 1.0,
-            RestoreFill = 0.88,
+            RestoreFill = 0.82,
             WindowRadius = 14,
             ContentPadding = 8,
             HomeGap = 8,
@@ -89,7 +89,7 @@ App.Config = {
             TopbarHeight = 58,
             StatusbarHeight = 36,
             SafeFill = 0.985,
-            RestoreFill = 0.90,
+            RestoreFill = 0.84,
             WindowRadius = 17,
             ContentPadding = 12,
             HomeGap = 10,
@@ -137,6 +137,8 @@ App.Config = {
     AllowPartialOffscreenDrag = true,
     DragVisiblePixels = 170,
     ForceMobile = false,
+    AssetVersion = "v0.5.4",
+    RespectGuiInset = false,
     ShowHomeFooter = false,
 
     Support = {
@@ -233,13 +235,13 @@ App.AssetCache = {}
 
 App.CurrentPage = nil
 App.CurrentScale = 1
-App.CurrentDesignSize = Vector2.new(App.Config.DesktopDesignWidth, App.Config.DesktopDesignHeight)
+App.CurrentDesignSize = Vector2.new(App.Config.DesignWidth, App.Config.DesignHeight)
 App.CurrentVisualSize = App.CurrentDesignSize
 App.CurrentSafePosition = Vector2.new(0, 0)
 App.CurrentSafeSize = App.CurrentDesignSize
 App.HasBeenDragged = false
 App.IsMinimized = false
-App.IsMaximized = true
+App.IsMaximized = false
 App.DetectionStatus = "UNKNOWN"
 App.DetectionDetail = "No status signal has been reported."
 App.AppStatus = "STARTING"
@@ -718,15 +720,17 @@ function App:GetSafeRect()
     local top = viewport.Y * margins.Top
     local bottom = viewport.Y * margins.Bottom
 
-    local ok, insetTopLeft, insetBottomRight = pcall(function()
-        return GuiService:GetGuiInset()
-    end)
+    if self.Config.RespectGuiInset then
+        local ok, insetTopLeft, insetBottomRight = pcall(function()
+            return GuiService:GetGuiInset()
+        end)
 
-    if ok then
-        left = math.max(left, insetTopLeft.X)
-        top = math.max(top, insetTopLeft.Y)
-        right = math.max(right, insetBottomRight.X)
-        bottom = math.max(bottom, insetBottomRight.Y)
+        if ok then
+            left = math.max(left, insetTopLeft.X)
+            top = math.max(top, insetTopLeft.Y)
+            right = math.max(right, insetBottomRight.X)
+            bottom = math.max(bottom, insetBottomRight.Y)
+        end
     end
 
     local position = Vector2.new(math.floor(left), math.floor(top))
@@ -742,16 +746,26 @@ function App:CalculateScale()
     local viewport = self:GetViewportSize()
     local safePosition, safeSize = self:GetSafeRect()
     local designSize = self:GetDesignSize(viewport)
-    local fill = self.IsMaximized and self.Profile.SafeFill or self.Profile.RestoreFill
 
-    local targetWidth = safeSize.X * fill
-    local targetHeight = safeSize.Y * fill
+    local targetPosition = safePosition
+    local targetSize = safeSize
+    local fill = self.Profile.RestoreFill
+
+    if self.IsMaximized then
+        -- Full expansion always touches the top and bottom of the viewport.
+        -- Width still uses aspect-ratio fitting so the interface never stretches.
+        targetPosition = Vector2.new(0, 0)
+        targetSize = viewport
+        fill = 1
+    end
+
+    local targetWidth = targetSize.X * fill
+    local targetHeight = targetSize.Y * fill
     local fitScale = math.min(
         targetWidth / designSize.X,
         targetHeight / designSize.Y
     )
 
-    -- Never clamp upward beyond the size that actually fits the viewport.
     local scale = math.min(fitScale, self.Config.MaximumScale)
     scale = math.max(scale, math.min(self.Config.MinimumScale, fitScale))
 
@@ -760,40 +774,35 @@ function App:CalculateScale()
         math.max(1, math.floor(designSize.Y * scale))
     )
 
-    return scale, safePosition, safeSize, visualSize, designSize
+    -- Eliminate rounding gaps at the top or bottom in maximized mode.
+    if self.IsMaximized then
+        visualSize = Vector2.new(
+            visualSize.X,
+            viewport.Y
+        )
+        scale = viewport.Y / designSize.Y
+    end
+
+    return scale, targetPosition, targetSize, visualSize, designSize
 end
 
 function App:ClampHostPosition(position)
     local viewport = self:GetViewportSize()
     local visualSize = self.CurrentVisualSize
-    local edgePadding = self.Config.WindowEdgePadding or 6
-    local safePosition, safeSize = self:GetSafeRect()
-
-    local minX
-    local maxX
-    local minY
-    local maxY
+    local padding = self.Config.WindowEdgePadding or 4
 
     if self.IsMaximized then
-        minX = safePosition.X
-        minY = safePosition.Y
-        maxX = math.max(minX, safePosition.X + safeSize.X - visualSize.X)
-        maxY = math.max(minY, safePosition.Y + safeSize.Y - visualSize.Y)
-    elseif self.Config.AllowPartialOffscreenDrag then
-        local requestedVisible = self.Config.DragVisiblePixels or 150
-        local visibleX = math.min(requestedVisible, math.max(1, visualSize.X))
-        local visibleY = math.min(requestedVisible, math.max(1, visualSize.Y))
-
-        minX = -visualSize.X + visibleX
-        maxX = viewport.X - visibleX
-        minY = -visualSize.Y + visibleY
-        maxY = viewport.Y - visibleY
-    else
-        minX = safePosition.X + edgePadding
-        minY = safePosition.Y + edgePadding
-        maxX = math.max(minX, safePosition.X + safeSize.X - visualSize.X - edgePadding)
-        maxY = math.max(minY, safePosition.Y + safeSize.Y - visualSize.Y - edgePadding)
+        local maxX = math.max(0, viewport.X - visualSize.X)
+        return Vector2.new(
+            math.clamp(position.X, 0, maxX),
+            0
+        )
     end
+
+    local minX = padding
+    local minY = padding
+    local maxX = math.max(minX, viewport.X - visualSize.X - padding)
+    local maxY = math.max(minY, viewport.Y - visualSize.Y - padding)
 
     return Vector2.new(
         math.clamp(position.X, minX, maxX),
@@ -831,10 +840,16 @@ function App:UpdateResponsive(forceCenter)
     self.Host.Size = UDim2.fromOffset(visualSize.X, visualSize.Y)
 
     local targetPosition
-    if forceCenter or self.IsMaximized or not self.HasBeenDragged then
+
+    if self.IsMaximized then
         targetPosition = Vector2.new(
-            safePosition.X + ((safeSize.X - visualSize.X) / 2),
-            safePosition.Y + ((safeSize.Y - visualSize.Y) / 2)
+            (viewport.X - visualSize.X) / 2,
+            0
+        )
+    elseif forceCenter or not self.HasBeenDragged then
+        targetPosition = Vector2.new(
+            (viewport.X - visualSize.X) / 2,
+            (viewport.Y - visualSize.Y) / 2
         )
     else
         targetPosition = Vector2.new(
@@ -968,20 +983,29 @@ function App:CreateTopbar()
     local maximizeOffset = rightPadding + buttonSize + gap
     local minimizeOffset = rightPadding + (buttonSize + gap) * 2
 
-    local dragHint = Instance.new("TextLabel")
-    dragHint.Name = "DragHint"
-    dragHint.Position = UDim2.fromOffset(18, 0)
-    dragHint.Size = UDim2.new(1, -(minimizeOffset + buttonSize + 26), 1, 0)
-    dragHint.BackgroundTransparency = 1
-    dragHint.Font = Enum.Font.GothamBold
-    dragHint.Text = mobile and "HOLD + DRAG TO MOVE WINDOW" or "DRAG ANYWHERE ON THE TOP BAR TO MOVE"
-    dragHint.TextSize = mobile and 12 or 11
-    dragHint.TextColor3 = self.Colors.Muted
-    dragHint.TextTransparency = 0.08
-    dragHint.TextXAlignment = Enum.TextXAlignment.Left
-    dragHint.ZIndex = 1022
-    dragHint.Parent = topbar
-    self:EnableDragging(dragHint)
+    local moveHandle = Instance.new("TextButton")
+    moveHandle.Name = "MoveHandle"
+    moveHandle.Position = UDim2.fromOffset(10, 5)
+    moveHandle.Size = UDim2.new(1, -(minimizeOffset + buttonSize + 18), 1, -10)
+    moveHandle.BackgroundColor3 = self.Colors.CardAlt
+    moveHandle.BackgroundTransparency = 0.56
+    moveHandle.BorderSizePixel = 0
+    moveHandle.AutoButtonColor = false
+    moveHandle.Font = Enum.Font.GothamBold
+    moveHandle.Text = "Tip: to move the app tap here and move"
+    moveHandle.TextSize = mobile and 12 or 11
+    moveHandle.TextColor3 = self.Colors.Muted
+    moveHandle.TextXAlignment = Enum.TextXAlignment.Left
+    moveHandle.TextTruncate = Enum.TextTruncate.AtEnd
+    moveHandle.ZIndex = 1022
+    moveHandle.Parent = topbar
+    makeCorner(moveHandle, 9)
+
+    local movePadding = Instance.new("UIPadding")
+    movePadding.PaddingLeft = UDim.new(0, 12)
+    movePadding.Parent = moveHandle
+
+    self:EnableDragging(moveHandle)
 
     local minimize = self:CreateTopbarButton(topbar, "Minimize", "—", minimizeOffset, self.Colors.Minimize)
     local maximize = self:CreateTopbarButton(topbar, "MaximizeRestore", self.IsMaximized and "❐" or "□", maximizeOffset, self.Colors.Maximize)
@@ -1000,7 +1024,6 @@ function App:CreateTopbar()
         self:ShowCloseConfirmation()
     end)
 
-    self:EnableDragging(topbar)
     self.Topbar = topbar
     self.MaximizeButton = maximize
 end
@@ -1046,54 +1069,54 @@ function App:EnableDragging(dragBar)
     dragBar.Active = true
 
     local dragging = false
-    local activeInput = nil
-    local startInput = nil
+    local dragInput = nil
+    local dragStart = nil
     local startPosition = nil
 
     self:Track(dragBar.InputBegan:Connect(function(input)
         local inputType = input.UserInputType
-        if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then
+        if inputType ~= Enum.UserInputType.MouseButton1
+            and inputType ~= Enum.UserInputType.Touch then
             return
         end
 
         dragging = true
-        activeInput = input
-        startInput = Vector2.new(input.Position.X, input.Position.Y)
-        startPosition = Vector2.new(self.Host.Position.X.Offset, self.Host.Position.Y.Offset)
+        dragStart = Vector2.new(input.Position.X, input.Position.Y)
+        startPosition = Vector2.new(
+            self.Host.Position.X.Offset,
+            self.Host.Position.Y.Offset
+        )
+
+        if inputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+
+        self:Track(input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+                dragInput = nil
+            end
+        end))
+    end))
+
+    self:Track(dragBar.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement
+            or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
     end))
 
     self:Track(UserInputService.InputChanged:Connect(function(input)
-        if not dragging or not activeInput then
-            return
-        end
-
-        local correctInput = input == activeInput
-            or (activeInput.UserInputType == Enum.UserInputType.MouseButton1
-                and input.UserInputType == Enum.UserInputType.MouseMovement)
-
-        if not correctInput then
+        if not dragging or input ~= dragInput or not dragStart or not startPosition then
             return
         end
 
         local current = Vector2.new(input.Position.X, input.Position.Y)
-        local delta = current - startInput
+        local delta = current - dragStart
         local target = self:ClampHostPosition(startPosition + delta)
 
         self.Host.Position = UDim2.fromOffset(target.X, target.Y)
         self.HasBeenDragged = true
-    end))
-
-    self:Track(UserInputService.InputEnded:Connect(function(input)
-        if not dragging then
-            return
-        end
-
-        if input == activeInput
-            or input.UserInputType == Enum.UserInputType.MouseButton1
-            or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-            activeInput = nil
-        end
     end))
 end
 
@@ -1667,7 +1690,9 @@ function App:ResolveImageAsset(relativePath)
     local folder = "SquidNoMo"
     local imageFolder = folder .. "/Images"
     local filename = string.match(relativePath, "([^/]+)$") or "Asset.png"
-    local localPath = imageFolder .. "/" .. filename
+    local cacheVersion = tostring(self.Config.AssetVersion or self.Version or "current")
+        :gsub("[^%w_%-]", "_")
+    local localPath = imageFolder .. "/" .. cacheVersion .. "_" .. filename
 
     pcall(function()
         if type(isfolder) == "function" and type(makefolder) == "function" then
@@ -2475,18 +2500,40 @@ function App:CreateStatLine(parent, y, leftText, rightText, rightColor)
     return line, leftLabel, rightLabel
 end
 
+function App:CreateEqualThreeColumnRow(parent, y, height, name)
+    local row = Instance.new("Frame")
+    row.Name = name or "ThreeColumnRow"
+    row.Position = UDim2.fromOffset(16, y)
+    row.Size = UDim2.new(1, -32, 0, height)
+    row.BackgroundTransparency = 1
+    row.BorderSizePixel = 0
+    row.ClipsDescendants = true
+    row.ZIndex = 1010
+    row.Parent = parent
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    layout.VerticalAlignment = Enum.VerticalAlignment.Top
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Padding = UDim.new(0, 12)
+    layout.Parent = row
+
+    return row
+end
+
 function App:CreateFeatureStateCard(parent, position, widthScale, color, title, count, percent, description, height)
     local phone = self.DeviceClass == "Phone"
     height = height or (phone and 98 or 118)
 
-    local card = self:CreateCard(parent, UDim2.new(widthScale, -10, 0, height), {
+    local card = self:CreateCard(parent, UDim2.new(0.333333, -8, 1, 0), {
         Color = Color3.fromRGB(17, 12, 24),
         BorderColor = color,
         BorderTransparency = 0.08,
         Radius = phone and 12 or 14,
         ZIndex = 1011,
     })
-    card.Position = position
+    card.LayoutOrder = widthScale or 1
 
     local iconSize = phone and 42 or 52
     local iconRing = Instance.new("Frame")
@@ -2653,14 +2700,14 @@ end
 
 function App:CreateFeatureCategoryCard(parent, categoryKey, title, description, color, position, widthScale, height)
     local phone = self.DeviceClass == "Phone"
-    local card = self:CreateCard(parent, UDim2.new(widthScale, -10, 0, height), {
+    local card = self:CreateCard(parent, UDim2.new(0.333333, -8, 1, 0), {
         Color = Color3.fromRGB(17, 12, 24),
         BorderColor = color,
         BorderTransparency = 0.10,
         Radius = phone and 12 or 14,
         ZIndex = 1011,
     })
-    card.Position = position
+    card.LayoutOrder = widthScale or 1
 
     local button = Instance.new("TextButton")
     button.Name = categoryKey .. "CategoryToggle"
@@ -2681,14 +2728,14 @@ function App:CreateFeatureCategoryCard(parent, categoryKey, title, description, 
     })
 
     local textX = phone and 56 or 66
-    self:CreateText(card, string.upper(title), UDim2.new(1, -(textX + 64), 0, 18), UDim2.fromOffset(textX, phone and 11 or 14), {
+    self:CreateText(card, string.upper(title), UDim2.new(1, -(textX + (phone and 76 or 70)), 0, 18), UDim2.fromOffset(textX, phone and 11 or 14), {
         Font = Enum.Font.GothamBold,
         TextSize = phone and 9 or 10,
         Color = color,
         ZIndex = 1013,
     })
 
-    local available = self:CreateText(card, "0 Available", UDim2.new(1, -(textX + 64), 0, 18), UDim2.fromOffset(textX, phone and 31 or 38), {
+    local available = self:CreateText(card, "0 Available", UDim2.new(1, -(textX + (phone and 76 or 70)), 0, 18), UDim2.fromOffset(textX, phone and 31 or 38), {
         Font = Enum.Font.GothamMedium,
         TextSize = phone and 9 or 10,
         Color = self.Colors.Text,
@@ -2866,9 +2913,10 @@ function App:BuildFeatureStats(parent)
         ZIndex = 1013,
     })
 
-    local _, fullyRefs = self:CreateFeatureStateCard(card, UDim2.fromOffset(16, stateY), 0.333, self.Colors.Success, "FULLY ON", summary.FullyOn, summary.FullyPercent, "No features registered", stateHeight)
-    local _, partialRefs = self:CreateFeatureStateCard(card, UDim2.new(0.333, 6, 0, stateY), 0.333, self.Colors.Warning, "PARTIALLY ON", summary.Partial, summary.PartialPercent, "No features registered", stateHeight)
-    local _, offRefs = self:CreateFeatureStateCard(card, UDim2.new(0.666, -4, 0, stateY), 0.334, self.Colors.Error, "NOT ON", summary.Off, summary.OffPercent, "No features registered", stateHeight)
+    local stateRow = self:CreateEqualThreeColumnRow(card, stateY, stateHeight, "FeatureStateRow")
+    local _, fullyRefs = self:CreateFeatureStateCard(stateRow, nil, 1, self.Colors.Success, "FULLY ON", summary.FullyOn, summary.FullyPercent, "No features registered", stateHeight)
+    local _, partialRefs = self:CreateFeatureStateCard(stateRow, nil, 2, self.Colors.Warning, "PARTIALLY ON", summary.Partial, summary.PartialPercent, "No features registered", stateHeight)
+    local _, offRefs = self:CreateFeatureStateCard(stateRow, nil, 3, self.Colors.Error, "NOT ON", summary.Off, summary.OffPercent, "No features registered", stateHeight)
 
     self:CreateText(card, "FEATURE CATEGORIES", UDim2.fromOffset(220, 20), UDim2.fromOffset(16, categoryTitleY), {
         Font = Enum.Font.GothamBold,
@@ -2877,9 +2925,10 @@ function App:BuildFeatureStats(parent)
         ZIndex = 1013,
     })
 
-    local safeRefs = self:CreateFeatureCategoryCard(card, "Safe", "Safe Features", "Enable all registered safe features.", self.Colors.Success, UDim2.fromOffset(16, categoryY), 0.333, categoryHeight)
-    local semiRefs = self:CreateFeatureCategoryCard(card, "SemiSafe", "Semi-Safe Features", "Enable all registered semi-safe features.", self.Colors.Warning, UDim2.new(0.333, 6, 0, categoryY), 0.333, categoryHeight)
-    local experimentalRefs = self:CreateFeatureCategoryCard(card, "Experimental", "Experimental Features", "Enable all registered experimental features.", self.Colors.Error, UDim2.new(0.666, -4, 0, categoryY), 0.334, categoryHeight)
+    local categoryRow = self:CreateEqualThreeColumnRow(card, categoryY, categoryHeight, "FeatureCategoryRow")
+    local safeRefs = self:CreateFeatureCategoryCard(categoryRow, "Safe", "Safe Features", "Enable all registered safe features.", self.Colors.Success, nil, 1, categoryHeight)
+    local semiRefs = self:CreateFeatureCategoryCard(categoryRow, "SemiSafe", "Semi-Safe Features", "Enable all registered semi-safe features.", self.Colors.Warning, nil, 2, categoryHeight)
+    local experimentalRefs = self:CreateFeatureCategoryCard(categoryRow, "Experimental", "Experimental Features", "Enable all registered experimental features.", self.Colors.Error, nil, 3, categoryHeight)
 
     self:CreateText(card, "Category labels are project classifications, not a guarantee of account safety.", UDim2.new(1, -32, 0, 16), UDim2.fromOffset(16, cardHeight - 18), {
         Font = Enum.Font.Gotham,
@@ -2931,7 +2980,7 @@ end
 function App:CreateCompactMetric(parent, position, widthScale, labelText, valueText, valueColor)
     local frame = Instance.new("Frame")
     frame.Position = position
-    frame.Size = UDim2.new(widthScale, -8, 0, self.DeviceClass == "Phone" and 76 or 90)
+    frame.Size = UDim2.new(widthScale, -15, 0, self.DeviceClass == "Phone" and 76 or 90)
     frame.BackgroundColor3 = self.Colors.CardAlt
     frame.BackgroundTransparency = 0.34
     frame.BorderSizePixel = 0
@@ -2994,12 +3043,12 @@ function App:BuildBottomStatsRow(parent)
 
     local metricY = phone and 43 or 50
     local playersValue = self:CreateCompactMetric(left, UDim2.fromOffset(14, metricY), 0.333, "Players", tostring(#Players:GetPlayers()), self.Colors.Text)
-    local pingValue = self:CreateCompactMetric(left, UDim2.new(0.333, 5, 0, metricY), 0.333, "Ping", "-- ms", self.Colors.Text)
-    local fpsValue = self:CreateCompactMetric(left, UDim2.new(0.666, -4, 0, metricY), 0.334, "FPS", "--", self.Colors.Text)
+    local pingValue = self:CreateCompactMetric(left, UDim2.new(0.333333, 7, 0, metricY), 0.333333, "Ping", "-- ms", self.Colors.Text)
+    local fpsValue = self:CreateCompactMetric(left, UDim2.new(0.666666, 0, 0, metricY), 0.333334, "FPS", "--", self.Colors.Text)
 
     local uptimeValue = self:CreateCompactMetric(right, UDim2.fromOffset(14, metricY), 0.333, "Uptime", "00:00", self.Colors.Text)
-    local memoryValue = self:CreateCompactMetric(right, UDim2.new(0.333, 5, 0, metricY), 0.333, "Memory", "-- MB", self.Colors.Text)
-    local versionValue = self:CreateCompactMetric(right, UDim2.new(0.666, -4, 0, metricY), 0.334, "Version", self.Version, self.Colors.Text)
+    local memoryValue = self:CreateCompactMetric(right, UDim2.new(0.333333, 7, 0, metricY), 0.333333, "Memory", "-- MB", self.Colors.Text)
+    local versionValue = self:CreateCompactMetric(right, UDim2.new(0.666666, 0, 0, metricY), 0.333334, "Version", self.Version, self.Colors.Text)
 
     self.FeatureWidgets.LoadedValue = nil
 
