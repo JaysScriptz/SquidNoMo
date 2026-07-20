@@ -1,53 +1,45 @@
-local AutoGrabKey = {
-    Enabled = false,
-    TweenSpeed = 45,
-}
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+local AutoGrabKey = { Enabled = false, TweenSpeed = 45, Worker = nil, ActiveTween = nil }
 
 function AutoGrabKey:Toggle(state)
-    local localPlayer = game.Players.LocalPlayer
-    local TweenService = game:GetService("TweenService")
-    
+    state = state == true
+    if self.Enabled == state then return end
     self.Enabled = state
-    
-    if state then
-        task.spawn(function()
-            while self.Enabled do
-                task.wait(0.5)
-                
-                if not localPlayer.Character or not localPlayer.Character:FindFirstChild("HumanoidRootPart") then continue end
-                
-                local hasKey = localPlayer.Character:FindFirstChild("Key") or localPlayer.Backpack:FindFirstChild("Key")
-                if hasKey then continue end 
-                
-                local key = workspace:FindFirstChild("Key", true) or workspace:FindFirstChild("DroppedKey", true)
-                if key and key:IsA("Tool") and key:FindFirstChild("Handle") then
-                    
-                    local hrp = localPlayer.Character.HumanoidRootPart
-                    local targetCFrame = key.Handle.CFrame
-                    
-                    -- Calculate safe travel time
-                    local distance = (hrp.Position - targetCFrame.Position).Magnitude
-                    local tweenTime = distance / self.TweenSpeed
-                    
-                    local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
-                    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
-                    
+    if self.ActiveTween then self.ActiveTween:Cancel(); self.ActiveTween = nil end
+    if self.Worker then task.cancel(self.Worker); self.Worker = nil end
+    if not state then return end
+
+    self.Worker = task.spawn(function()
+        while self.Enabled do
+            local player = Players.LocalPlayer
+            local character = player and player.Character
+            local root = character and character:FindFirstChild("HumanoidRootPart")
+            local backpack = player and player:FindFirstChildOfClass("Backpack")
+            local hasKey = character and character:FindFirstChild("Key") or (backpack and backpack:FindFirstChild("Key"))
+            if root and not hasKey then
+                local key = Workspace:FindFirstChild("Key", true) or Workspace:FindFirstChild("DroppedKey", true)
+                local handle = key and key:IsA("Tool") and key:FindFirstChild("Handle")
+                if handle and handle:IsA("BasePart") then
+                    local distance = (root.Position - handle.Position).Magnitude
+                    local tween = TweenService:Create(root, TweenInfo.new(math.max(0.05, distance / self.TweenSpeed), Enum.EasingStyle.Linear), {CFrame = handle.CFrame})
+                    self.ActiveTween = tween
                     tween:Play()
-                    tween.Completed:Wait() 
-                    
+                    tween.Completed:Wait()
+                    self.ActiveTween = nil
                     if self.Enabled then
                         local prompt = key:FindFirstChildWhichIsA("ProximityPrompt", true)
-                        if prompt then
-                            pcall(function() fireproximityprompt(prompt) end)
-                        end
+                        if prompt and type(fireproximityprompt) == "function" then pcall(fireproximityprompt, prompt) end
                     end
                 end
             end
-        end)
-        print("[SquidNoMo]: Auto-Grab Key (Safe) Enabled.")
-    else
-        print("[SquidNoMo]: Auto-Grab Key Disabled.")
-    end
+            task.wait(0.5)
+        end
+        self.Worker = nil
+    end)
 end
 
+function AutoGrabKey:IsEnabled() return self.Enabled end
 return AutoGrabKey

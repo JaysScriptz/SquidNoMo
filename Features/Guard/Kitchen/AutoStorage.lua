@@ -52,7 +52,7 @@ function KitchenCookedHandler:Toggle(state)
                     if obj:IsA("BasePart") or obj:IsA("Model") then
                         local partName = obj.Name:lower()
                         if partName:match("cabinet") or partName:match("storage") or partName:match("tray") then
-                            local targetPos = obj:IsA("Model") and (obj.PrimaryPart and obj.PrimaryPart.Position or obj:GetModelCFrame().Position) or obj.Position
+                            local targetPos = obj:IsA("Model") and (obj.PrimaryPart and obj.PrimaryPart.Position or obj:GetPivot().Position) or obj.Position
                             if (targetPos - character.HumanoidRootPart.Position).Magnitude <= self.MaxInteractRange then
                                 if cookedTool.Parent == localPlayer.Backpack then cookedTool.Parent = character end
                                 interactWithTarget(obj)
@@ -79,7 +79,7 @@ function KitchenCookedHandler:Toggle(state)
                                 local actionText = prompt.ActionText:lower()
                                 if actionText:match("take") or actionText:match("grab") or actionText:match("collect") then
                                     
-                                    local targetPos = obj:IsA("Model") and (obj.PrimaryPart and obj.PrimaryPart.Position or obj:GetModelCFrame().Position) or obj.Position
+                                    local targetPos = obj:IsA("Model") and (obj.PrimaryPart and obj.PrimaryPart.Position or obj:GetPivot().Position) or obj.Position
                                     if (targetPos - character.HumanoidRootPart.Position).Magnitude <= self.MaxInteractRange then
                                         interactWithTarget(obj)
                                         self.ActionCooldown = tick()

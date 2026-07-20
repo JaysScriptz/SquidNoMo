@@ -12,7 +12,7 @@ local Theme = {}
 
 Theme.Name = "SquidNoMo"
 
-Theme.Version = "v0.5.0"
+Theme.Version = "v0.8.6-beta"
 
 ----------------------------------------------------------
 -- Colors

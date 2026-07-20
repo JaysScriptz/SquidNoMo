@@ -60,7 +60,7 @@ function KitchenPotCooker:Toggle(state)
                             local actionText = prompt.ActionText:lower()
                             if actionText:match("place") or actionText:match("cook") or actionText:match("put") or actionText:match("add") or actionText == "interact" then
                                 
-                                local targetPos = obj:IsA("Model") and (obj.PrimaryPart and obj.PrimaryPart.Position or obj:GetModelCFrame().Position) or obj.Position
+                                local targetPos = obj:IsA("Model") and (obj.PrimaryPart and obj.PrimaryPart.Position or obj:GetPivot().Position) or obj.Position
                                 local dist = (targetPos - character.HumanoidRootPart.Position).Magnitude
                                 
                                 -- Strict local distance check

@@ -1,6 +1,6 @@
---// SquidNoMo loader v0.8.4-beta
+--// SquidNoMo loader v0.8.5-beta
 
-local BUILD_VERSION = "v0.8.4-beta"
+local BUILD_VERSION = "v0.8.6-beta"
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -202,11 +202,11 @@ local function GetOrCreateSession()
             LastPage = "Home",
             SelectedGameCategory =
                 "Red Light, Green Light",
-            SelectedGuardCategory = "Moderation",
+            SelectedGuardCategory = "Game Moderation",
             SelectedPlayerCategory =
                 "Movement & Camera",
             SelectedFarmingCategory = "Player Farming",
-            SelectedDetectiveCategory = "Find Island",
+            SelectedDetectiveCategory = "Island Navigation",
             SelectedUICategory = "Layout & Scale",
             UIEditScope = "Entire App",
             UIEditTargetPage = "Players",

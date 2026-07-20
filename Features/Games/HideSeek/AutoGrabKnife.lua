@@ -1,55 +1,45 @@
-local AutoGrabKnife = {
-    Enabled = false,
-    TweenSpeed = 45, -- Studs per second. Adjust if anti-cheat still flags it.
-}
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+local AutoGrabKnife = { Enabled = false, TweenSpeed = 45, Worker = nil, ActiveTween = nil }
 
 function AutoGrabKnife:Toggle(state)
-    local localPlayer = game.Players.LocalPlayer
-    local TweenService = game:GetService("TweenService")
-    
+    state = state == true
+    if self.Enabled == state then return end
     self.Enabled = state
-    
-    if state then
-        task.spawn(function()
-            while self.Enabled do
-                task.wait(0.5) -- Check for the knife every 0.5 seconds
-                
-                if not localPlayer.Character or not localPlayer.Character:FindFirstChild("HumanoidRootPart") then continue end
-                
-                local hasKnife = localPlayer.Character:FindFirstChild("Knife") or localPlayer.Backpack:FindFirstChild("Knife")
-                if hasKnife then continue end 
-                
-                local knife = workspace:FindFirstChild("Knife", true) or workspace:FindFirstChild("Weapon", true)
-                if knife and knife:IsA("Tool") and knife:FindFirstChild("Handle") then
-                    
-                    local hrp = localPlayer.Character.HumanoidRootPart
-                    local targetCFrame = knife.Handle.CFrame
-                    
-                    -- Calculate safe travel time based on distance
-                    local distance = (hrp.Position - targetCFrame.Position).Magnitude
-                    local tweenTime = distance / self.TweenSpeed
-                    
-                    -- Create and play the tween
-                    local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear)
-                    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
-                    
+    if self.ActiveTween then self.ActiveTween:Cancel(); self.ActiveTween = nil end
+    if self.Worker then task.cancel(self.Worker); self.Worker = nil end
+    if not state then return end
+
+    self.Worker = task.spawn(function()
+        while self.Enabled do
+            local player = Players.LocalPlayer
+            local character = player and player.Character
+            local root = character and character:FindFirstChild("HumanoidRootPart")
+            local backpack = player and player:FindFirstChildOfClass("Backpack")
+            local hasKnife = character and character:FindFirstChild("Knife") or (backpack and backpack:FindFirstChild("Knife"))
+            if root and not hasKnife then
+                local knife = Workspace:FindFirstChild("Knife", true) or Workspace:FindFirstChild("Weapon", true)
+                local handle = knife and knife:IsA("Tool") and knife:FindFirstChild("Handle")
+                if handle and handle:IsA("BasePart") then
+                    local distance = (root.Position - handle.Position).Magnitude
+                    local tween = TweenService:Create(root, TweenInfo.new(math.max(0.05, distance / self.TweenSpeed), Enum.EasingStyle.Linear), {CFrame = handle.CFrame})
+                    self.ActiveTween = tween
                     tween:Play()
-                    tween.Completed:Wait() -- Yield script until movement is finished
-                    
-                    -- Fire prompt once we arrive
+                    tween.Completed:Wait()
+                    self.ActiveTween = nil
                     if self.Enabled then
                         local prompt = knife:FindFirstChildWhichIsA("ProximityPrompt", true)
-                        if prompt then
-                            pcall(function() fireproximityprompt(prompt) end)
-                        end
+                        if prompt and type(fireproximityprompt) == "function" then pcall(fireproximityprompt, prompt) end
                     end
                 end
             end
-        end)
-        print("[SquidNoMo]: Auto-Grab Knife (Safe) Enabled.")
-    else
-        print("[SquidNoMo]: Auto-Grab Knife Disabled.")
-    end
+            task.wait(0.5)
+        end
+        self.Worker = nil
+    end)
 end
 
+function AutoGrabKnife:IsEnabled() return self.Enabled end
 return AutoGrabKnife

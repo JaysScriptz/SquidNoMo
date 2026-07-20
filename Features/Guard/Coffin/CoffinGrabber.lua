@@ -34,7 +34,7 @@ function CoffinCollector:Toggle(state)
                 local part = obj:IsA("Model") and obj.PrimaryPart or obj
                 if part and (part.Position - char.HumanoidRootPart.Position).Magnitude <= self.MaxRange then
                     -- Only grab if it has a prompt (ready to be picked up)
-                    local prompt = obj:FindFirstChildOfClass("ProximityPrompt", true)
+                    local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
                     if prompt and prompt.Enabled then
                         char.Humanoid:MoveTo(part.Position)
                         if (part.Position - char.HumanoidRootPart.Position).Magnitude <= 8 then

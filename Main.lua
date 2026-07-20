@@ -1,6 +1,6 @@
 --// SquidNoMo entry point
 
-local BUILD_VERSION = "v0.8.4-beta"
+local BUILD_VERSION = "v0.8.6-beta"
 local BUILD_TOKEN = string.gsub(BUILD_VERSION, "[^%w_%-]", "_")
 local REPOSITORY = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
 local BANNER_PATH = "Images/BannerGuards.png"
@@ -77,7 +77,7 @@ bootstrap.Gui = gui
 local shade = Instance.new("Frame")
 shade.Size = UDim2.fromScale(1, 1)
 shade.BackgroundColor3 = Color3.fromRGB(5, 6, 10)
-shade.BackgroundTransparency = 0.04
+shade.BackgroundTransparency = 1
 shade.BorderSizePixel = 0
 shade.Parent = gui
 
@@ -85,13 +85,13 @@ local panel = Instance.new("ScrollingFrame")
 panel.Name = "LoaderPanel"
 panel.AnchorPoint = Vector2.new(0.5, 0.5)
 panel.Position = UDim2.fromScale(0.5, 0.5)
-panel.Size = UDim2.new(0.92, 0, 0.92, 0)
+panel.Size = UDim2.new(0.68, 0, 0.64, 0)
 panel.BackgroundColor3 = Color3.fromRGB(9, 15, 19)
 panel.BackgroundTransparency = 0.03
 panel.BorderSizePixel = 0
 panel.ScrollBarThickness = 4
 panel.ScrollBarImageColor3 = Color3.fromRGB(52, 225, 104)
-panel.CanvasSize = UDim2.fromOffset(0, 700)
+panel.CanvasSize = UDim2.fromOffset(0, 510)
 panel.AutomaticCanvasSize = Enum.AutomaticSize.None
 panel.ScrollingDirection = Enum.ScrollingDirection.Y
 panel.Parent = shade
@@ -99,13 +99,13 @@ addCorner(panel, 18)
 addStroke(panel, Color3.fromRGB(50, 223, 102), 0.12, 2)
 
 local sizeConstraint = Instance.new("UISizeConstraint")
-sizeConstraint.MinSize = Vector2.new(300, 410)
-sizeConstraint.MaxSize = Vector2.new(760, 860)
+sizeConstraint.MinSize = Vector2.new(320, 360)
+sizeConstraint.MaxSize = Vector2.new(590, 520)
 sizeConstraint.Parent = panel
 
 local content = Instance.new("Frame")
-content.Size = UDim2.new(1, -28, 0, 680)
-content.Position = UDim2.fromOffset(14, 12)
+content.Size = UDim2.new(1, -24, 0, 495)
+content.Position = UDim2.fromOffset(12, 10)
 content.BackgroundTransparency = 1
 content.Parent = panel
 
@@ -113,7 +113,7 @@ local layout = Instance.new("UIListLayout")
 layout.FillDirection = Enum.FillDirection.Vertical
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Padding = UDim.new(0, 10)
+layout.Padding = UDim.new(0, 6)
 layout.Parent = content
 
 local version = Instance.new("TextLabel")
@@ -129,7 +129,7 @@ version.Parent = content
 
 local bannerCard = Instance.new("Frame")
 bannerCard.LayoutOrder = 2
-bannerCard.Size = UDim2.new(1, -12, 0, 150)
+bannerCard.Size = UDim2.new(1, -12, 0, 82)
 bannerCard.BackgroundColor3 = Color3.fromRGB(5, 10, 14)
 bannerCard.BorderSizePixel = 0
 bannerCard.ClipsDescendants = true
@@ -171,18 +171,18 @@ fallbackConstraint.Parent = bannerFallback
 
 local heading = Instance.new("TextLabel")
 heading.LayoutOrder = 3
-heading.Size = UDim2.new(1, -12, 0, 34)
+heading.Size = UDim2.new(1, -12, 0, 28)
 heading.BackgroundTransparency = 1
 heading.Font = Enum.Font.GothamBold
 heading.Text = "LOADING SQUID NO MO..."
 heading.TextColor3 = Color3.fromRGB(59, 236, 111)
-heading.TextSize = 23
+heading.TextSize = 19
 heading.TextXAlignment = Enum.TextXAlignment.Center
 heading.Parent = content
 
 local warningCard = Instance.new("Frame")
 warningCard.LayoutOrder = 4
-warningCard.Size = UDim2.new(1, -12, 0, 72)
+warningCard.Size = UDim2.new(1, -12, 0, 58)
 warningCard.BackgroundColor3 = Color3.fromRGB(25, 26, 24)
 warningCard.BorderSizePixel = 0
 warningCard.Parent = content
@@ -190,22 +190,22 @@ addCorner(warningCard, 12)
 addStroke(warningCard, Color3.fromRGB(235, 194, 61), 0.3, 1)
 
 local warningIcon = Instance.new("TextLabel")
-warningIcon.Size = UDim2.fromOffset(54, 72)
+warningIcon.Size = UDim2.fromOffset(46, 58)
 warningIcon.BackgroundTransparency = 1
 warningIcon.Font = Enum.Font.GothamBold
 warningIcon.Text = "!"
 warningIcon.TextColor3 = Color3.fromRGB(255, 208, 45)
-warningIcon.TextSize = 34
+warningIcon.TextSize = 28
 warningIcon.Parent = warningCard
 
 local warning = Instance.new("TextLabel")
-warning.Position = UDim2.fromOffset(54, 8)
-warning.Size = UDim2.new(1, -66, 1, -16)
+warning.Position = UDim2.fromOffset(46, 5)
+warning.Size = UDim2.new(1, -54, 1, -10)
 warning.BackgroundTransparency = 1
 warning.Font = Enum.Font.GothamMedium
 warning.Text = "DO NOT EXECUTE AGAIN\nThe loader is already working. Re-executing can cause errors."
 warning.TextColor3 = Color3.fromRGB(238, 239, 235)
-warning.TextSize = 15
+warning.TextSize = 13
 warning.TextWrapped = true
 warning.TextXAlignment = Enum.TextXAlignment.Left
 warning.TextYAlignment = Enum.TextYAlignment.Center
@@ -213,7 +213,7 @@ warning.Parent = warningCard
 
 local progressCard = Instance.new("Frame")
 progressCard.LayoutOrder = 5
-progressCard.Size = UDim2.new(1, -12, 0, 104)
+progressCard.Size = UDim2.new(1, -12, 0, 90)
 progressCard.BackgroundColor3 = Color3.fromRGB(12, 22, 27)
 progressCard.BorderSizePixel = 0
 progressCard.Parent = content
@@ -259,20 +259,20 @@ fill.Parent = track
 addCorner(fill, 20)
 
 local status = Instance.new("TextLabel")
-status.Position = UDim2.fromOffset(16, 65)
-status.Size = UDim2.new(1, -32, 0, 26)
+status.Position = UDim2.fromOffset(16, 61)
+status.Size = UDim2.new(1, -32, 0, 22)
 status.BackgroundTransparency = 1
 status.Font = Enum.Font.GothamSemibold
 status.Text = "Preparing startup..."
 status.TextColor3 = Color3.fromRGB(224, 232, 227)
-status.TextSize = 15
+status.TextSize = 13
 status.TextWrapped = true
 status.TextXAlignment = Enum.TextXAlignment.Left
 status.Parent = progressCard
 
 local stagesCard = Instance.new("Frame")
 stagesCard.LayoutOrder = 6
-stagesCard.Size = UDim2.new(1, -12, 0, 214)
+stagesCard.Size = UDim2.new(1, -12, 0, 164)
 stagesCard.BackgroundColor3 = Color3.fromRGB(10, 19, 23)
 stagesCard.BorderSizePixel = 0
 stagesCard.Parent = content
@@ -297,7 +297,7 @@ local stageRows = {}
 for index, definition in ipairs(stageDefinitions) do
     local row = Instance.new("Frame")
     row.LayoutOrder = index
-    row.Size = UDim2.new(1, 0, 0, 33)
+    row.Size = UDim2.new(1, 0, 0, 26)
     row.BackgroundTransparency = 1
     row.Parent = stagesCard
 
@@ -308,7 +308,7 @@ for index, definition in ipairs(stageDefinitions) do
     dot.Font = Enum.Font.GothamBold
     dot.Text = "○"
     dot.TextColor3 = Color3.fromRGB(105, 113, 112)
-    dot.TextSize = 20
+    dot.TextSize = 16
     dot.Parent = row
 
     local label = Instance.new("TextLabel")
@@ -318,7 +318,7 @@ for index, definition in ipairs(stageDefinitions) do
     label.Font = Enum.Font.GothamMedium
     label.Text = definition[1]
     label.TextColor3 = Color3.fromRGB(215, 222, 218)
-    label.TextSize = 14
+    label.TextSize = 12
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = row
 
@@ -330,7 +330,7 @@ for index, definition in ipairs(stageDefinitions) do
     state.Font = Enum.Font.GothamBold
     state.Text = "PENDING"
     state.TextColor3 = Color3.fromRGB(128, 136, 133)
-    state.TextSize = 11
+    state.TextSize = 10
     state.TextXAlignment = Enum.TextXAlignment.Right
     state.Parent = row
 
@@ -345,7 +345,7 @@ tip.BorderSizePixel = 0
 tip.Font = Enum.Font.GothamMedium
 tip.Text = "TIP  •  The interface opens automatically when loading reaches 100%."
 tip.TextColor3 = Color3.fromRGB(190, 224, 202)
-tip.TextSize = 14
+tip.TextSize = 12
 tip.TextWrapped = true
 tip.Parent = content
 addCorner(tip, 11)

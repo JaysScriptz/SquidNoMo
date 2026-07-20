@@ -84,7 +84,7 @@ function KitchenSupplyGrabber:Toggle(state)
                 if obj:IsA("BasePart") or obj:IsA("Model") then
                     local partName = obj.Name:lower()
                     if partName:match("meat") or partName:match("bread") or partName:match("supply") then
-                        local targetPos = obj:IsA("Model") and (obj.PrimaryPart and obj.PrimaryPart.Position or obj:GetModelCFrame().Position) or obj.Position
+                        local targetPos = obj:IsA("Model") and (obj.PrimaryPart and obj.PrimaryPart.Position or obj:GetPivot().Position) or obj.Position
                         local dist = (targetPos - character.HumanoidRootPart.Position).Magnitude
                         
                         -- Strictly limit to local distance

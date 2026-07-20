@@ -29,7 +29,7 @@ function InstantGrabPole:Toggle(state)
                             targetPart.CFrame = hrp.CFrame
                             
                             -- Fire proximity prompt if available
-                            local prompt = obj:FindFirstChildOfClass("ProximityPrompt", true)
+                            local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
                             if prompt then
                                 pcall(function()
                                     fireproximityprompt(prompt)

@@ -34,7 +34,7 @@ function CoffinDisposer:Toggle(state)
             for _, obj in ipairs(furnaceFolder:GetChildren()) do
                 local part = obj:IsA("Model") and obj.PrimaryPart or obj
                 if part and (part.Position - char.HumanoidRootPart.Position).Magnitude <= self.MaxRange then
-                    local prompt = obj:FindFirstChildOfClass("ProximityPrompt", true)
+                    local prompt = obj:FindFirstChildWhichIsA("ProximityPrompt", true)
                     
                     -- Navigate to furnace
                     char.Humanoid:MoveTo(part.Position)

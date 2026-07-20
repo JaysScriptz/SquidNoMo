@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.8.4-beta"
+App.Version = "v0.8.6-beta"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -66,8 +66,8 @@ App.Config = {
         Phone = {
             DesignWidth = 1225,
             DesignHeight = 690,
-            SidebarWidth = 232,
-            TopbarHeight = 56,
+            SidebarWidth = 250,
+            TopbarHeight = 60,
             StatusbarHeight = 34,
             SafeFill = 1.0,
             RestoreFill = 0.82,
@@ -77,8 +77,8 @@ App.Config = {
             HeroHeight = 130,
             FeatureHeight = 196,
             BottomStatsHeight = 242,
-            NavigationButtonHeight = 37,
-            NavigationPadding = 4,
+            NavigationButtonHeight = 46,
+            NavigationPadding = 6,
             SupportPanelHeight = 184,
             Margins = {Left = 0.010, Right = 0.010, Top = 0.012, Bottom = 0.012},
         },
@@ -140,7 +140,8 @@ App.Config = {
     FreeRoamMinimumTitleWidth = 120,
     FreeRoamMinimumTitleHeight = 18,
     ForceMobile = false,
-    AssetVersion = "v0.8.4-beta",
+    AssetVersion = "v0.8.6-beta",
+    MobileTextBoost = true,
     RespectGuiInset = false,
     ShowHomeFooter = false,
 
@@ -2763,7 +2764,7 @@ function App:CreateNavigationButton(definition)
     label.Size = UDim2.new(1, -62, 1, 0)
     label.Font = Enum.Font.GothamMedium
     label.Text = definition.Name
-    label.TextSize = 13
+    label.TextSize = mobile and 17 or 15
     label.TextColor3 = self.Colors.Text
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 1015
@@ -5497,6 +5498,52 @@ function App:CreateEmergencyGui(errorText)
 end
 
 ----------------------------------------------------------
+-- Mobile readability
+----------------------------------------------------------
+
+function App:ApplyReadableText(root)
+    if not root or not self:IsMobile() then
+        return
+    end
+
+    local function boost(instance)
+        if not (instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox")) then
+            return
+        end
+        if instance.TextScaled or instance:GetAttribute("SquidReadableText") then
+            return
+        end
+
+        local current = tonumber(instance.TextSize) or 14
+        local boosted
+        if current <= 10 then
+            boosted = 14
+        elseif current <= 13 then
+            boosted = current + 4
+        elseif current <= 17 then
+            boosted = current + 3
+        else
+            boosted = current + 2
+        end
+        instance.TextSize = math.clamp(boosted, 14, 38)
+        instance:SetAttribute("SquidReadableText", true)
+    end
+
+    boost(root)
+    for _, instance in ipairs(root:GetDescendants()) do
+        boost(instance)
+    end
+
+    if self._readabilityConnection then
+        safeDisconnect(self._readabilityConnection)
+    end
+    self._readabilityConnection = root.DescendantAdded:Connect(function(instance)
+        task.defer(boost, instance)
+    end)
+    table.insert(self.Connections, self._readabilityConnection)
+end
+
+----------------------------------------------------------
 -- Public lifecycle
 ----------------------------------------------------------
 
@@ -5520,6 +5567,7 @@ function App:Build(loader)
         self:CreateReopenButton()
         self:BuildPageDefinitions()
         self:BuildPages()
+        self:ApplyReadableText(self.Gui)
 
         local initialPage = "Home"
         if self.RememberLastPageEnabled and self.Session and self.Session.LastPage and self.Pages[self.Session.LastPage] then
