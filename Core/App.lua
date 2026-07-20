@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.6.1-beta"
+App.Version = "v0.6.2-beta"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -75,7 +75,7 @@ App.Config = {
             ContentPadding = 8,
             HomeGap = 8,
             HeroHeight = 130,
-            FeatureHeight = 294,
+            FeatureHeight = 196,
             BottomStatsHeight = 124,
             NavigationButtonHeight = 37,
             NavigationPadding = 4,
@@ -94,7 +94,7 @@ App.Config = {
             ContentPadding = 12,
             HomeGap = 10,
             HeroHeight = 168,
-            FeatureHeight = 326,
+            FeatureHeight = 220,
             BottomStatsHeight = 150,
             NavigationButtonHeight = 42,
             NavigationPadding = 5,
@@ -113,7 +113,7 @@ App.Config = {
             ContentPadding = 14,
             HomeGap = 11,
             HeroHeight = 176,
-            FeatureHeight = 330,
+            FeatureHeight = 224,
             BottomStatsHeight = 160,
             NavigationButtonHeight = 44,
             NavigationPadding = 6,
@@ -140,7 +140,7 @@ App.Config = {
     FreeRoamMinimumTitleWidth = 120,
     FreeRoamMinimumTitleHeight = 18,
     ForceMobile = false,
-    AssetVersion = "v0.6.1-beta",
+    AssetVersion = "v0.6.2-beta",
     RespectGuiInset = false,
     ShowHomeFooter = false,
 
@@ -3959,11 +3959,8 @@ function App:BuildFeatureStats(parent)
     local summary = self:GetFeatureOverview()
     local phone = self.DeviceClass == "Phone"
     local cardHeight = self.Profile.FeatureHeight
-    local stateHeight = phone and 98 or 116
-    local categoryHeight = phone and 86 or 94
-    local stateY = phone and 46 or 54
-    local categoryTitleY = stateY + stateHeight + (phone and 7 or 12)
-    local categoryY = categoryTitleY + (phone and 22 or 28)
+    local stateHeight = phone and 104 or 118
+    local stateY = phone and 46 or 52
 
     local card = self:CreateCard(parent, UDim2.new(1, 0, 0, cardHeight), {
         Color = Color3.fromRGB(13, 10, 18),
@@ -3973,43 +3970,50 @@ function App:BuildFeatureStats(parent)
     })
     card.LayoutOrder = 2
 
-    self:CreateText(card, "FEATURE STATS", UDim2.fromOffset(220, 26), UDim2.fromOffset(16, phone and 10 or 16), {
+    self:CreateText(card, "FEATURE STATS", UDim2.fromOffset(220, 26), UDim2.fromOffset(16, phone and 10 or 14), {
         Font = Enum.Font.GothamBlack,
-        TextSize = phone and 15 or 18,
+        TextSize = phone and 16 or 18,
         Color = self.Colors.Accent,
         ZIndex = 1013,
     })
 
-    local totalLabel = self:CreateText(card, "Total Features: " .. tostring(summary.Total), UDim2.fromOffset(190, 22), UDim2.new(1, -206, 0, phone and 12 or 18), {
+    local totalLabel = self:CreateText(card, "Total Features: " .. tostring(summary.Total), UDim2.fromOffset(200, 24), UDim2.new(1, -216, 0, phone and 11 or 16), {
         Font = Enum.Font.GothamBold,
-        TextSize = phone and 10 or 11,
+        TextSize = phone and 11 or 12,
         Color = self.Colors.Text,
         XAlignment = Enum.TextXAlignment.Right,
         ZIndex = 1013,
     })
 
     local stateRow = self:CreateEqualThreeColumnRow(card, stateY, stateHeight, "FeatureStateRow")
-    local _, fullyRefs = self:CreateFeatureStateCard(stateRow, nil, 1, self.Colors.Success, "FULLY ON", summary.FullyOn, summary.FullyPercent, "No features registered", stateHeight)
-    local _, partialRefs = self:CreateFeatureStateCard(stateRow, nil, 2, self.Colors.Warning, "PARTIALLY ON", summary.Partial, summary.PartialPercent, "No features registered", stateHeight)
-    local _, offRefs = self:CreateFeatureStateCard(stateRow, nil, 3, self.Colors.Error, "NOT ON", summary.Off, summary.OffPercent, "No features registered", stateHeight)
+    local _, fullyRefs = self:CreateFeatureStateCard(stateRow, nil, 1, self.Colors.Success, "FULLY ON", summary.FullyOn, summary.FullyPercent, "Enabled features", stateHeight)
+    local _, partialRefs = self:CreateFeatureStateCard(stateRow, nil, 2, self.Colors.Warning, "PARTIALLY ON", summary.Partial, summary.PartialPercent, "Partially enabled", stateHeight)
+    local _, offRefs = self:CreateFeatureStateCard(stateRow, nil, 3, self.Colors.Error, "NOT ON", summary.Off, summary.OffPercent, "Disabled features", stateHeight)
 
-    self:CreateText(card, "FEATURE CATEGORIES", UDim2.fromOffset(220, 20), UDim2.fromOffset(16, categoryTitleY), {
-        Font = Enum.Font.GothamBold,
-        TextSize = phone and 10 or 11,
-        Color = self.Colors.Accent,
+    local registryY = stateY + stateHeight + (phone and 7 or 9)
+    local registry = Instance.new("Frame")
+    registry.Position = UDim2.fromOffset(16, registryY)
+    registry.Size = UDim2.new(1, -32, 0, phone and 25 or 28)
+    registry.BackgroundColor3 = self.Colors.CardAlt
+    registry.BackgroundTransparency = 0.28
+    registry.BorderSizePixel = 0
+    registry.ZIndex = 1012
+    registry.Parent = card
+    makeCorner(registry, 9)
+    makeStroke(registry, self.Colors.BorderSoft, 1, 0.46)
+
+    self:CreateText(registry, "LIVE REGISTRY", UDim2.fromOffset(110, 20), UDim2.fromOffset(10, 2), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = phone and 9 or 10,
+        Color = self.Colors.Success,
         ZIndex = 1013,
     })
 
-    local categoryRow = self:CreateEqualThreeColumnRow(card, categoryY, categoryHeight, "FeatureCategoryRow")
-    local safeRefs = self:CreateFeatureCategoryCard(categoryRow, "Safe", "Safe Features", "Enable all registered safe features.", self.Colors.Success, nil, 1, categoryHeight)
-    local semiRefs = self:CreateFeatureCategoryCard(categoryRow, "SemiSafe", "Semi-Safe Features", "Enable all registered semi-safe features.", self.Colors.Warning, nil, 2, categoryHeight)
-    local experimentalRefs = self:CreateFeatureCategoryCard(categoryRow, "Experimental", "Experimental Features", "Enable all registered experimental features.", self.Colors.Error, nil, 3, categoryHeight)
-
-    self:CreateText(card, "Category labels are project classifications, not a guarantee of account safety.", UDim2.new(1, -32, 0, 16), UDim2.fromOffset(16, cardHeight - 18), {
-        Font = Enum.Font.Gotham,
-        TextSize = phone and 8 or 9,
-        Color = self.Colors.Muted,
-        XAlignment = Enum.TextXAlignment.Center,
+    self:CreateText(registry, "Updates automatically as features change on their dedicated pages.", UDim2.new(1, -130, 1, 0), UDim2.fromOffset(120, 0), {
+        Font = Enum.Font.GothamMedium,
+        TextSize = phone and 9 or 10,
+        Color = self.Colors.Text,
+        XAlignment = Enum.TextXAlignment.Right,
         ZIndex = 1013,
     })
 
@@ -4021,11 +4025,7 @@ function App:BuildFeatureStats(parent)
             Partial = partialRefs,
             Off = offRefs,
         },
-        Categories = {
-            Safe = safeRefs,
-            SemiSafe = semiRefs,
-            Experimental = experimentalRefs,
-        },
+        Categories = {},
     }
 
     self:StartFeatureTracking()

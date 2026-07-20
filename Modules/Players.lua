@@ -55,7 +55,8 @@ local function setEnabled(feature, state)
         return false
     end
 
-    return pcall(method, feature)
+    local ok, result = pcall(method, feature)
+    return ok and result ~= false
 end
 
 local function createColumn(App, row, title, subtitle, accent, order)
@@ -70,23 +71,23 @@ local function createColumn(App, row, title, subtitle, accent, order)
 
     App:CreateText(card, title, UDim2.new(1, -28, 0, 25), UDim2.fromOffset(14, 12), {
         Font = Enum.Font.GothamBlack,
-        TextSize = App:IsMobile() and 14 or 16,
+        TextSize = App:IsMobile() and 17 or 19,
         Color = accent,
         ZIndex = 1013,
     })
 
     App:CreateText(card, subtitle, UDim2.new(1, -28, 0, 34), UDim2.fromOffset(14, 39), {
         Font = Enum.Font.GothamMedium,
-        TextSize = App:IsMobile() and 9 or 10,
-        Color = App.Colors.Muted,
+        TextSize = App:IsMobile() and 12 or 13,
+        Color = App.Colors.Text,
         Wrapped = true,
         YAlignment = Enum.TextYAlignment.Top,
         ZIndex = 1013,
     })
 
     local holder = Instance.new("Frame")
-    holder.Position = UDim2.fromOffset(12, 80)
-    holder.Size = UDim2.new(1, -24, 1, -92)
+    holder.Position = UDim2.fromOffset(12, 88)
+    holder.Size = UDim2.new(1, -24, 1, -100)
     holder.BackgroundTransparency = 1
     holder.BorderSizePixel = 0
     holder.ZIndex = 1012
@@ -104,7 +105,7 @@ end
 
 local function createToggleRow(App, parent, title, description, accent, feature, order)
     local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 66)
+    row.Size = UDim2.new(1, 0, 0, 98)
     row.BackgroundColor3 = App.Colors.CardAlt
     row.BackgroundTransparency = 0.20
     row.BorderSizePixel = 0
@@ -116,15 +117,15 @@ local function createToggleRow(App, parent, title, description, accent, feature,
 
     App:CreateText(row, title, UDim2.new(1, -82, 0, 20), UDim2.fromOffset(12, 8), {
         Font = Enum.Font.GothamBold,
-        TextSize = App:IsMobile() and 10 or 11,
+        TextSize = App:IsMobile() and 13 or 14,
         Color = App.Colors.Text,
         ZIndex = 1014,
     })
 
     local detail = App:CreateText(row, description, UDim2.new(1, -84, 0, 28), UDim2.fromOffset(12, 31), {
-        Font = Enum.Font.Gotham,
-        TextSize = App:IsMobile() and 8 or 9,
-        Color = App.Colors.Muted,
+        Font = Enum.Font.GothamMedium,
+        TextSize = App:IsMobile() and 11 or 12,
+        Color = App.Colors.Text,
         Wrapped = true,
         YAlignment = Enum.TextYAlignment.Top,
         ZIndex = 1014,
@@ -133,7 +134,7 @@ local function createToggleRow(App, parent, title, description, accent, feature,
     local switch = Instance.new("Frame")
     switch.AnchorPoint = Vector2.new(1, 0.5)
     switch.Position = UDim2.new(1, -12, 0.5, 0)
-    switch.Size = UDim2.fromOffset(48, 26)
+    switch.Size = UDim2.fromOffset(54, 30)
     switch.BackgroundColor3 = Color3.fromRGB(68, 64, 78)
     switch.BorderSizePixel = 0
     switch.ZIndex = 1014
@@ -142,7 +143,7 @@ local function createToggleRow(App, parent, title, description, accent, feature,
 
     local knob = Instance.new("Frame")
     knob.Position = UDim2.fromOffset(3, 3)
-    knob.Size = UDim2.fromOffset(20, 20)
+    knob.Size = UDim2.fromOffset(24, 24)
     knob.BackgroundColor3 = Color3.fromRGB(245, 242, 248)
     knob.BorderSizePixel = 0
     knob.ZIndex = 1015
@@ -164,11 +165,11 @@ local function createToggleRow(App, parent, title, description, accent, feature,
     function refs:Refresh()
         local on = isEnabled(feature)
         switch.BackgroundColor3 = on and accent or Color3.fromRGB(68, 64, 78)
-        knob.Position = UDim2.fromOffset(on and 25 or 3, 3)
+        knob.Position = UDim2.fromOffset(on and 27 or 3, 3)
         outline.Transparency = on and 0.20 or 0.72
     end
 
-    button.MouseButton1Click:Connect(function()
+    button.Activated:Connect(function()
         local desired = not isEnabled(feature)
         if setEnabled(feature, desired) then
             notifyManager(App)
@@ -196,21 +197,21 @@ local function createSliderRow(App, parent, title, minimum, maximum, defaultValu
 
     App:CreateText(row, title, UDim2.new(1, -90, 0, 20), UDim2.fromOffset(12, 8), {
         Font = Enum.Font.GothamBold,
-        TextSize = App:IsMobile() and 10 or 11,
+        TextSize = App:IsMobile() and 13 or 14,
         Color = App.Colors.Text,
         ZIndex = 1014,
     })
 
     local valueLabel = App:CreateText(row, tostring(defaultValue), UDim2.fromOffset(68, 20), UDim2.new(1, -80, 0, 8), {
         Font = Enum.Font.GothamBlack,
-        TextSize = App:IsMobile() and 10 or 11,
+        TextSize = App:IsMobile() and 13 or 14,
         Color = accent,
         XAlignment = Enum.TextXAlignment.Right,
         ZIndex = 1014,
     })
 
     local track = Instance.new("Frame")
-    track.Position = UDim2.fromOffset(12, 45)
+    track.Position = UDim2.fromOffset(12, 57)
     track.Size = UDim2.new(1, -24, 0, 8)
     track.BackgroundColor3 = Color3.fromRGB(55, 48, 65)
     track.BorderSizePixel = 0
@@ -309,7 +310,7 @@ end
 
 local function createActionButton(App, parent, title, description, accent, order, callback)
     local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 74)
+    row.Size = UDim2.new(1, 0, 0, 90)
     row.BackgroundColor3 = App.Colors.CardAlt
     row.BackgroundTransparency = 0.20
     row.BorderSizePixel = 0
@@ -321,15 +322,15 @@ local function createActionButton(App, parent, title, description, accent, order
 
     App:CreateText(row, title, UDim2.new(1, -112, 0, 20), UDim2.fromOffset(12, 9), {
         Font = Enum.Font.GothamBold,
-        TextSize = App:IsMobile() and 10 or 11,
+        TextSize = App:IsMobile() and 13 or 14,
         Color = App.Colors.Text,
         ZIndex = 1014,
     })
 
     App:CreateText(row, description, UDim2.new(1, -116, 0, 34), UDim2.fromOffset(12, 32), {
-        Font = Enum.Font.Gotham,
-        TextSize = App:IsMobile() and 8 or 9,
-        Color = App.Colors.Muted,
+        Font = Enum.Font.GothamMedium,
+        TextSize = App:IsMobile() and 11 or 12,
+        Color = App.Colors.Text,
         Wrapped = true,
         YAlignment = Enum.TextYAlignment.Top,
         ZIndex = 1014,
@@ -352,7 +353,7 @@ local function createActionButton(App, parent, title, description, accent, order
     corner(action, 9)
     App:BindButtonFeedback(action, accent)
 
-    action.MouseButton1Click:Connect(function()
+    action.Activated:Connect(function()
         local ok = pcall(callback)
         if not ok and App.Notifications and type(App.Notifications.Warning) == "function" then
             App.Notifications:Warning("Players", title .. " could not run.", 3)
@@ -362,7 +363,7 @@ end
 
 local function createESPRow(App, parent, title, description, accent, feature, colors, order)
     local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 88)
+    row.Size = UDim2.new(1, 0, 0, 112)
     row.BackgroundColor3 = App.Colors.CardAlt
     row.BackgroundTransparency = 0.20
     row.BorderSizePixel = 0
@@ -388,15 +389,15 @@ local function createESPRow(App, parent, title, description, accent, feature, co
 
     App:CreateText(row, title, UDim2.new(1, -104, 0, 20), UDim2.fromOffset(44, 8), {
         Font = Enum.Font.GothamBold,
-        TextSize = App:IsMobile() and 10 or 11,
+        TextSize = App:IsMobile() and 13 or 14,
         Color = App.Colors.Text,
         ZIndex = 1014,
     })
 
     App:CreateText(row, description, UDim2.new(1, -104, 0, 23), UDim2.fromOffset(44, 29), {
-        Font = Enum.Font.Gotham,
-        TextSize = App:IsMobile() and 8 or 9,
-        Color = App.Colors.Muted,
+        Font = Enum.Font.GothamMedium,
+        TextSize = App:IsMobile() and 11 or 12,
+        Color = App.Colors.Text,
         Wrapped = true,
         YAlignment = Enum.TextYAlignment.Top,
         ZIndex = 1014,
@@ -405,7 +406,7 @@ local function createESPRow(App, parent, title, description, accent, feature, co
     local switch = Instance.new("Frame")
     switch.AnchorPoint = Vector2.new(1, 0)
     switch.Position = UDim2.new(1, -10, 0, 10)
-    switch.Size = UDim2.fromOffset(48, 26)
+    switch.Size = UDim2.fromOffset(54, 30)
     switch.BackgroundColor3 = Color3.fromRGB(68, 64, 78)
     switch.BorderSizePixel = 0
     switch.ZIndex = 1014
@@ -414,7 +415,7 @@ local function createESPRow(App, parent, title, description, accent, feature, co
 
     local knob = Instance.new("Frame")
     knob.Position = UDim2.fromOffset(3, 3)
-    knob.Size = UDim2.fromOffset(20, 20)
+    knob.Size = UDim2.fromOffset(24, 24)
     knob.BackgroundColor3 = Color3.fromRGB(245, 242, 248)
     knob.BorderSizePixel = 0
     knob.ZIndex = 1015
@@ -422,7 +423,7 @@ local function createESPRow(App, parent, title, description, accent, feature, co
     corner(knob, 99)
 
     local swatchHolder = Instance.new("Frame")
-    swatchHolder.Position = UDim2.fromOffset(44, 58)
+    swatchHolder.Position = UDim2.fromOffset(44, 82)
     swatchHolder.Size = UDim2.new(1, -56, 0, 20)
     swatchHolder.BackgroundTransparency = 1
     swatchHolder.ZIndex = 1014
@@ -450,7 +451,7 @@ local function createESPRow(App, parent, title, description, accent, feature, co
         local swatchStroke = stroke(swatch, Color3.fromRGB(255, 255, 255), 1, 0.72)
         App:BindButtonFeedback(swatch, color)
 
-        swatch.MouseButton1Click:Connect(function()
+        swatch.Activated:Connect(function()
             if type(feature) == "table" and type(feature.SetColor) == "function" then
                 pcall(feature.SetColor, feature, color)
                 for _, item in ipairs(swatches) do
@@ -492,7 +493,7 @@ local function createESPRow(App, parent, title, description, accent, feature, co
         icon.TextColor3 = currentColor
         icon.BackgroundColor3 = currentColor
         switch.BackgroundColor3 = on and currentColor or Color3.fromRGB(68, 64, 78)
-        knob.Position = UDim2.fromOffset(on and 25 or 3, 3)
+        knob.Position = UDim2.fromOffset(on and 27 or 3, 3)
         outline.Color = currentColor
         outline.Transparency = on and 0.20 or 0.72
         for _, item in ipairs(swatches) do
@@ -502,7 +503,7 @@ local function createESPRow(App, parent, title, description, accent, feature, co
         end
     end
 
-    toggle.MouseButton1Click:Connect(function()
+    toggle.Activated:Connect(function()
         local desired = not isEnabled(feature)
         if setEnabled(feature, desired) then
             notifyManager(App)
@@ -520,12 +521,12 @@ function PlayersPage:Create(Page, App)
     local padding = App.Profile.ContentPadding
     local root = Instance.new("Frame")
     root.Position = UDim2.fromOffset(padding, padding)
-    root.Size = UDim2.new(1, -(padding * 2), 0, 1030)
+    root.Size = UDim2.new(1, -(padding * 2), 0, 1510)
     root.BackgroundTransparency = 1
     root.BorderSizePixel = 0
     root.Parent = Page
 
-    local banner = App:CreateCard(root, UDim2.new(1, 0, 0, 72), {
+    local banner = App:CreateCard(root, UDim2.new(1, 0, 0, 88), {
         Color = Color3.fromRGB(15, 10, 23),
         BorderColor = App:GetPageAccent("Players"),
         BorderTransparency = 0.08,
@@ -535,20 +536,20 @@ function PlayersPage:Create(Page, App)
 
     App:CreateText(banner, "PLAYER FEATURES", UDim2.new(1, -220, 0, 28), UDim2.fromOffset(18, 10), {
         Font = Enum.Font.GothamBlack,
-        TextSize = App:IsMobile() and 17 or 20,
+        TextSize = App:IsMobile() and 20 or 23,
         Color = App:GetPageAccent("Players"),
         ZIndex = 1013,
     })
     App:CreateText(banner, "Stable local movement, player information, camera controls, and session utilities linked to the live feature registry.", UDim2.new(1, -36, 0, 24), UDim2.fromOffset(18, 39), {
         Font = Enum.Font.GothamMedium,
-        TextSize = App:IsMobile() and 9 or 10,
+        TextSize = App:IsMobile() and 12 or 13,
         Color = App.Colors.Text,
         Wrapped = true,
         ZIndex = 1013,
     })
     App:CreatePill(banner, "3-COLUMN UNIVERSAL", App:GetPageAccent("Players"), UDim2.new(1, -176, 0, 18), 158)
 
-    local columns = App:CreateEqualThreeColumnRow(root, 84, 930, "PlayersUniversalColumns")
+    local columns = App:CreateEqualThreeColumnRow(root, 100, 1390, "PlayersUniversalColumns")
 
     local _, movement = createColumn(App, columns, "MOVEMENT & CAMERA", "Local character and camera behavior.", App.Colors.Info, 1)
     local _, esp = createColumn(App, columns, "PLAYER ESP", "Independent information overlays and colors.", App.Colors.Success, 2)
@@ -620,14 +621,14 @@ function PlayersPage:Create(Page, App)
 
     App:CreateText(status, "LIVE FEATURE LINK", UDim2.new(1, -24, 0, 18), UDim2.fromOffset(12, 8), {
         Font = Enum.Font.GothamBold,
-        TextSize = App:IsMobile() and 9 or 10,
+        TextSize = App:IsMobile() and 12 or 13,
         Color = App.Colors.Warning,
         ZIndex = 1014,
     })
     App:CreateText(status, "Every toggle refreshes from the central feature registry.", UDim2.new(1, -24, 0, 30), UDim2.fromOffset(12, 27), {
-        Font = Enum.Font.Gotham,
-        TextSize = App:IsMobile() and 8 or 9,
-        Color = App.Colors.Muted,
+        Font = Enum.Font.GothamMedium,
+        TextSize = App:IsMobile() and 11 or 12,
+        Color = App.Colors.Text,
         Wrapped = true,
         ZIndex = 1014,
     })

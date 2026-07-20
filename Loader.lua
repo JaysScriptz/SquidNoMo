@@ -1,4 +1,6 @@
---// SquidNoMo loader v0.6.1-beta
+--// SquidNoMo loader v0.6.2-beta
+
+local BUILD_VERSION = "v0.6.2-beta"
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -9,49 +11,102 @@ if type(getgenv) == "function" then
 end
 
 local ExistingSession = Environment.__SquidNoMoSession
-if type(ExistingSession) == "table"
-    and ExistingSession.JobId == game.JobId
-    and ExistingSession.Loader
-    and ExistingSession.App
-    and type(ExistingSession.App.IsVisible) == "function"
-    and ExistingSession.App:IsVisible() then
 
+if type(ExistingSession) == "table" and ExistingSession.JobId == game.JobId then
+    local existingApp = ExistingSession.App
+    local sameVersion = ExistingSession.Version == BUILD_VERSION
+
+    if sameVersion and existingApp and type(existingApp.BringToFront) == "function" then
+        ExistingSession.UserClosed = false
+        existingApp:BringToFront()
+        return ExistingSession.Loader
+    end
+
+    -- Cleanly retire an older in-server build before loading the new version.
+    local oldLoader = ExistingSession.Loader
+    local oldManager = oldLoader and oldLoader.FeatureManager
+
+    if oldManager and type(oldManager.SetCategoryEnabled) == "function" then
+        for _, category in ipairs({"Safe", "SemiSafe", "Experimental"}) do
+            pcall(function()
+                oldManager:SetCategoryEnabled(category, false)
+            end)
+        end
+    end
+
+    if ExistingSession.CharacterConnection then
+        pcall(function()
+            ExistingSession.CharacterConnection:Disconnect()
+        end)
+        ExistingSession.CharacterConnection = nil
+    end
+
+    if existingApp and type(existingApp.Destroy) == "function" then
+        pcall(function()
+            existingApp:Destroy(true)
+        end)
+    end
+
+    ExistingSession.Loader = nil
+    ExistingSession.App = nil
     ExistingSession.UserClosed = false
-    if type(ExistingSession.App.BringToFront) == "function" then
-        ExistingSession.App:BringToFront()
-    elseif type(ExistingSession.App.SetMinimized) == "function" then
-        ExistingSession.App:SetMinimized(false)
-    end
-
-    return ExistingSession.Loader
+    ExistingSession.Version = BUILD_VERSION
 end
 
-local Config = loadstring(game:HttpGet(
+local BUILD_TOKEN = string.gsub(BUILD_VERSION, "[^%w_%-]", "_")
+
+local function AddVersion(url)
+    local separator = string.find(url, "?", 1, true) and "&" or "?"
+    return url .. separator .. "squidnomo_build=" .. BUILD_TOKEN
+end
+
+local ConfigSource = game:HttpGet(AddVersion(
     "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Config.lua"
-))()
-
-local function Load(Path)
-    print("[Loader] " .. Path)
-
-    local Url = Config.Repository .. Path
-    local Source = game:HttpGet(Url)
-    local Chunk, CompileError = loadstring(Source)
-
-    if not Chunk then
-        error(string.format("[Loader] Compile failed for %s: %s", Path, tostring(CompileError)))
-    end
-
-    local Success, Result = pcall(Chunk)
-
-    if not Success then
-        error(string.format("[Loader] Execution failed for %s: %s", Path, tostring(Result)))
-    end
-
-    return Result
-end
+))
+local Config = loadstring(ConfigSource)()
 
 local Loader = {}
 Loader.Config = Config
+Loader.BuildVersion = BUILD_VERSION
+
+function Loader:GetRemoteUrl(path)
+    return AddVersion(self.Config.Repository .. path)
+end
+
+function Loader:FetchSource(path)
+    return game:HttpGet(self:GetRemoteUrl(path))
+end
+
+function Loader:LoadRemote(path)
+    print("[Loader] " .. path)
+
+    local source = self:FetchSource(path)
+    local chunk, compileError = loadstring(source)
+
+    if not chunk then
+        error(string.format(
+            "[Loader] Compile failed for %s: %s",
+            path,
+            tostring(compileError)
+        ))
+    end
+
+    local success, result = pcall(chunk)
+
+    if not success then
+        error(string.format(
+            "[Loader] Execution failed for %s: %s",
+            path,
+            tostring(result)
+        ))
+    end
+
+    return result
+end
+
+local function Load(path)
+    return Loader:LoadRemote(path)
+end
 
 Loader.Theme = Load("Core/Theme.lua")
 Loader.Components = Load("Core/Components.lua")
@@ -60,7 +115,6 @@ Loader.Utilities = Load("Core/Utilities.lua")
 Loader.Notifications = Load("Core/Notifications.lua")
 
 Loader.FeatureManager = Load("Features/FeatureManager.lua")
-Loader.Features = {}
 Loader.App = Load("Core/App.lua")
 
 Loader.Home = Load("Modules/Home.lua")
@@ -77,23 +131,22 @@ Loader.Supporters = Load("Modules/Home/Supporters.lua")
 Loader.ImportantNotice = Load("Modules/Home/ImportantNotice.lua")
 Loader.Footer = Load("Modules/Home/Footer.lua")
 
-Loader.App:Build(Loader)
-
-local FeaturesLoaded, FeaturesOrError = pcall(function()
+-- Features must exist before Players and UI pages capture their references.
+local featuresLoaded, featuresOrError = pcall(function()
     return Loader.FeatureManager:Initialize(Loader)
 end)
 
-if FeaturesLoaded then
-    Loader.Features = FeaturesOrError
-    Loader.App.Features = FeaturesOrError
-    Loader.App:AttachFeatureManager(Loader.FeatureManager, FeaturesOrError)
-    print("[Loader] Features ready")
+if featuresLoaded then
+    Loader.Features = featuresOrError
+    print("[Loader] Features initialized before page build")
 else
-    warn("[Loader] Feature initialization failed:", FeaturesOrError)
+    warn("[Loader] Feature initialization failed:", featuresOrError)
     Loader.Features = {}
-    Loader.App.Features = Loader.Features
-    Loader.App:AttachFeatureManager(Loader.FeatureManager, Loader.Features)
 end
+
+Loader.App.Features = Loader.Features
+Loader.App:Build(Loader)
+Loader.App:AttachFeatureManager(Loader.FeatureManager, Loader.Features)
 
 local Session = Environment.__SquidNoMoSession
 if type(Session) ~= "table" or Session.JobId ~= game.JobId then
@@ -108,6 +161,7 @@ if type(Session) ~= "table" or Session.JobId ~= game.JobId then
     Environment.__SquidNoMoSession = Session
 end
 
+Session.Version = BUILD_VERSION
 Session.Loader = Loader
 Session.App = Loader.App
 Session.UserClosed = false
@@ -130,8 +184,12 @@ if LocalPlayer then
         end
 
         if not Loader.App:IsVisible() then
+            Loader.App.Features = Loader.Features
             Loader.App:Build(Loader)
-            Loader.App:AttachFeatureManager(Loader.FeatureManager, Loader.Features)
+            Loader.App:AttachFeatureManager(
+                Loader.FeatureManager,
+                Loader.Features
+            )
         end
     end)
 end

@@ -1,9 +1,13 @@
 local Player = {}
 
 function Player:Initialize(Loader)
-    local function Load(moduleName)
+    local function Load(name)
+        local path = "Features/Player/" .. name .. ".lua"
+        if type(Loader.LoadRemote) == "function" then
+            return Loader:LoadRemote(path)
+        end
         return loadstring(game:HttpGet(
-            Loader.Config.Repository .. "Features/Player/" .. moduleName .. ".lua"
+            Loader.Config.Repository .. path
         ))()
     end
 

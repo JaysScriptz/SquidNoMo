@@ -44,22 +44,22 @@ local function createColumn(App, row, title, subtitle, accent, order)
 
     App:CreateText(card, title, UDim2.new(1, -28, 0, 25), UDim2.fromOffset(14, 12), {
         Font = Enum.Font.GothamBlack,
-        TextSize = App:IsMobile() and 14 or 16,
+        TextSize = App:IsMobile() and 17 or 19,
         Color = accent,
         ZIndex = 1013,
     })
     App:CreateText(card, subtitle, UDim2.new(1, -28, 0, 34), UDim2.fromOffset(14, 39), {
         Font = Enum.Font.GothamMedium,
-        TextSize = App:IsMobile() and 9 or 10,
-        Color = App.Colors.Muted,
+        TextSize = App:IsMobile() and 12 or 13,
+        Color = App.Colors.Text,
         Wrapped = true,
         YAlignment = Enum.TextYAlignment.Top,
         ZIndex = 1013,
     })
 
     local holder = Instance.new("Frame")
-    holder.Position = UDim2.fromOffset(12, 80)
-    holder.Size = UDim2.new(1, -24, 1, -92)
+    holder.Position = UDim2.fromOffset(12, 88)
+    holder.Size = UDim2.new(1, -24, 1, -100)
     holder.BackgroundTransparency = 1
     holder.BorderSizePixel = 0
     holder.Parent = card
@@ -76,7 +76,7 @@ end
 
 local function createFeatureRow(App, parent, title, description, accent, feature, order, colors)
     local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, colors and 102 or 88)
+    row.Size = UDim2.new(1, 0, 0, colors and 124 or 98)
     row.BackgroundColor3 = App.Colors.CardAlt
     row.BackgroundTransparency = 0.20
     row.BorderSizePixel = 0
@@ -101,14 +101,14 @@ local function createFeatureRow(App, parent, title, description, accent, feature
 
     App:CreateText(row, title, UDim2.new(1, -106, 0, 21), UDim2.fromOffset(48, 9), {
         Font = Enum.Font.GothamBold,
-        TextSize = App:IsMobile() and 10 or 11,
+        TextSize = App:IsMobile() and 13 or 14,
         Color = App.Colors.Text,
         ZIndex = 1014,
     })
     App:CreateText(row, description, UDim2.new(1, -106, 0, colors and 40 or 48), UDim2.fromOffset(48, 31), {
-        Font = Enum.Font.Gotham,
-        TextSize = App:IsMobile() and 8 or 9,
-        Color = App.Colors.Muted,
+        Font = Enum.Font.GothamMedium,
+        TextSize = App:IsMobile() and 11 or 12,
+        Color = App.Colors.Text,
         Wrapped = true,
         YAlignment = Enum.TextYAlignment.Top,
         ZIndex = 1014,
@@ -117,7 +117,7 @@ local function createFeatureRow(App, parent, title, description, accent, feature
     local switch = Instance.new("Frame")
     switch.AnchorPoint = Vector2.new(1, 0)
     switch.Position = UDim2.new(1, -10, 0, 12)
-    switch.Size = UDim2.fromOffset(48, 26)
+    switch.Size = UDim2.fromOffset(54, 30)
     switch.BackgroundColor3 = Color3.fromRGB(68, 64, 78)
     switch.BorderSizePixel = 0
     switch.ZIndex = 1015
@@ -126,7 +126,7 @@ local function createFeatureRow(App, parent, title, description, accent, feature
 
     local knob = Instance.new("Frame")
     knob.Position = UDim2.fromOffset(3, 3)
-    knob.Size = UDim2.fromOffset(20, 20)
+    knob.Size = UDim2.fromOffset(24, 24)
     knob.BackgroundColor3 = Color3.fromRGB(245, 242, 248)
     knob.BorderSizePixel = 0
     knob.ZIndex = 1016
@@ -137,7 +137,7 @@ local function createFeatureRow(App, parent, title, description, accent, feature
 
     if colors then
         local holder = Instance.new("Frame")
-        holder.Position = UDim2.fromOffset(48, 74)
+        holder.Position = UDim2.fromOffset(48, 92)
         holder.Size = UDim2.new(1, -60, 0, 20)
         holder.BackgroundTransparency = 1
         holder.ZIndex = 1017
@@ -161,7 +161,7 @@ local function createFeatureRow(App, parent, title, description, accent, feature
             corner(swatch, 6)
             local swatchStroke = stroke(swatch, Color3.fromRGB(255, 255, 255), 1, 0.72)
             App:BindButtonFeedback(swatch, color)
-            swatch.MouseButton1Click:Connect(function()
+            swatch.Activated:Connect(function()
                 if type(feature) == "table" and type(feature.SetColor) == "function" then
                     pcall(feature.SetColor, feature, color)
                     refs:Refresh()
@@ -177,7 +177,7 @@ local function createFeatureRow(App, parent, title, description, accent, feature
     button.BorderSizePixel = 0
     button.AutoButtonColor = false
     button.Text = ""
-    button.ZIndex = 1013
+    button.ZIndex = 1017
     button.Parent = row
 
     function refs:Refresh()
@@ -188,7 +188,7 @@ local function createFeatureRow(App, parent, title, description, accent, feature
             if ok and typeof(value) == "Color3" then activeColor = value end
         end
         switch.BackgroundColor3 = on and activeColor or Color3.fromRGB(68, 64, 78)
-        knob.Position = UDim2.fromOffset(on and 25 or 3, 3)
+        knob.Position = UDim2.fromOffset(on and 27 or 3, 3)
         outline.Color = activeColor
         outline.Transparency = on and 0.20 or 0.72
         icon.BackgroundColor3 = activeColor
@@ -200,7 +200,7 @@ local function createFeatureRow(App, parent, title, description, accent, feature
         end
     end
 
-    button.MouseButton1Click:Connect(function()
+    button.Activated:Connect(function()
         local desired = not isEnabled(feature)
         local method = desired and feature and feature.Enable or feature and feature.Disable
         if type(method) == "function" then
@@ -219,7 +219,7 @@ end
 
 local function createSliderRow(App, parent, title, minimum, maximum, defaultValue, feature, accent, order)
     local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 82)
+    row.Size = UDim2.new(1, 0, 0, 98)
     row.BackgroundColor3 = App.Colors.CardAlt
     row.BackgroundTransparency = 0.20
     row.BorderSizePixel = 0
@@ -230,21 +230,21 @@ local function createSliderRow(App, parent, title, minimum, maximum, defaultValu
 
     App:CreateText(row, title, UDim2.new(1, -90, 0, 20), UDim2.fromOffset(12, 8), {
         Font = Enum.Font.GothamBold,
-        TextSize = App:IsMobile() and 10 or 11,
+        TextSize = App:IsMobile() and 13 or 14,
         Color = App.Colors.Text,
         ZIndex = 1014,
     })
 
     local valueLabel = App:CreateText(row, tostring(defaultValue), UDim2.fromOffset(68, 20), UDim2.new(1, -80, 0, 8), {
         Font = Enum.Font.GothamBlack,
-        TextSize = App:IsMobile() and 10 or 11,
+        TextSize = App:IsMobile() and 13 or 14,
         Color = accent,
         XAlignment = Enum.TextXAlignment.Right,
         ZIndex = 1014,
     })
 
     local track = Instance.new("Frame")
-    track.Position = UDim2.fromOffset(12, 45)
+    track.Position = UDim2.fromOffset(12, 57)
     track.Size = UDim2.new(1, -24, 0, 8)
     track.BackgroundColor3 = Color3.fromRGB(55, 48, 65)
     track.BorderSizePixel = 0
@@ -347,12 +347,12 @@ function UIPage:Create(Page, App)
     local padding = App.Profile.ContentPadding
     local root = Instance.new("Frame")
     root.Position = UDim2.fromOffset(padding, padding)
-    root.Size = UDim2.new(1, -(padding * 2), 0, 1140)
+    root.Size = UDim2.new(1, -(padding * 2), 0, 1510)
     root.BackgroundTransparency = 1
     root.BorderSizePixel = 0
     root.Parent = Page
 
-    local banner = App:CreateCard(root, UDim2.new(1, 0, 0, 72), {
+    local banner = App:CreateCard(root, UDim2.new(1, 0, 0, 88), {
         Color = Color3.fromRGB(15, 10, 23),
         BorderColor = App:GetPageAccent("UI"),
         BorderTransparency = 0.08,
@@ -360,20 +360,20 @@ function UIPage:Create(Page, App)
     })
     App:CreateText(banner, "GAME UI ENHANCEMENTS", UDim2.new(1, -36, 0, 28), UDim2.fromOffset(18, 10), {
         Font = Enum.Font.GothamBlack,
-        TextSize = App:IsMobile() and 17 or 20,
+        TextSize = App:IsMobile() and 20 or 23,
         Color = App:GetPageAccent("UI"),
         ZIndex = 1013,
     })
     App:CreateText(banner, "Gameplay overlays, core-interface visibility, and local visual clarity. Application appearance remains under Settings.", UDim2.new(1, -36, 0, 24), UDim2.fromOffset(18, 39), {
         Font = Enum.Font.GothamMedium,
-        TextSize = App:IsMobile() and 9 or 10,
+        TextSize = App:IsMobile() and 12 or 13,
         Color = App.Colors.Text,
         Wrapped = true,
         ZIndex = 1013,
     })
     App:CreatePill(banner, "LOCAL UI ONLY", App:GetPageAccent("UI"), UDim2.new(1, -148, 0, 18), 130)
 
-    local columns = App:CreateEqualThreeColumnRow(root, 84, 1040, "GameUIUniversalColumns")
+    local columns = App:CreateEqualThreeColumnRow(root, 100, 1390, "GameUIUniversalColumns")
     local overlays = createColumn(App, columns, "HUD OVERLAYS", "Optional information layered over gameplay.", App:GetPageAccent("UI"), 1)
     local visibility = createColumn(App, columns, "CORE UI VISIBILITY", "Choose which built-in interface elements stay visible.", App.Colors.Info, 2)
     local clarity = createColumn(App, columns, "VISUAL CLARITY", "Reduce obstructive visual effects locally.", App.Colors.Success, 3)

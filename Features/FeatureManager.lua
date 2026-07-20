@@ -14,6 +14,9 @@ local validCategories = {
 }
 
 local function Load(Loader, Path)
+    if type(Loader.LoadRemote) == "function" then
+        return Loader:LoadRemote(Path)
+    end
     return loadstring(game:HttpGet(Loader.Config.Repository .. Path))()
 end
 

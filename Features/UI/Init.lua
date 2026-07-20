@@ -2,8 +2,12 @@ local UI = {}
 
 function UI:Initialize(Loader)
     local function Load(name)
+        local path = "Features/UI/" .. name .. ".lua"
+        if type(Loader.LoadRemote) == "function" then
+            return Loader:LoadRemote(path)
+        end
         return loadstring(game:HttpGet(
-            Loader.Config.Repository .. "Features/UI/" .. name .. ".lua"
+            Loader.Config.Repository .. path
         ))()
     end
 
