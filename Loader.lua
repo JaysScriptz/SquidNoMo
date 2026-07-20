@@ -1,4 +1,4 @@
---// SquidNoMo loader v0.6.0-beta
+--// SquidNoMo loader v0.6.1-beta
 
 local Environment = _G
 if type(getgenv) == "function" then

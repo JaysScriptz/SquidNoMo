@@ -1,114 +1,88 @@
---//========================================================--
---// SquidNoMo
---// Beta 5.0
---// Player
---// AntiLag.lua
---//========================================================--
-
 local AntiLag = {}
 
-local Lighting = game:GetService("Lighting")
-local Terrain = workspace.Terrain
+local Workspace = game:GetService("Workspace")
+local Terrain = Workspace.Terrain
 
 local Enabled = false
+local TerrainDefaults = nil
+local ExplosionStates = {}
+local Connection = nil
 
-local Defaults = {}
-
-----------------------------------------------------------
--- Save Defaults
-----------------------------------------------------------
-
-local function SaveDefaults()
-
-	if Defaults.Saved then
-		return
-	end
-
-	Defaults.Saved = true
-
-	Defaults.GlobalShadows = Lighting.GlobalShadows
-	Defaults.Brightness = Lighting.Brightness
-	Defaults.FogEnd = Lighting.FogEnd
-
+local function applyExplosion(object)
+    if not object:IsA("Explosion") then return end
+    local ok, visible = pcall(function()
+        return object.Visible
+    end)
+    if not ok then return end
+    if ExplosionStates[object] == nil then
+        ExplosionStates[object] = visible
+    end
+    pcall(function()
+        object.Visible = false
+    end)
 end
-
-----------------------------------------------------------
--- Enable
-----------------------------------------------------------
 
 function AntiLag:Enable()
+    if Enabled then return end
+    Enabled = true
 
-	if Enabled then
-		return
-	end
+    TerrainDefaults = {
+        WaterWaveSize = Terrain.WaterWaveSize,
+        WaterWaveSpeed = Terrain.WaterWaveSpeed,
+        WaterReflectance = Terrain.WaterReflectance,
+        WaterTransparency = Terrain.WaterTransparency,
+    }
 
-	Enabled = true
+    pcall(function()
+        Terrain.WaterWaveSize = 0
+        Terrain.WaterWaveSpeed = 0
+        Terrain.WaterReflectance = 0
+        Terrain.WaterTransparency = 1
+    end)
 
-	SaveDefaults()
+    for _, object in ipairs(Workspace:GetDescendants()) do
+        applyExplosion(object)
+    end
 
-	Lighting.GlobalShadows = false
-	Lighting.Brightness = 1
-	Lighting.FogEnd = 100000
-
-	pcall(function()
-		Terrain.WaterWaveSize = 0
-		Terrain.WaterWaveSpeed = 0
-		Terrain.WaterReflectance = 0
-		Terrain.WaterTransparency = 1
-	end)
-
-	for _, object in ipairs(workspace:GetDescendants()) do
-
-		if object:IsA("ParticleEmitter")
-		or object:IsA("Trail")
-		or object:IsA("Beam") then
-
-			object.Enabled = false
-
-		elseif object:IsA("Explosion") then
-
-			object.Visible = false
-
-		end
-
-	end
-
+    Connection = Workspace.DescendantAdded:Connect(function(object)
+        if Enabled then applyExplosion(object) end
+    end)
 end
-
-----------------------------------------------------------
--- Disable
-----------------------------------------------------------
 
 function AntiLag:Disable()
+    Enabled = false
 
-	if not Enabled then
-		return
-	end
+    if Connection then
+        Connection:Disconnect()
+        Connection = nil
+    end
 
-	Enabled = false
+    if TerrainDefaults then
+        pcall(function()
+            Terrain.WaterWaveSize = TerrainDefaults.WaterWaveSize
+            Terrain.WaterWaveSpeed = TerrainDefaults.WaterWaveSpeed
+            Terrain.WaterReflectance = TerrainDefaults.WaterReflectance
+            Terrain.WaterTransparency = TerrainDefaults.WaterTransparency
+        end)
+    end
+    TerrainDefaults = nil
 
-	if Defaults.Saved then
-
-		Lighting.GlobalShadows = Defaults.GlobalShadows
-		Lighting.Brightness = Defaults.Brightness
-		Lighting.FogEnd = Defaults.FogEnd
-
-	end
-
+    for object, visible in pairs(ExplosionStates) do
+        if object and object.Parent then
+            pcall(function()
+                object.Visible = visible
+            end)
+        end
+    end
+    table.clear(ExplosionStates)
 end
-
-----------------------------------------------------------
--- Status
-----------------------------------------------------------
 
 function AntiLag:IsEnabled()
-
-	return Enabled
-
+    return Enabled
 end
 
-----------------------------------------------------------
--- Return
-----------------------------------------------------------
+function AntiLag:GetState()
+    return Enabled and "on" or "off"
+end
 
 return AntiLag

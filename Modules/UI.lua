@@ -1,5 +1,7 @@
 local UIPage = {}
 
+local UserInputService = game:GetService("UserInputService")
+
 local function corner(parent, radius)
     local value = Instance.new("UICorner")
     value.CornerRadius = UDim.new(0, radius or 12)
@@ -214,13 +216,138 @@ local function createFeatureRow(App, parent, title, description, accent, feature
     return refs
 end
 
+
+local function createSliderRow(App, parent, title, minimum, maximum, defaultValue, feature, accent, order)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 82)
+    row.BackgroundColor3 = App.Colors.CardAlt
+    row.BackgroundTransparency = 0.20
+    row.BorderSizePixel = 0
+    row.LayoutOrder = order
+    row.Parent = parent
+    corner(row, 11)
+    stroke(row, accent, 1, 0.72)
+
+    App:CreateText(row, title, UDim2.new(1, -90, 0, 20), UDim2.fromOffset(12, 8), {
+        Font = Enum.Font.GothamBold,
+        TextSize = App:IsMobile() and 10 or 11,
+        Color = App.Colors.Text,
+        ZIndex = 1014,
+    })
+
+    local valueLabel = App:CreateText(row, tostring(defaultValue), UDim2.fromOffset(68, 20), UDim2.new(1, -80, 0, 8), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = App:IsMobile() and 10 or 11,
+        Color = accent,
+        XAlignment = Enum.TextXAlignment.Right,
+        ZIndex = 1014,
+    })
+
+    local track = Instance.new("Frame")
+    track.Position = UDim2.fromOffset(12, 45)
+    track.Size = UDim2.new(1, -24, 0, 8)
+    track.BackgroundColor3 = Color3.fromRGB(55, 48, 65)
+    track.BorderSizePixel = 0
+    track.ZIndex = 1014
+    track.Parent = row
+    corner(track, 99)
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(0, 0, 1, 0)
+    fill.BackgroundColor3 = accent
+    fill.BorderSizePixel = 0
+    fill.ZIndex = 1015
+    fill.Parent = track
+    corner(fill, 99)
+
+    local knob = Instance.new("Frame")
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.Position = UDim2.new(0, 0, 0.5, 0)
+    knob.Size = UDim2.fromOffset(16, 16)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BorderSizePixel = 0
+    knob.ZIndex = 1016
+    knob.Parent = track
+    corner(knob, 99)
+    stroke(knob, accent, 2, 0.05)
+
+    local hitbox = Instance.new("TextButton")
+    hitbox.Position = UDim2.fromOffset(0, -12)
+    hitbox.Size = UDim2.new(1, 0, 0, 32)
+    hitbox.BackgroundTransparency = 1
+    hitbox.BorderSizePixel = 0
+    hitbox.AutoButtonColor = false
+    hitbox.Text = ""
+    hitbox.ZIndex = 1017
+    hitbox.Parent = track
+
+    local current = defaultValue
+    local dragging = false
+
+    local function getValue()
+        if type(feature) == "table" and type(feature.Get) == "function" then
+            local ok, value = pcall(feature.Get, feature)
+            if ok and type(value) == "number" then
+                return value
+            end
+        end
+        return current
+    end
+
+    local function render(value)
+        current = math.clamp(math.floor(value + 0.5), minimum, maximum)
+        local alpha = (current - minimum) / math.max(1, maximum - minimum)
+        fill.Size = UDim2.new(alpha, 0, 1, 0)
+        knob.Position = UDim2.new(alpha, 0, 0.5, 0)
+        valueLabel.Text = tostring(current)
+    end
+
+    local function setFromInput(input)
+        local width = math.max(1, track.AbsoluteSize.X)
+        local alpha = math.clamp((input.Position.X - track.AbsolutePosition.X) / width, 0, 1)
+        local value = minimum + ((maximum - minimum) * alpha)
+        render(value)
+        if type(feature) == "table" and type(feature.Set) == "function" then
+            pcall(feature.Set, feature, current)
+            notifyManager(App)
+        end
+    end
+
+    hitbox.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            setFromInput(input)
+        end
+    end)
+
+    hitbox.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            setFromInput(input)
+        end
+    end)
+
+    render(getValue())
+
+    return {
+        Refresh = function()
+            render(getValue())
+        end,
+    }
+end
+
 function UIPage:Create(Page, App)
     Page:ClearAllChildren()
 
     local padding = App.Profile.ContentPadding
     local root = Instance.new("Frame")
     root.Position = UDim2.fromOffset(padding, padding)
-    root.Size = UDim2.new(1, -(padding * 2), 0, 600)
+    root.Size = UDim2.new(1, -(padding * 2), 0, 1140)
     root.BackgroundTransparency = 1
     root.BorderSizePixel = 0
     root.Parent = Page
@@ -237,15 +364,16 @@ function UIPage:Create(Page, App)
         Color = App:GetPageAccent("UI"),
         ZIndex = 1013,
     })
-    App:CreateText(banner, "In-game overlays, core-interface visibility, and visual clarity controls. App appearance remains under Settings.", UDim2.new(1, -36, 0, 24), UDim2.fromOffset(18, 39), {
+    App:CreateText(banner, "Gameplay overlays, core-interface visibility, and local visual clarity. Application appearance remains under Settings.", UDim2.new(1, -36, 0, 24), UDim2.fromOffset(18, 39), {
         Font = Enum.Font.GothamMedium,
         TextSize = App:IsMobile() and 9 or 10,
         Color = App.Colors.Text,
         Wrapped = true,
         ZIndex = 1013,
     })
+    App:CreatePill(banner, "LOCAL UI ONLY", App:GetPageAccent("UI"), UDim2.new(1, -148, 0, 18), 130)
 
-    local columns = App:CreateEqualThreeColumnRow(root, 84, 490, "GameUIUniversalColumns")
+    local columns = App:CreateEqualThreeColumnRow(root, 84, 1040, "GameUIUniversalColumns")
     local overlays = createColumn(App, columns, "HUD OVERLAYS", "Optional information layered over gameplay.", App:GetPageAccent("UI"), 1)
     local visibility = createColumn(App, columns, "CORE UI VISIBILITY", "Choose which built-in interface elements stay visible.", App.Colors.Info, 2)
     local clarity = createColumn(App, columns, "VISUAL CLARITY", "Reduce obstructive visual effects locally.", App.Colors.Success, 3)
@@ -258,14 +386,28 @@ function UIPage:Create(Page, App)
     }))
     table.insert(refreshers, createFeatureRow(App, overlays, "Performance HUD", "Displays FPS, ping, and player count.", App.Colors.Info, features.PerformanceHUD, 2))
     table.insert(refreshers, createFeatureRow(App, overlays, "Role Legend", "Shows the configured role-color legend.", App.Colors.Warning, features.RoleLegend, 3))
+    table.insert(refreshers, createFeatureRow(App, overlays, "Session Timer", "Shows elapsed time for the current app session.", App:GetPageAccent("Players"), features.SessionHUD, 4))
+    table.insert(refreshers, createFeatureRow(App, overlays, "Coordinates HUD", "Displays the local character's X, Y, and Z position.", App.Colors.Success, features.CoordinatesHUD, 5))
+    table.insert(refreshers, createFeatureRow(App, overlays, "Speed HUD", "Shows current horizontal movement speed.", App.Colors.Warning, features.SpeedHUD, 6))
+    table.insert(refreshers, createFeatureRow(App, overlays, "Compass HUD", "Shows camera heading and cardinal direction.", App:GetPageAccent("UI"), features.CompassHUD, 7))
+    table.insert(refreshers, createFeatureRow(App, overlays, "Server Info HUD", "Shows place, server identifier, and player count.", App.Colors.Info, features.ServerHUD, 8))
+    table.insert(refreshers, createFeatureRow(App, overlays, "Clock HUD", "Shows the device's current local time.", App:GetPageAccent("Home"), features.ClockHUD, 9))
 
     table.insert(refreshers, createFeatureRow(App, visibility, "Hide Chat", "Temporarily hides the built-in chat interface.", App.Colors.Info, features.HideChat, 1))
     table.insert(refreshers, createFeatureRow(App, visibility, "Hide Player List", "Temporarily hides the player list.", App.Colors.Info, features.HidePlayerList, 2))
     table.insert(refreshers, createFeatureRow(App, visibility, "Hide Backpack", "Temporarily hides the backpack hotbar.", App.Colors.Info, features.HideBackpack, 3))
+    table.insert(refreshers, createFeatureRow(App, visibility, "Hide Health UI", "Temporarily hides the built-in health display.", App.Colors.Success, features.HideHealth, 4))
+    table.insert(refreshers, createFeatureRow(App, visibility, "Hide Emotes UI", "Temporarily hides the built-in emotes interface when supported.", App:GetPageAccent("Players"), features.HideEmotes, 5))
 
     table.insert(refreshers, createFeatureRow(App, clarity, "Remove Blur", "Disables local BlurEffect instances while active.", App.Colors.Success, features.RemoveBlur, 1))
     table.insert(refreshers, createFeatureRow(App, clarity, "Fullbright", "Raises local lighting visibility and restores it when disabled.", App.Colors.Warning, features.Fullbright, 2))
     table.insert(refreshers, createFeatureRow(App, clarity, "Disable Screen Effects", "Disables bloom, sun rays, depth of field, and color correction.", App.Colors.Error, features.ScreenEffects, 3))
+    table.insert(refreshers, createFeatureRow(App, clarity, "Remove Atmosphere", "Removes local atmosphere density, haze, and glare.", App.Colors.Info, features.RemoveAtmosphere, 4))
+    table.insert(refreshers, createFeatureRow(App, clarity, "Remove Fog", "Extends local fog distances for a clearer view.", App.Colors.Success, features.RemoveFog, 5))
+    table.insert(refreshers, createFeatureRow(App, clarity, "Disable Shadows", "Disables local global shadows and restores them later.", App.Colors.Warning, features.DisableShadows, 6))
+    table.insert(refreshers, createFeatureRow(App, clarity, "Disable Particles", "Disables local particles, trails, beams, smoke, and fire.", App.Colors.Error, features.DisableParticles, 7))
+    table.insert(refreshers, createFeatureRow(App, clarity, "High Contrast", "Adds a clean local contrast filter for visibility.", App:GetPageAccent("UI"), features.HighContrast, 8))
+    table.insert(refreshers, createSliderRow(App, clarity, "Camera Field of View", 40, 120, 70, features.CameraFOV, App.Colors.Info, 9))
 
     task.spawn(function()
         while Page and Page.Parent do
@@ -278,5 +420,6 @@ function UIPage:Create(Page, App)
         end
     end)
 end
+
 
 return UIPage

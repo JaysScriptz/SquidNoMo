@@ -520,7 +520,7 @@ function PlayersPage:Create(Page, App)
     local padding = App.Profile.ContentPadding
     local root = Instance.new("Frame")
     root.Position = UDim2.fromOffset(padding, padding)
-    root.Size = UDim2.new(1, -(padding * 2), 0, 620)
+    root.Size = UDim2.new(1, -(padding * 2), 0, 1030)
     root.BackgroundTransparency = 1
     root.BorderSizePixel = 0
     root.Parent = Page
@@ -539,7 +539,7 @@ function PlayersPage:Create(Page, App)
         Color = App:GetPageAccent("Players"),
         ZIndex = 1013,
     })
-    App:CreateText(banner, "Movement controls, role-based ESP, and player utilities — all linked to the live feature registry.", UDim2.new(1, -36, 0, 24), UDim2.fromOffset(18, 39), {
+    App:CreateText(banner, "Stable local movement, player information, camera controls, and session utilities linked to the live feature registry.", UDim2.new(1, -36, 0, 24), UDim2.fromOffset(18, 39), {
         Font = Enum.Font.GothamMedium,
         TextSize = App:IsMobile() and 9 or 10,
         Color = App.Colors.Text,
@@ -548,19 +548,24 @@ function PlayersPage:Create(Page, App)
     })
     App:CreatePill(banner, "3-COLUMN UNIVERSAL", App:GetPageAccent("Players"), UDim2.new(1, -176, 0, 18), 158)
 
-    local columns = App:CreateEqualThreeColumnRow(root, 84, 500, "PlayersUniversalColumns")
+    local columns = App:CreateEqualThreeColumnRow(root, 84, 930, "PlayersUniversalColumns")
 
-    local _, movement = createColumn(App, columns, "MOVEMENT", "Direct character movement settings.", App.Colors.Info, 1)
-    local _, esp = createColumn(App, columns, "ROLE ESP", "Independent colors for every ESP type.", App.Colors.Success, 2)
-    local _, utilities = createColumn(App, columns, "UTILITIES", "Player-session quality-of-life actions.", App.Colors.Warning, 3)
+    local _, movement = createColumn(App, columns, "MOVEMENT & CAMERA", "Local character and camera behavior.", App.Colors.Info, 1)
+    local _, esp = createColumn(App, columns, "PLAYER ESP", "Independent information overlays and colors.", App.Colors.Success, 2)
+    local _, utilities = createColumn(App, columns, "LOCAL UTILITIES", "Stable quality-of-life controls and actions.", App.Colors.Warning, 3)
 
     local features = App.Features and App.Features.Player or {}
     local refreshers = {}
 
     table.insert(refreshers, createSliderRow(App, movement, "Walk Speed", 16, 100, 16, features.WalkSpeed, App.Colors.Info, 1))
     table.insert(refreshers, createSliderRow(App, movement, "Jump Power", 50, 200, 50, features.JumpPower, App:GetPageAccent("Players"), 2))
-    table.insert(refreshers, createToggleRow(App, movement, "Infinite Jump", "Allows repeated jumps while airborne.", App.Colors.Warning, features.InfiniteJump, 3))
-    table.insert(refreshers, createToggleRow(App, movement, "Noclip", "Disables local character collisions.", App.Colors.Error, features.Noclip, 4))
+    table.insert(refreshers, createSliderRow(App, movement, "Gravity", 20, 300, 196, features.Gravity, App.Colors.Warning, 3))
+    table.insert(refreshers, createToggleRow(App, movement, "Infinite Jump", "Allows repeated jumps while airborne.", App.Colors.Warning, features.InfiniteJump, 4))
+    table.insert(refreshers, createToggleRow(App, movement, "Auto Jump", "Jumps automatically while moving on the ground.", App.Colors.Success, features.AutoJump, 5))
+    table.insert(refreshers, createToggleRow(App, movement, "Noclip", "Disables local character collisions.", App.Colors.Error, features.Noclip, 6))
+    table.insert(refreshers, createToggleRow(App, movement, "Force Third Person", "Keeps the local camera in third-person view.", App.Colors.Info, features.ForceThirdPerson, 7))
+    table.insert(refreshers, createToggleRow(App, movement, "Unlock Camera Zoom", "Expands the local camera zoom range.", App:GetPageAccent("Players"), features.UnlockZoom, 8))
+    table.insert(refreshers, createToggleRow(App, movement, "Auto Stand", "Automatically exits seated states.", App.Colors.Success, features.AutoStand, 9))
 
     table.insert(refreshers, createESPRow(App, esp, "Player ESP", "Highlights standard players.", Color3.fromRGB(0, 170, 255), features.PlayerESP, {
         Color3.fromRGB(0, 170, 255), Color3.fromRGB(45, 232, 98), Color3.fromRGB(245, 245, 255),
@@ -574,16 +579,29 @@ function PlayersPage:Create(Page, App)
     table.insert(refreshers, createESPRow(App, esp, "Frontman ESP", "Highlights detected frontmen.", Color3.fromRGB(172, 76, 255), features.FrontmanESP, {
         Color3.fromRGB(172, 76, 255), Color3.fromRGB(232, 67, 255), Color3.fromRGB(245, 245, 255),
     }, 4))
+    table.insert(refreshers, createESPRow(App, esp, "Name ESP", "Shows each player's display name.", Color3.fromRGB(245, 245, 255), features.NameESP, {
+        Color3.fromRGB(245, 245, 255), Color3.fromRGB(0, 205, 255), Color3.fromRGB(255, 58, 145),
+    }, 5))
+    table.insert(refreshers, createESPRow(App, esp, "Distance ESP", "Shows distance from the local character.", Color3.fromRGB(0, 205, 255), features.DistanceESP, {
+        Color3.fromRGB(0, 205, 255), Color3.fromRGB(255, 196, 64), Color3.fromRGB(245, 245, 255),
+    }, 6))
+    table.insert(refreshers, createToggleRow(App, esp, "Health ESP", "Shows live health with green, yellow, and red states.", App.Colors.Success, features.HealthESP, 7))
+    table.insert(refreshers, createESPRow(App, esp, "Box ESP", "Draws a clean outline around every player.", App:GetPageAccent("Players"), features.BoxESP, {
+        Color3.fromRGB(255, 58, 145), Color3.fromRGB(172, 76, 255), Color3.fromRGB(255, 255, 255),
+    }, 8))
 
     table.insert(refreshers, createToggleRow(App, utilities, "Anti AFK", "Prevents idle disconnects during the session.", App.Colors.Success, features.AntiAFK, 1))
-    table.insert(refreshers, createToggleRow(App, utilities, "Anti Lag", "Reduces particles and heavy visual effects.", App.Colors.Info, features.AntiLag, 2))
+    table.insert(refreshers, createToggleRow(App, utilities, "Anti Lag", "Reduces local terrain water and explosion effects.", App.Colors.Info, features.AntiLag, 2))
+    table.insert(refreshers, createToggleRow(App, utilities, "Hide Other Players", "Makes other characters invisible only on your client.", App:GetPageAccent("Players"), features.HideOthers, 3))
+    table.insert(refreshers, createToggleRow(App, utilities, "Hide Local Character", "Hides your own character locally without affecting others.", App.Colors.Info, features.HideSelf, 4))
+    table.insert(refreshers, createToggleRow(App, utilities, "Mute Character Sounds", "Mutes sounds attached to your local character.", App.Colors.Warning, features.MuteCharacterSounds, 5))
 
-    createActionButton(App, utilities, "Reset Character", "Respawns the local character.", App.Colors.Error, 3, function()
+    createActionButton(App, utilities, "Reset Character", "Respawns the local character.", App.Colors.Error, 6, function()
         if features.Reset and type(features.Reset.Execute) == "function" then
             features.Reset:Execute()
         end
     end)
-    createActionButton(App, utilities, "Rejoin Server", "Reconnects to the current place.", App:GetPageAccent("Players"), 4, function()
+    createActionButton(App, utilities, "Rejoin Server", "Reconnects to the current place.", App:GetPageAccent("Players"), 7, function()
         if features.Rejoin and type(features.Rejoin.Execute) == "function" then
             features.Rejoin:Execute()
         end
@@ -594,7 +612,7 @@ function PlayersPage:Create(Page, App)
     status.BackgroundColor3 = App.Colors.CardAlt
     status.BackgroundTransparency = 0.20
     status.BorderSizePixel = 0
-    status.LayoutOrder = 5
+    status.LayoutOrder = 8
     status.ZIndex = 1013
     status.Parent = utilities
     corner(status, 11)
@@ -606,7 +624,7 @@ function PlayersPage:Create(Page, App)
         Color = App.Colors.Warning,
         ZIndex = 1014,
     })
-    App:CreateText(status, "Controls refresh automatically when features change elsewhere.", UDim2.new(1, -24, 0, 30), UDim2.fromOffset(12, 27), {
+    App:CreateText(status, "Every toggle refreshes from the central feature registry.", UDim2.new(1, -24, 0, 30), UDim2.fromOffset(12, 27), {
         Font = Enum.Font.Gotham,
         TextSize = App:IsMobile() and 8 or 9,
         Color = App.Colors.Muted,
@@ -625,5 +643,6 @@ function PlayersPage:Create(Page, App)
         end
     end)
 end
+
 
 return PlayersPage

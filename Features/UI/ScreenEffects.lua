@@ -5,6 +5,9 @@ local States = {}
 local Connection = nil
 
 local function supported(effect)
+    if effect.Name == "SquidNoMo_HighContrast" then
+        return false
+    end
     return effect:IsA("BloomEffect")
         or effect:IsA("SunRaysEffect")
         or effect:IsA("DepthOfFieldEffect")

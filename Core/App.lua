@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.6.0-beta"
+App.Version = "v0.6.1-beta"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -140,7 +140,7 @@ App.Config = {
     FreeRoamMinimumTitleWidth = 120,
     FreeRoamMinimumTitleHeight = 18,
     ForceMobile = false,
-    AssetVersion = "v0.6.0-beta",
+    AssetVersion = "v0.6.1-beta",
     RespectGuiInset = false,
     ShowHomeFooter = false,
 
@@ -261,6 +261,12 @@ App.FreeRoamEnabled = false
 App.ButtonGlowEnabled = true
 App.NavigationGlowEnabled = true
 App.CloseConfirmationEnabled = true
+App.ReducedMotionEnabled = false
+App.RememberLastPageEnabled = true
+App.AutoCenterOnResizeEnabled = true
+App.UserScale = 1.0
+App.BubbleSize = nil
+App.WindowOpacity = 0
 App.LastSafePosition = nil
 App.MinimizedByFreeRoam = false
 App.WindowSettingsWidgets = {}
@@ -331,6 +337,15 @@ function App:Tween(instance, properties, duration)
         return nil
     end
 
+    if self.ReducedMotionEnabled then
+        for property, value in pairs(properties or {}) do
+            pcall(function()
+                instance[property] = value
+            end)
+        end
+        return nil
+    end
+
     local tween = TweenService:Create(
         instance,
         TweenInfo.new(duration or 0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
@@ -366,6 +381,18 @@ function App:PulseGlow(guiObject, color)
     makeCorner(pulse, 12)
 
     local stroke = makeStroke(pulse, color or self.Colors.Accent, 3, 0.10)
+
+    if self.ReducedMotionEnabled then
+        task.delay(0.08, function()
+            if pulse then
+                pcall(function()
+                    pulse:Destroy()
+                end)
+            end
+        end)
+        return
+    end
+
     self:Tween(pulse, {Size = UDim2.new(1, 18, 1, 18)}, 0.22)
     self:Tween(stroke, {Transparency = 1, Thickness = 1}, 0.22)
 
@@ -448,6 +475,13 @@ function App:GetOrCreateSession()
             ButtonGlowEnabled = true,
             NavigationGlowEnabled = true,
             CloseConfirmationEnabled = true,
+            ReducedMotionEnabled = false,
+            RememberLastPageEnabled = true,
+            AutoCenterOnResizeEnabled = true,
+            UserScale = 1.0,
+            BubbleSize = nil,
+            WindowOpacity = 0,
+            LastPage = "Home",
             LastSafePosition = nil,
         }
         environment.__SquidNoMoSession = session
@@ -607,6 +641,12 @@ function App:Init(loader)
     self.ButtonGlowEnabled = self.Session.ButtonGlowEnabled ~= false
     self.NavigationGlowEnabled = self.Session.NavigationGlowEnabled ~= false
     self.CloseConfirmationEnabled = self.Session.CloseConfirmationEnabled ~= false
+    self.ReducedMotionEnabled = self.Session.ReducedMotionEnabled == true
+    self.RememberLastPageEnabled = self.Session.RememberLastPageEnabled ~= false
+    self.AutoCenterOnResizeEnabled = self.Session.AutoCenterOnResizeEnabled ~= false
+    self.UserScale = math.clamp(tonumber(self.Session.UserScale) or 1.0, 0.75, 1.15)
+    self.BubbleSize = tonumber(self.Session.BubbleSize)
+    self.WindowOpacity = math.clamp(tonumber(self.Session.WindowOpacity) or 0, 0, 0.35)
     self.LastSafePosition = self.Session.LastSafePosition
     self.MinimizedByFreeRoam = false
     self.AppStatus = "STARTING"
@@ -871,6 +911,9 @@ function App:CalculateScale()
     local scale = math.min(fitScale, self.Config.MaximumScale)
     scale = math.max(scale, math.min(self.Config.MinimumScale, fitScale))
 
+    local userScale = math.clamp(tonumber(self.UserScale) or 1.0, 0.75, 1.15)
+    scale = math.min(fitScale, scale * userScale)
+
     local visualSize = Vector2.new(
         math.max(1, math.floor(baseDesignSize.X * scale)),
         math.max(1, math.floor(baseDesignSize.Y * scale))
@@ -1120,6 +1163,7 @@ function App:CreateWindow()
     window.Name = "Window"
     window.Size = UDim2.fromOffset(designSize.X, designSize.Y)
     window.BackgroundColor3 = self.Colors.Window
+    window.BackgroundTransparency = self.WindowOpacity or 0
     window.BorderSizePixel = 0
     window.ClipsDescendants = true
     window.Active = true
@@ -1156,7 +1200,7 @@ function App:CreateTopbar()
     topbar.Position = UDim2.fromOffset(self.Config.SidebarWidth, 0)
     topbar.Size = UDim2.new(1, -self.Config.SidebarWidth, 0, self.Config.TopbarHeight)
     topbar.BackgroundColor3 = self.Colors.Topbar
-    topbar.BackgroundTransparency = 0.10
+    topbar.BackgroundTransparency = math.min(0.45, 0.10 + ((self.WindowOpacity or 0) * 0.65))
     topbar.BorderSizePixel = 0
     topbar.ZIndex = 1020
     topbar.Parent = self.Window
@@ -1455,7 +1499,8 @@ end
 
 function App:CreateReopenButton()
     local mobile = self:IsMobile()
-    local buttonSize = mobile and 66 or 60
+    local defaultSize = mobile and 66 or 60
+    local buttonSize = math.clamp(math.floor(tonumber(self.BubbleSize) or defaultSize), 48, 92)
 
     local button = Instance.new("TextButton")
     button.Name = "Reopen"
@@ -1835,7 +1880,7 @@ function App:CreateStatusbar()
     bar.Position = UDim2.new(0, 0, 1, 0)
     bar.Size = UDim2.new(1, 0, 0, self.Config.StatusbarHeight)
     bar.BackgroundColor3 = self.Colors.Topbar
-    bar.BackgroundTransparency = 0.03
+    bar.BackgroundTransparency = math.min(0.45, 0.03 + ((self.WindowOpacity or 0) * 0.65))
     bar.BorderSizePixel = 0
     bar.ZIndex = 1040
     bar.Parent = self.Window
@@ -1925,6 +1970,7 @@ function App:CreateSidebar()
     sidebar.Name = "Sidebar"
     sidebar.Size = UDim2.new(0, sidebarWidth, 1, -self.Config.StatusbarHeight)
     sidebar.BackgroundColor3 = self.Colors.Sidebar
+    sidebar.BackgroundTransparency = (self.WindowOpacity or 0) * 0.65
     sidebar.BorderSizePixel = 0
     sidebar.ZIndex = 1010
     sidebar.Parent = self.Window
@@ -2539,6 +2585,7 @@ function App:CreatePageContainer()
         -(self.Config.TopbarHeight + self.Config.StatusbarHeight)
     )
     container.BackgroundColor3 = self.Colors.Backdrop
+    container.BackgroundTransparency = (self.WindowOpacity or 0) * 0.65
     container.BorderSizePixel = 0
     container.ClipsDescendants = true
     container.ZIndex = 1005
@@ -2798,6 +2845,135 @@ function App:CreateWindowActionCard(parent, title, description, color, layoutOrd
     return {Card = card, Button = action}
 end
 
+function App:CreateWindowSliderCard(parent, title, description, color, layoutOrder, minimum, maximum, getter, setter, formatter)
+    local phone = self.DeviceClass == "Phone"
+    local card = self:CreateCard(parent, UDim2.new(0.333333, -8, 1, 0), {
+        Color = Color3.fromRGB(17, 12, 24),
+        BorderColor = color,
+        BorderTransparency = 0.14,
+        Radius = phone and 12 or 15,
+    })
+    card.LayoutOrder = layoutOrder
+
+    self:CreateText(card, title, UDim2.new(1, -92, 0, 24), UDim2.fromOffset(16, 12), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = phone and 12 or 14,
+        Color = color,
+        ZIndex = 1013,
+    })
+
+    self:CreateText(card, description, UDim2.new(1, -32, 0, phone and 46 or 50), UDim2.fromOffset(16, 39), {
+        Font = Enum.Font.GothamMedium,
+        TextSize = phone and 8 or 9,
+        Color = self.Colors.Text,
+        Wrapped = true,
+        YAlignment = Enum.TextYAlignment.Top,
+        ZIndex = 1013,
+    })
+
+    local valueLabel = self:CreateText(card, "", UDim2.fromOffset(78, 22), UDim2.new(1, -94, 0, phone and 87 or 91), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = phone and 10 or 11,
+        Color = color,
+        XAlignment = Enum.TextXAlignment.Right,
+        ZIndex = 1014,
+    })
+
+    local track = Instance.new("Frame")
+    track.Position = UDim2.new(0, 16, 1, phone and -30 or -32)
+    track.Size = UDim2.new(1, -32, 0, 8)
+    track.BackgroundColor3 = Color3.fromRGB(55, 48, 65)
+    track.BorderSizePixel = 0
+    track.ZIndex = 1013
+    track.Parent = card
+    makeCorner(track, 999)
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new(0, 0, 1, 0)
+    fill.BackgroundColor3 = color
+    fill.BorderSizePixel = 0
+    fill.ZIndex = 1014
+    fill.Parent = track
+    makeCorner(fill, 999)
+
+    local knob = Instance.new("Frame")
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.Position = UDim2.new(0, 0, 0.5, 0)
+    knob.Size = UDim2.fromOffset(phone and 16 or 18, phone and 16 or 18)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BorderSizePixel = 0
+    knob.ZIndex = 1015
+    knob.Parent = track
+    makeCorner(knob, 999)
+    makeStroke(knob, color, 2, 0.05)
+
+    local hitbox = Instance.new("TextButton")
+    hitbox.Position = UDim2.fromOffset(0, -14)
+    hitbox.Size = UDim2.new(1, 0, 0, 36)
+    hitbox.BackgroundTransparency = 1
+    hitbox.BorderSizePixel = 0
+    hitbox.AutoButtonColor = false
+    hitbox.Text = ""
+    hitbox.ZIndex = 1016
+    hitbox.Parent = track
+
+    local dragging = false
+
+    local function render(value)
+        value = math.clamp(tonumber(value) or minimum, minimum, maximum)
+        local alpha = (value - minimum) / math.max(0.001, maximum - minimum)
+        fill.Size = UDim2.new(alpha, 0, 1, 0)
+        knob.Position = UDim2.new(alpha, 0, 0.5, 0)
+        if type(formatter) == "function" then
+            valueLabel.Text = tostring(formatter(value))
+        else
+            valueLabel.Text = tostring(math.floor(value + 0.5))
+        end
+    end
+
+    local function updateFromInput(input)
+        local width = math.max(1, track.AbsoluteSize.X)
+        local alpha = math.clamp((input.Position.X - track.AbsolutePosition.X) / width, 0, 1)
+        local value = minimum + ((maximum - minimum) * alpha)
+        setter(value)
+        render(getter())
+    end
+
+    self:Track(hitbox.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            updateFromInput(input)
+        end
+    end))
+
+    self:Track(hitbox.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end))
+
+    self:Track(UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateFromInput(input)
+        end
+    end))
+
+    render(getter())
+
+    return {
+        Card = card,
+        Fill = fill,
+        Knob = knob,
+        Value = valueLabel,
+        Color = color,
+        Minimum = minimum,
+        Maximum = maximum,
+        Getter = getter,
+        Formatter = formatter,
+        Render = render,
+    }
+end
+
 function App:RefreshNavigationAppearance()
     for pageName, entry in pairs(self.NavigationButtons or {}) do
         if type(entry) == "table" and type(entry.SetSelected) == "function" then
@@ -2825,6 +3001,87 @@ function App:SetCloseConfirmationEnabled(state)
     self:RefreshWindowSettings()
 end
 
+function App:SetReducedMotionEnabled(state)
+    self.ReducedMotionEnabled = state and true or false
+    if self.Session then self.Session.ReducedMotionEnabled = self.ReducedMotionEnabled end
+    self:RefreshWindowSettings()
+end
+
+function App:SetRememberLastPageEnabled(state)
+    self.RememberLastPageEnabled = state and true or false
+    if self.Session then
+        self.Session.RememberLastPageEnabled = self.RememberLastPageEnabled
+        if not self.RememberLastPageEnabled then
+            self.Session.LastPage = "Home"
+        elseif self.CurrentPage then
+            self.Session.LastPage = self.CurrentPage
+        end
+    end
+    self:RefreshWindowSettings()
+end
+
+function App:SetAutoCenterOnResizeEnabled(state)
+    self.AutoCenterOnResizeEnabled = state and true or false
+    if self.Session then self.Session.AutoCenterOnResizeEnabled = self.AutoCenterOnResizeEnabled end
+    self:RefreshWindowSettings()
+end
+
+function App:SetUserScale(value)
+    self.UserScale = math.clamp(tonumber(value) or 1.0, 0.75, 1.15)
+    if self.Session then self.Session.UserScale = self.UserScale end
+    if self.Host and not self.IsFullScreen and not self.IsMaximized then
+        self:UpdateResponsive(true)
+    end
+    self:RefreshWindowSettings()
+end
+
+function App:SetBubbleSize(value)
+    local defaultSize = self:IsMobile() and 66 or 60
+    self.BubbleSize = math.clamp(math.floor(tonumber(value) or defaultSize), 48, 92)
+    if self.Session then self.Session.BubbleSize = self.BubbleSize end
+    if self.ReopenButton then
+        self.ReopenButton.Size = UDim2.fromOffset(self.BubbleSize, self.BubbleSize)
+        self:PositionReopenButton(false)
+    end
+    self:RefreshWindowSettings()
+end
+
+function App:SetWindowOpacity(value)
+    self.WindowOpacity = math.clamp(tonumber(value) or 0, 0, 0.35)
+    if self.Session then self.Session.WindowOpacity = self.WindowOpacity end
+    if self.Window then
+        self.Window.BackgroundTransparency = self.WindowOpacity
+    end
+    if self.Sidebar then
+        self.Sidebar.BackgroundTransparency = self.WindowOpacity * 0.65
+    end
+    if self.Topbar then
+        self.Topbar.BackgroundTransparency = math.min(0.45, 0.10 + (self.WindowOpacity * 0.65))
+    end
+    if self.Statusbar then
+        self.Statusbar.BackgroundTransparency = math.min(0.45, 0.03 + (self.WindowOpacity * 0.65))
+    end
+    if self.PageContainer then
+        self.PageContainer.BackgroundTransparency = self.WindowOpacity * 0.65
+    end
+    self:RefreshWindowSettings()
+end
+
+function App:ResetApplicationPreferences()
+    self:SetFreeRoamEnabled(false)
+    self:SetFullScreen(false)
+    self:SetButtonGlowEnabled(true)
+    self:SetNavigationGlowEnabled(true)
+    self:SetCloseConfirmationEnabled(true)
+    self:SetReducedMotionEnabled(false)
+    self:SetRememberLastPageEnabled(true)
+    self:SetAutoCenterOnResizeEnabled(true)
+    self:SetUserScale(1.0)
+    self:SetBubbleSize(self:IsMobile() and 66 or 60)
+    self:SetWindowOpacity(0)
+    self:ResetWindowPosition()
+end
+
 function App:RefreshWindowSettings()
     local widgets = self.WindowSettingsWidgets
     if not widgets then
@@ -2844,11 +3101,24 @@ function App:RefreshWindowSettings()
         refs.State.TextColor3 = enabled and refs.Color or self.Colors.Muted
     end
 
+    local function refreshSlider(refs, value)
+        if refs and refs.Card and refs.Card.Parent and type(refs.Render) == "function" then
+            refs.Render(value)
+        end
+    end
+
     refreshToggle(widgets.FreeRoam, self.FreeRoamEnabled)
     refreshToggle(widgets.FullScreen, self.IsFullScreen)
     refreshToggle(widgets.ButtonGlow, self.ButtonGlowEnabled)
     refreshToggle(widgets.NavigationGlow, self.NavigationGlowEnabled)
     refreshToggle(widgets.CloseConfirmation, self.CloseConfirmationEnabled)
+    refreshToggle(widgets.ReducedMotion, self.ReducedMotionEnabled)
+    refreshToggle(widgets.RememberLastPage, self.RememberLastPageEnabled)
+    refreshToggle(widgets.AutoCenter, self.AutoCenterOnResizeEnabled)
+
+    refreshSlider(widgets.UserScale, self.UserScale)
+    refreshSlider(widgets.BubbleSize, self.BubbleSize or (self:IsMobile() and 66 or 60))
+    refreshSlider(widgets.WindowOpacity, self.WindowOpacity)
 end
 
 function App:BuildSettingsPage(page)
@@ -2857,7 +3127,7 @@ function App:BuildSettingsPage(page)
     local padding = self.Profile.ContentPadding
     local root = Instance.new("Frame")
     root.Position = UDim2.fromOffset(padding, padding)
-    root.Size = UDim2.new(1, -(padding * 2), 0, 438)
+    root.Size = UDim2.new(1, -(padding * 2), 0, 910)
     root.BackgroundTransparency = 1
     root.BorderSizePixel = 0
     root.Parent = page
@@ -2915,7 +3185,7 @@ function App:BuildSettingsPage(page)
         ZIndex = 1012,
     })
 
-    self:CreateText(root, "General SquidNoMo application preferences.", UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, 259), {
+    self:CreateText(root, "General SquidNoMo interaction preferences.", UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, 259), {
         Font = Enum.Font.GothamMedium,
         TextSize = self.DeviceClass == "Phone" and 9 or 10,
         Color = self.Colors.Muted,
@@ -2954,6 +3224,107 @@ function App:BuildSettingsPage(page)
         function(value) self:SetCloseConfirmationEnabled(value) end
     )
 
+    self:CreateText(root, "ACCESSIBILITY & SESSION", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, 456), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = self.DeviceClass == "Phone" and 15 or 18,
+        Color = self:GetPageAccent("Settings"),
+        ZIndex = 1012,
+    })
+
+    self:CreateText(root, "Motion, page memory, and orientation behavior.", UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, 483), {
+        Font = Enum.Font.GothamMedium,
+        TextSize = self.DeviceClass == "Phone" and 9 or 10,
+        Color = self.Colors.Muted,
+        ZIndex = 1012,
+    })
+
+    local accessibilityRow = self:CreateEqualThreeColumnRow(root, 514, 140, "AccessibilitySettingsRow")
+
+    local reducedMotion = self:CreateWindowToggleCard(
+        accessibilityRow,
+        "REDUCED MOTION",
+        "Use immediate state changes instead of application tween animations.",
+        self:GetPageAccent("UI"),
+        1,
+        function() return self.ReducedMotionEnabled end,
+        function(value) self:SetReducedMotionEnabled(value) end
+    )
+
+    local rememberLastPage = self:CreateWindowToggleCard(
+        accessibilityRow,
+        "REMEMBER LAST PAGE",
+        "Reopen the page you used most recently during the current server session.",
+        self:GetPageAccent("Players"),
+        2,
+        function() return self.RememberLastPageEnabled end,
+        function(value) self:SetRememberLastPageEnabled(value) end
+    )
+
+    local autoCenter = self:CreateWindowToggleCard(
+        accessibilityRow,
+        "CENTER ON RESIZE",
+        "Recenter the restored window after orientation or viewport-size changes.",
+        self:GetPageAccent("Detective"),
+        3,
+        function() return self.AutoCenterOnResizeEnabled end,
+        function(value) self:SetAutoCenterOnResizeEnabled(value) end
+    )
+
+    self:CreateText(root, "SIZE & TRANSPARENCY", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, 680), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = self.DeviceClass == "Phone" and 15 or 18,
+        Color = self:GetPageAccent("Settings"),
+        ZIndex = 1012,
+    })
+
+    self:CreateText(root, "Fine-tune the restored app, recovery bubble, and window background.", UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, 707), {
+        Font = Enum.Font.GothamMedium,
+        TextSize = self.DeviceClass == "Phone" and 9 or 10,
+        Color = self.Colors.Muted,
+        ZIndex = 1012,
+    })
+
+    local sizeRow = self:CreateEqualThreeColumnRow(root, 738, 154, "SizeSettingsRow")
+
+    local userScale = self:CreateWindowSliderCard(
+        sizeRow,
+        "RESTORED APP SCALE",
+        "Adjust restored-mode size without exceeding the usable viewport.",
+        self:GetPageAccent("Settings"),
+        1,
+        0.75,
+        1.15,
+        function() return self.UserScale end,
+        function(value) self:SetUserScale(value) end,
+        function(value) return tostring(math.floor(value * 100 + 0.5)) .. "%" end
+    )
+
+    local bubbleSize = self:CreateWindowSliderCard(
+        sizeRow,
+        "FLOATING BUBBLE SIZE",
+        "Adjust the minimized recovery bubble for touch comfort.",
+        self:GetPageAccent("Home"),
+        2,
+        48,
+        92,
+        function() return self.BubbleSize or (self:IsMobile() and 66 or 60) end,
+        function(value) self:SetBubbleSize(value) end,
+        function(value) return tostring(math.floor(value + 0.5)) .. " px" end
+    )
+
+    local windowOpacity = self:CreateWindowSliderCard(
+        sizeRow,
+        "WINDOW TRANSPARENCY",
+        "Adjust the main application background while keeping cards readable.",
+        self:GetPageAccent("UI"),
+        3,
+        0,
+        0.35,
+        function() return self.WindowOpacity end,
+        function(value) self:SetWindowOpacity(value) end,
+        function(value) return tostring(math.floor(value * 100 + 0.5)) .. "%" end
+    )
+
     self.WindowSettingsWidgets = {
         Root = root,
         FreeRoam = freeRoam,
@@ -2962,6 +3333,12 @@ function App:BuildSettingsPage(page)
         ButtonGlow = buttonGlow,
         NavigationGlow = navigationGlow,
         CloseConfirmation = closeConfirmation,
+        ReducedMotion = reducedMotion,
+        RememberLastPage = rememberLastPage,
+        AutoCenter = autoCenter,
+        UserScale = userScale,
+        BubbleSize = bubbleSize,
+        WindowOpacity = windowOpacity,
     }
 
     self:RefreshWindowSettings()
@@ -2985,6 +3362,10 @@ function App:OpenPage(name)
     end
 
     self.CurrentPage = name
+
+    if self.Session and self.RememberLastPageEnabled then
+        self.Session.LastPage = name
+    end
 
     if self.PageTitle then
         self.PageTitle.Text = string.upper(name)
@@ -4152,7 +4533,7 @@ function App:StartResponsive()
         if camera then
             cameraConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
                 task.defer(function()
-                    self:UpdateResponsive(false)
+                    self:UpdateResponsive(self.AutoCenterOnResizeEnabled)
                 end)
             end)
             table.insert(self.Connections, cameraConnection)
@@ -4164,13 +4545,13 @@ function App:StartResponsive()
     self:Track(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
         bindCamera()
         task.defer(function()
-            self:UpdateResponsive(false)
+            self:UpdateResponsive(self.AutoCenterOnResizeEnabled)
         end)
     end))
 
     self:Track(UserInputService:GetPropertyChangedSignal("TouchEnabled"):Connect(function()
         task.defer(function()
-            self:UpdateResponsive(false)
+            self:UpdateResponsive(self.AutoCenterOnResizeEnabled)
         end)
     end))
 end
@@ -4265,7 +4646,12 @@ function App:Build(loader)
         self:CreateReopenButton()
         self:BuildPageDefinitions()
         self:BuildPages()
-        self:OpenPage("Home")
+
+        local initialPage = "Home"
+        if self.RememberLastPageEnabled and self.Session and self.Session.LastPage and self.Pages[self.Session.LastPage] then
+            initialPage = self.Session.LastPage
+        end
+        self:OpenPage(initialPage)
         self:UpdateResponsive(true)
         self:StartResponsive()
         self:StartDetectionMonitor()
