@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.8.1-beta"
+App.Version = "v0.8.2-beta"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -140,7 +140,7 @@ App.Config = {
     FreeRoamMinimumTitleWidth = 120,
     FreeRoamMinimumTitleHeight = 18,
     ForceMobile = false,
-    AssetVersion = "v0.8.1-beta",
+    AssetVersion = "v0.8.2-beta",
     RespectGuiInset = false,
     ShowHomeFooter = false,
 
@@ -2874,12 +2874,16 @@ function App:CreatePage(name)
     page.BorderSizePixel = 0
     page.CanvasSize = UDim2.new(0, 0, 0, 0)
     page.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    page.ScrollBarThickness = self:GetUIStyleValue(
-        name,
-        "ScrollbarThickness",
-        "MainPage"
-    ) or 3
-    page.ScrollBarImageColor3 = self.Colors.AccentDark
+    page.ScrollBarThickness = math.max(
+        self:IsMobile() and 6 or 5,
+        tonumber(self:GetUIStyleValue(
+            name,
+            "ScrollbarThickness",
+            "MainPage"
+        )) or 5
+    )
+    page.ScrollBarImageColor3 = self:GetPageAccent(name)
+    page.ScrollBarImageTransparency = 0.12
     page.ScrollingDirection = Enum.ScrollingDirection.Y
     page.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
     page.Active = true
@@ -3317,6 +3321,9 @@ function App:GetPersistentSettingsSnapshot()
             SelectedGuardCategory =
                 session.SelectedGuardCategory
                 or "Moderation",
+            SelectedPlayerCategory =
+                session.SelectedPlayerCategory
+                or "Movement & Camera",
             SelectedFarmingCategory =
                 session.SelectedFarmingCategory
                 or "Player Farming",
@@ -3460,6 +3467,9 @@ function App:ApplyPersistentSettingsSnapshot(saved)
             self.Session.SelectedGuardCategory =
                 values.SelectedGuardCategory
                 or "Moderation"
+            self.Session.SelectedPlayerCategory =
+                values.SelectedPlayerCategory
+                or "Movement & Camera"
             self.Session.SelectedFarmingCategory =
                 values.SelectedFarmingCategory
                 or "Player Farming"
@@ -3568,6 +3578,8 @@ function App:ResetAllSettingsToOff()
         self.Session.SelectedGameCategory =
             "Red Light, Green Light"
         self.Session.SelectedGuardCategory = "Moderation"
+        self.Session.SelectedPlayerCategory =
+            "Movement & Camera"
         self.Session.SelectedFarmingCategory = "Player Farming"
         self.Session.SelectedDetectiveCategory = "Find Island"
         self.Session.SelectedUICategory = "Layout & Scale"
@@ -4063,6 +4075,15 @@ local resetAll = self:CreateWindowActionCard(
     }
 
     self:RefreshWindowSettings()
+
+    page.AutomaticCanvasSize = Enum.AutomaticSize.None
+    page.CanvasSize = UDim2.fromOffset(
+        0,
+        math.max(
+            1180,
+            (root and root.Size.Y.Offset or 1135) + 48
+        )
+    )
 end
 
 function App:OpenPage(name)
@@ -5707,26 +5728,54 @@ function App:CreateSlider(parent, options)
 
     local holder = Instance.new("Frame")
     holder.Name = "SliderHolder"
-    holder.Position = options.Position or UDim2.fromOffset(0, 0)
-    holder.Size = options.Size or UDim2.new(1, 0, 0, 26)
+    holder.Position =
+        options.Position or UDim2.fromOffset(0, 0)
+    holder.Size =
+        options.Size or UDim2.new(1, 0, 0, 32)
     holder.BackgroundTransparency = 1
+    holder.BorderSizePixel = 0
     holder.Parent = parent
 
-    local minValue = tonumber(options.Min) or 0
-    local maxValue = tonumber(options.Max) or 100
-    local value = tonumber(options.Value) or minValue
-    local accent = options.AccentColor or self.Colors.Success
-    local touchMultiplier = tonumber(options.TouchMultiplier) or 0.45
+    local minimum = tonumber(options.Min) or 0
+    local maximum = tonumber(options.Max) or 100
+    local value = math.clamp(
+        tonumber(options.Value) or minimum,
+        minimum,
+        maximum
+    )
+    local accent =
+        options.AccentColor or self.Colors.Success
+    local trackHeight = math.clamp(
+        tonumber(options.TrackHeight) or 12,
+        8,
+        18
+    )
+    local knobSize = math.clamp(
+        tonumber(options.KnobSize) or 28,
+        24,
+        36
+    )
+
+    local touchTarget = Instance.new("TextButton")
+    touchTarget.Name = "TouchTarget"
+    touchTarget.Size = UDim2.fromScale(1, 1)
+    touchTarget.BackgroundTransparency = 1
+    touchTarget.BorderSizePixel = 0
+    touchTarget.AutoButtonColor = false
+    touchTarget.Text = ""
+    touchTarget.Active = true
+    touchTarget.ZIndex = 1014
+    touchTarget.Parent = holder
 
     local track = Instance.new("Frame")
     track.Name = "Track"
     track.AnchorPoint = Vector2.new(0, 0.5)
     track.Position = UDim2.new(0, 0, 0.5, 0)
-    track.Size = UDim2.new(1, 0, 0, options.TrackHeight or 12)
-    track.BackgroundColor3 = Color3.fromRGB(72, 62, 90)
-    track.BackgroundTransparency = 0.12
+    track.Size = UDim2.new(1, 0, 0, trackHeight)
+    track.BackgroundColor3 = Color3.fromRGB(70, 64, 82)
+    track.BackgroundTransparency = 0.08
     track.BorderSizePixel = 0
-    track.Active = true
+    track.ZIndex = 1015
     track.Parent = holder
 
     local trackCorner = Instance.new("UICorner")
@@ -5738,22 +5787,22 @@ function App:CreateSlider(parent, options)
     fill.Size = UDim2.new(0, 0, 1, 0)
     fill.BackgroundColor3 = accent
     fill.BorderSizePixel = 0
+    fill.ZIndex = 1016
     fill.Parent = track
 
     local fillCorner = Instance.new("UICorner")
     fillCorner.CornerRadius = UDim.new(1, 0)
     fillCorner.Parent = fill
 
-    local knob = Instance.new("TextButton")
+    local knob = Instance.new("Frame")
     knob.Name = "Knob"
     knob.AnchorPoint = Vector2.new(0.5, 0.5)
-    knob.Size = UDim2.fromOffset(options.KnobSize or 24, options.KnobSize or 24)
+    knob.Size = UDim2.fromOffset(knobSize, knobSize)
     knob.Position = UDim2.new(0, 0, 0.5, 0)
-    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    knob.Text = ""
-    knob.AutoButtonColor = false
+    knob.BackgroundColor3 =
+        Color3.fromRGB(250, 248, 252)
     knob.BorderSizePixel = 0
-    knob.Active = true
+    knob.ZIndex = 1017
     knob.Parent = holder
 
     local knobCorner = Instance.new("UICorner")
@@ -5765,65 +5814,140 @@ function App:CreateSlider(parent, options)
     knobStroke.Thickness = 2
     knobStroke.Parent = knob
 
+    local UserInputService =
+        game:GetService("UserInputService")
     local dragging = false
-    local UserInputService = game:GetService("UserInputService")
+    local activeTouch = nil
 
-    local function setNormalized(alpha)
-        alpha = math.clamp(alpha, 0, 1)
+    local function render(nextValue, emit)
+        value = math.clamp(
+            tonumber(nextValue) or minimum,
+            minimum,
+            maximum
+        )
+
+        local span = math.max(
+            0.0001,
+            maximum - minimum
+        )
+        local alpha = (value - minimum) / span
+
         fill.Size = UDim2.new(alpha, 0, 1, 0)
-        knob.Position = UDim2.new(alpha, 0, 0.5, 0)
-        local nextValue = minValue + ((maxValue - minValue) * alpha)
-        value = nextValue
-        if type(options.OnChanged) == "function" then
-            options.OnChanged(nextValue)
+        knob.Position =
+            UDim2.new(alpha, 0, 0.5, 0)
+
+        if emit
+            and type(options.OnChanged) == "function"
+        then
+            options.OnChanged(value)
         end
     end
 
-    function holder:SetValue(nextValue)
-        local alpha = (math.clamp(nextValue, minValue, maxValue) - minValue) / math.max(1e-6, (maxValue - minValue))
-        setNormalized(alpha)
+    local function valueFromInput(input)
+        local width = track.AbsoluteSize.X
+        if width <= 0 then
+            return value
+        end
+
+        local alpha = math.clamp(
+            (
+                input.Position.X
+                - track.AbsolutePosition.X
+            ) / width,
+            0,
+            1
+        )
+
+        return minimum
+            + ((maximum - minimum) * alpha)
     end
 
-    local function updateFromInput(input)
-        local x = input.Position.X
-        local absPos = track.AbsolutePosition.X
-        local absSize = track.AbsoluteSize.X
-        if absSize <= 0 then
-            return
-        end
-        local alpha = (x - absPos) / absSize
-        local currentAlpha = (value - minValue) / math.max(1e-6, (maxValue - minValue))
-        alpha = currentAlpha + ((alpha - currentAlpha) * touchMultiplier)
-        setNormalized(alpha)
+    self:Track(
+        touchTarget.InputBegan:Connect(function(input)
+            if input.UserInputType
+                    == Enum.UserInputType.Touch
+                or input.UserInputType
+                    == Enum.UserInputType.MouseButton1
+            then
+                dragging = true
+                activeTouch =
+                    input.UserInputType
+                        == Enum.UserInputType.Touch
+                    and input
+                    or nil
+                render(valueFromInput(input), true)
+            end
+        end)
+    )
+
+    self:Track(
+        UserInputService.InputChanged:Connect(
+            function(input)
+                if not dragging then
+                    return
+                end
+
+                local validTouch =
+                    activeTouch
+                    and input == activeTouch
+                local validMouse =
+                    activeTouch == nil
+                    and input.UserInputType
+                        == Enum.UserInputType.MouseMovement
+
+                if validTouch or validMouse then
+                    render(
+                        valueFromInput(input),
+                        true
+                    )
+                end
+            end
+        )
+    )
+
+    self:Track(
+        UserInputService.InputEnded:Connect(
+            function(input)
+                if input.UserInputType
+                        == Enum.UserInputType.MouseButton1
+                    or (
+                        activeTouch
+                        and input == activeTouch
+                    )
+                then
+                    dragging = false
+                    activeTouch = nil
+                end
+            end
+        )
+    )
+
+    local controller = {
+        Root = holder,
+        Track = track,
+        Fill = fill,
+        Knob = knob,
+    }
+
+    function controller:SetValue(nextValue, emit)
+        render(nextValue, emit == true)
     end
 
-    track.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            updateFromInput(input)
-        end
-    end)
+    function controller:GetValue()
+        return value
+    end
 
-    knob.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
+    function controller:SetAccent(nextAccent)
+        if typeof(nextAccent) == "Color3" then
+            accent = nextAccent
+            fill.BackgroundColor3 = nextAccent
+            knobStroke.Color = nextAccent
         end
-    end)
+    end
 
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-            updateFromInput(input)
-        end
-    end)
-
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-
-    holder:SetValue(value)
-    return holder
+    controller:SetValue(value, false)
+    return controller
 end
 
 return App
+

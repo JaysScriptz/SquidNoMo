@@ -1,6 +1,6 @@
 --// SquidNoMo entry point
 
-local BUILD_VERSION = "v0.8.1-beta"
+local BUILD_VERSION = "v0.8.2-beta"
 local BUILD_TOKEN = string.gsub(BUILD_VERSION, "[^%w_%-]", "_")
 
 print("[SquidNoMo] Starting " .. BUILD_VERSION)

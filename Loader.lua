@@ -1,6 +1,6 @@
---// SquidNoMo loader v0.8.1-beta
+--// SquidNoMo loader v0.8.2-beta
 
-local BUILD_VERSION = "v0.8.1-beta"
+local BUILD_VERSION = "v0.8.2-beta"
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -118,6 +118,23 @@ Loader.SettingsStore = Load("Core/SettingsStore.lua")
 Loader.UIStyleManager = Load("Core/UIStyleManager.lua")
 Loader.SavedSettings = Loader.SettingsStore:Load()
 
+if Loader.SavedSettings
+    and Loader.SavedSettings.BuildVersion
+        ~= BUILD_VERSION
+    and Loader.SavedSettings.App
+    and Loader.SavedSettings.App.UIStyles
+    and type(
+        Loader.UIStyleManager
+            .CreateColorPreservingProfile
+    ) == "function"
+then
+    Loader.SavedSettings.App.UIStyles =
+        Loader.UIStyleManager
+            :CreateColorPreservingProfile(
+                Loader.SavedSettings.App.UIStyles
+            )
+end
+
 Loader.FeatureManager = Load("Features/FeatureManager.lua")
 Loader.App = Load("Core/App.lua")
 
@@ -168,6 +185,8 @@ local function GetOrCreateSession()
             SelectedGameCategory =
                 "Red Light, Green Light",
             SelectedGuardCategory = "Moderation",
+            SelectedPlayerCategory =
+                "Movement & Camera",
             SelectedFarmingCategory = "Player Farming",
             SelectedDetectiveCategory = "Find Island",
             SelectedUICategory = "Layout & Scale",
@@ -202,6 +221,7 @@ if type(savedApp) == "table" then
         "LastPage",
         "SelectedGameCategory",
         "SelectedGuardCategory",
+        "SelectedPlayerCategory",
         "SelectedFarmingCategory",
         "SelectedDetectiveCategory",
         "SelectedUICategory",

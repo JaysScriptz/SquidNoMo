@@ -141,21 +141,21 @@ local limits = {
     SidebarWidth = {170, 340},
     TopbarHeight = {44, 92},
     FooterHeight = {24, 64},
-    PagePadding = {4, 36},
-    ColumnGap = {4, 32},
-    SectionSpacing = {4, 36},
+    PagePadding = {6, 24},
+    ColumnGap = {8, 22},
+    SectionSpacing = {8, 24},
     CategoryBubbleWidth = {145, 300},
-    CategoryBubbleHeight = {50, 92},
-    CategoryBarHeight = {82, 160},
+    CategoryBubbleHeight = {54, 76},
+    CategoryBarHeight = {92, 126},
     CategoryGap = {2, 28},
-    TextScale = {0.80, 1.45},
+    TextScale = {0.90, 1.18},
     CardRadius = {2, 32},
     BorderThickness = {0, 4},
     ScrollbarThickness = {2, 14},
-    ButtonHeight = {32, 72},
+    ButtonHeight = {34, 54},
     ButtonRadius = {2, 32},
-    ToggleWidth = {42, 86},
-    ToggleHeight = {22, 48},
+    ToggleWidth = {46, 68},
+    ToggleHeight = {24, 38},
     ToggleSpacing = {2, 24},
     SliderTrack = {4, 18},
     SliderKnob = {14, 34},
@@ -193,6 +193,46 @@ end
 
 function UIStyleManager:Clone(source)
     return copyTable(source)
+end
+
+function UIStyleManager:CreateColorPreservingProfile(source)
+    local fresh = self:CreateDefaultProfile()
+    local normalized = self:Normalize(
+        self:Clone(source)
+    )
+
+    local keys = {
+        "ThemePreset",
+        "AccentHue",
+        "AccentSaturation",
+        "AccentBrightness",
+        "BackgroundBrightness",
+        "CardBrightness",
+        "TextBrightness",
+        "UniformPageAccents",
+        "PageAccentHue",
+    }
+
+    for _, key in ipairs(keys) do
+        if normalized.Global[key] ~= nil then
+            fresh.Global[key] = normalized.Global[key]
+        end
+    end
+
+    for pageName, values in pairs(
+        normalized.Pages or {}
+    ) do
+        if type(values) == "table"
+            and values.PageAccentHue ~= nil
+        then
+            fresh.Pages[pageName] = {
+                PageAccentHue =
+                    values.PageAccentHue,
+            }
+        end
+    end
+
+    return self:Normalize(fresh)
 end
 
 function UIStyleManager:CreateDefaultProfile()
