@@ -1,4 +1,4 @@
---// SquidNoMo loader v0.5.6-beta
+--// SquidNoMo loader v0.6.0-beta
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -65,6 +65,7 @@ Loader.App = Load("Core/App.lua")
 
 Loader.Home = Load("Modules/Home.lua")
 Loader.Players = Load("Modules/Players.lua")
+Loader.UI = Load("Modules/UI.lua")
 
 Loader.HeroBanner = Load("Modules/Home/HeroBanner.lua")
 Loader.FeatureGroups = Load("Modules/Home/FeatureGroups.lua")

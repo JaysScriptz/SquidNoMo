@@ -1,63 +1,92 @@
---//========================================================--
---// SquidNoMo
---// Beta 5.0
---// Shared
---// RoleService.lua
---//========================================================--
-
 local RoleService = {}
 
-----------------------------------------------------------
--- Role Constants
-----------------------------------------------------------
-
 RoleService.Roles = {
-	Player = "Player",
-	Guard = "Guard",
-	Detective = "Detective",
-	Frontman = "Frontman",
-	Unknown = "Unknown"
+    Player = "Player",
+    Guard = "Guard",
+    Detective = "Detective",
+    Frontman = "Frontman",
+    Unknown = "Unknown",
 }
 
-----------------------------------------------------------
--- Get Player Role
-----------------------------------------------------------
+local function normalize(value)
+    local text = string.lower(tostring(value or ""))
+    text = string.gsub(text, "[%s_%-]", "")
 
-function RoleService:GetRole(Player)
+    if string.find(text, "frontman", 1, true) or string.find(text, "manager", 1, true) then
+        return RoleService.Roles.Frontman
+    elseif string.find(text, "detective", 1, true) or string.find(text, "police", 1, true) then
+        return RoleService.Roles.Detective
+    elseif string.find(text, "guard", 1, true) or string.find(text, "soldier", 1, true) or string.find(text, "staff", 1, true) then
+        return RoleService.Roles.Guard
+    elseif string.find(text, "player", 1, true) or string.find(text, "contestant", 1, true) then
+        return RoleService.Roles.Player
+    end
 
-	------------------------------------------------------
-	-- TODO:
-	-- Replace this with Squid Game X role detection.
-	------------------------------------------------------
-
-	-- Examples:
-	-- Player.Team
-	-- Player:GetAttribute("Role")
-	-- Character values
-	-- Server role objects
-
-	return self.Roles.Player
-
+    return nil
 end
 
-----------------------------------------------------------
--- Helper Functions
-----------------------------------------------------------
+function RoleService:GetRole(player)
+    if not player then
+        return self.Roles.Unknown
+    end
 
-function RoleService:IsPlayer(Player)
-	return self:GetRole(Player) == self.Roles.Player
+    local candidates = {}
+    for _, attributeName in ipairs({"Role", "role", "TeamRole", "PlayerRole", "Class"}) do
+        local ok, value = pcall(function()
+            return player:GetAttribute(attributeName)
+        end)
+        if ok and value ~= nil then
+            table.insert(candidates, value)
+        end
+    end
+
+    if player.Team then
+        table.insert(candidates, player.Team.Name)
+    end
+
+    local character = player.Character
+    if character then
+        for _, attributeName in ipairs({"Role", "role", "TeamRole", "PlayerRole", "Class"}) do
+            local ok, value = pcall(function()
+                return character:GetAttribute(attributeName)
+            end)
+            if ok and value ~= nil then
+                table.insert(candidates, value)
+            end
+        end
+
+        for _, valueName in ipairs({"Role", "TeamRole", "PlayerRole", "Class"}) do
+            local object = character:FindFirstChild(valueName)
+            if object and object:IsA("ValueBase") then
+                table.insert(candidates, object.Value)
+            end
+        end
+    end
+
+    for _, candidate in ipairs(candidates) do
+        local role = normalize(candidate)
+        if role then
+            return role
+        end
+    end
+
+    return self.Roles.Player
 end
 
-function RoleService:IsGuard(Player)
-	return self:GetRole(Player) == self.Roles.Guard
+function RoleService:IsPlayer(player)
+    return self:GetRole(player) == self.Roles.Player
 end
 
-function RoleService:IsDetective(Player)
-	return self:GetRole(Player) == self.Roles.Detective
+function RoleService:IsGuard(player)
+    return self:GetRole(player) == self.Roles.Guard
 end
 
-function RoleService:IsFrontman(Player)
-	return self:GetRole(Player) == self.Roles.Frontman
+function RoleService:IsDetective(player)
+    return self:GetRole(player) == self.Roles.Detective
+end
+
+function RoleService:IsFrontman(player)
+    return self:GetRole(player) == self.Roles.Frontman
 end
 
 return RoleService

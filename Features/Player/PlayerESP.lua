@@ -1,155 +1,107 @@
---//========================================================--
---// SquidNoMo
---// Beta 5.0
---// Player
---// PlayerESP.lua
---//========================================================--
-
 local PlayerESP = {}
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-
 local LocalPlayer = Players.LocalPlayer
 
-local RoleService
-
+local RoleService = nil
 local Enabled = false
-local Connection
+local Connection = nil
 local Highlights = {}
-
-----------------------------------------------------------
--- Initialize
-----------------------------------------------------------
+local FillColor = Color3.fromRGB(0, 170, 255)
+local RefreshElapsed = 0
 
 function PlayerESP:Initialize(Loader)
-	RoleService = Loader.Features
-		and Loader.Features.Shared
-		and Loader.Features.Shared.RoleService
+    RoleService = Loader.Features and Loader.Features.Shared and Loader.Features.Shared.RoleService
 end
 
-----------------------------------------------------------
--- Add Highlight
-----------------------------------------------------------
-
-local function Add(Player)
-
-	if Player == LocalPlayer then
-		return
-	end
-
-	if not RoleService or not RoleService:IsPlayer(Player) then
-		return
-	end
-
-	local Character = Player.Character
-
-	if not Character then
-		return
-	end
-
-	if Highlights[Character] then
-		return
-	end
-
-	local Highlight = Instance.new("Highlight")
-
-	Highlight.Name = "SquidNoMo_PlayerESP"
-
-	Highlight.Adornee = Character
-
-	Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-
-	Highlight.FillColor = Color3.fromRGB(0,170,255)
-
-	Highlight.OutlineColor = Color3.new(1,1,1)
-
-	Highlight.FillTransparency = .45
-
-	Highlight.Parent = Character
-
-	Highlights[Character] = Highlight
-
+local function matches(player)
+    return RoleService and type(RoleService.IsPlayer) == "function" and RoleService:IsPlayer(player)
 end
 
-----------------------------------------------------------
--- Clear
-----------------------------------------------------------
-
-local function Clear()
-
-	for _, Highlight in pairs(Highlights) do
-
-		if Highlight then
-			Highlight:Destroy()
-		end
-
-	end
-
-	table.clear(Highlights)
-
+local function removeCharacter(character)
+    local highlight = Highlights[character]
+    if highlight then
+        highlight:Destroy()
+        Highlights[character] = nil
+    end
 end
 
-----------------------------------------------------------
--- Refresh
-----------------------------------------------------------
+local function refresh()
+    local valid = {}
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and matches(player) and player.Character then
+            local character = player.Character
+            valid[character] = true
+            local highlight = Highlights[character]
+            if not highlight or not highlight.Parent then
+                highlight = Instance.new("Highlight")
+                highlight.Name = "SquidNoMo_PlayerESP"
+                highlight.Adornee = character
+                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                highlight.FillTransparency = 0.45
+                highlight.OutlineTransparency = 0
+                highlight.Parent = character
+                Highlights[character] = highlight
+            end
+            highlight.FillColor = FillColor
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        end
+    end
 
-local function Refresh()
-
-	Clear()
-
-	for _, Player in ipairs(Players:GetPlayers()) do
-
-		Add(Player)
-
-	end
-
+    for character in pairs(Highlights) do
+        if not valid[character] or not character.Parent then
+            removeCharacter(character)
+        end
+    end
 end
 
-----------------------------------------------------------
--- Enable
-----------------------------------------------------------
+local function clear()
+    for character in pairs(Highlights) do
+        removeCharacter(character)
+    end
+end
 
 function PlayerESP:Enable()
-
-	if Enabled then
-		return
-	end
-
-	Enabled = true
-
-	Refresh()
-
-	Connection = RunService.Heartbeat:Connect(function()
-
-		if Enabled then
-
-			Refresh()
-
-		end
-
-	end)
-
+    if Enabled then return end
+    Enabled = true
+    refresh()
+    RefreshElapsed = 0
+    Connection = RunService.Heartbeat:Connect(function(deltaTime)
+        RefreshElapsed = RefreshElapsed + deltaTime
+        if RefreshElapsed >= 0.35 then
+            RefreshElapsed = 0
+            refresh()
+        end
+    end)
 end
 
-----------------------------------------------------------
--- Disable
-----------------------------------------------------------
-
 function PlayerESP:Disable()
+    Enabled = false
+    if Connection then
+        Connection:Disconnect()
+        Connection = nil
+    end
+    clear()
+end
 
-	Enabled = false
+function PlayerESP:IsEnabled()
+    return Enabled
+end
 
-	if Connection then
+function PlayerESP:GetState()
+    return Enabled and "on" or "off"
+end
 
-		Connection:Disconnect()
+function PlayerESP:SetColor(color)
+    if typeof(color) == "Color3" then
+        FillColor = color
+        if Enabled then refresh() end
+    end
+end
 
-		Connection = nil
-
-	end
-
-	Clear()
-
+function PlayerESP:GetColor()
+    return FillColor
 end
 
 return PlayerESP

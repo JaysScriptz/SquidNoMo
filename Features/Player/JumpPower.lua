@@ -1,80 +1,58 @@
---//========================================================--
---// SquidNoMo
---// Beta 5.0
---// Player
---// JumpPower.lua
---//========================================================--
-
 local JumpPower = {}
 
 local Players = game:GetService("Players")
-
 local LocalPlayer = Players.LocalPlayer
-
 local DefaultJumpPower = 50
 local CurrentJumpPower = DefaultJumpPower
-
-----------------------------------------------------------
--- Apply
-----------------------------------------------------------
+local PreferredJumpPower = 80
 
 local function Apply()
-
-	local Character = LocalPlayer.Character
-
-	if not Character then
-		return
-	end
-
-	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-
-	if not Humanoid then
-		return
-	end
-
-	Humanoid.UseJumpPower = true
-	Humanoid.JumpPower = CurrentJumpPower
-
+    local character = LocalPlayer and LocalPlayer.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.UseJumpPower = true
+        humanoid.JumpPower = CurrentJumpPower
+    end
 end
 
-----------------------------------------------------------
--- Set Jump Power
-----------------------------------------------------------
-
-function JumpPower:Set(Value)
-
-	CurrentJumpPower = Value
-
-	Apply()
-
+function JumpPower:Set(value)
+    CurrentJumpPower = math.clamp(tonumber(value) or DefaultJumpPower, 25, 200)
+    if CurrentJumpPower ~= DefaultJumpPower then
+        PreferredJumpPower = CurrentJumpPower
+    end
+    Apply()
 end
 
-----------------------------------------------------------
--- Reset
-----------------------------------------------------------
+function JumpPower:Enable()
+    self:Set(PreferredJumpPower)
+end
+
+function JumpPower:Disable()
+    self:Reset()
+end
+
+function JumpPower:Get()
+    return CurrentJumpPower
+end
 
 function JumpPower:Reset()
-
-	CurrentJumpPower = DefaultJumpPower
-
-	Apply()
-
+    CurrentJumpPower = DefaultJumpPower
+    Apply()
 end
 
-----------------------------------------------------------
--- Character Respawn
-----------------------------------------------------------
+function JumpPower:IsEnabled()
+    return CurrentJumpPower ~= DefaultJumpPower
+end
 
-LocalPlayer.CharacterAdded:Connect(function()
+function JumpPower:GetState()
+    return self:IsEnabled() and "on" or "off"
+end
 
-	task.wait(0.25)
-
-	Apply()
-
-end)
-
-----------------------------------------------------------
--- Return
-----------------------------------------------------------
+if LocalPlayer then
+    LocalPlayer.CharacterAdded:Connect(function()
+        task.wait(0.25)
+        Apply()
+    end)
+end
 
 return JumpPower

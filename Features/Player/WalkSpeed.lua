@@ -1,80 +1,57 @@
---//========================================================--
---// SquidNoMo
---// Beta 5.0
---// Player
---// WalkSpeed.lua
---//========================================================--
-
 local WalkSpeed = {}
 
 local Players = game:GetService("Players")
-
 local LocalPlayer = Players.LocalPlayer
-
 local DefaultSpeed = 16
-
 local CurrentSpeed = DefaultSpeed
-
-----------------------------------------------------------
--- Apply
-----------------------------------------------------------
+local PreferredSpeed = 32
 
 local function Apply()
-
-	local Character = LocalPlayer.Character
-
-	if not Character then
-		return
-	end
-
-	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-
-	if not Humanoid then
-		return
-	end
-
-	Humanoid.WalkSpeed = CurrentSpeed
-
+    local character = LocalPlayer and LocalPlayer.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = CurrentSpeed
+    end
 end
 
-----------------------------------------------------------
--- Set Speed
-----------------------------------------------------------
-
-function WalkSpeed:Set(Value)
-
-	CurrentSpeed = Value
-
-	Apply()
-
+function WalkSpeed:Set(value)
+    CurrentSpeed = math.clamp(tonumber(value) or DefaultSpeed, 8, 100)
+    if CurrentSpeed ~= DefaultSpeed then
+        PreferredSpeed = CurrentSpeed
+    end
+    Apply()
 end
 
-----------------------------------------------------------
--- Reset
-----------------------------------------------------------
+function WalkSpeed:Enable()
+    self:Set(PreferredSpeed)
+end
+
+function WalkSpeed:Disable()
+    self:Reset()
+end
+
+function WalkSpeed:Get()
+    return CurrentSpeed
+end
 
 function WalkSpeed:Reset()
-
-	CurrentSpeed = DefaultSpeed
-
-	Apply()
-
+    CurrentSpeed = DefaultSpeed
+    Apply()
 end
 
-----------------------------------------------------------
--- Character Respawn
-----------------------------------------------------------
+function WalkSpeed:IsEnabled()
+    return CurrentSpeed ~= DefaultSpeed
+end
 
-LocalPlayer.CharacterAdded:Connect(function()
+function WalkSpeed:GetState()
+    return self:IsEnabled() and "on" or "off"
+end
 
-	task.wait(0.25)
-
-	Apply()
-
-end)
-
-----------------------------------------------------------
--- Return
-----------------------------------------------------------
+if LocalPlayer then
+    LocalPlayer.CharacterAdded:Connect(function()
+        task.wait(0.25)
+        Apply()
+    end)
+end
 
 return WalkSpeed

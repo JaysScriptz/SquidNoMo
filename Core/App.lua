@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.5.6-beta"
+App.Version = "v0.6.0-beta"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -140,7 +140,7 @@ App.Config = {
     FreeRoamMinimumTitleWidth = 120,
     FreeRoamMinimumTitleHeight = 18,
     ForceMobile = false,
-    AssetVersion = "v0.5.6-beta",
+    AssetVersion = "v0.6.0-beta",
     RespectGuiInset = false,
     ShowHomeFooter = false,
 
@@ -258,6 +258,9 @@ App.IsMinimized = false
 App.IsMaximized = false
 App.IsFullScreen = false
 App.FreeRoamEnabled = false
+App.ButtonGlowEnabled = true
+App.NavigationGlowEnabled = true
+App.CloseConfirmationEnabled = true
 App.LastSafePosition = nil
 App.MinimizedByFreeRoam = false
 App.WindowSettingsWidgets = {}
@@ -343,6 +346,10 @@ function App:GetPageAccent(pageName)
 end
 
 function App:PulseGlow(guiObject, color)
+    if not self.ButtonGlowEnabled then
+        return
+    end
+
     if not guiObject or not guiObject.Parent then
         return
     end
@@ -438,6 +445,9 @@ function App:GetOrCreateSession()
             DetectionDetail = "No status signal has been reported.",
             FreeRoamEnabled = false,
             FullScreenEnabled = false,
+            ButtonGlowEnabled = true,
+            NavigationGlowEnabled = true,
+            CloseConfirmationEnabled = true,
             LastSafePosition = nil,
         }
         environment.__SquidNoMoSession = session
@@ -594,6 +604,9 @@ function App:Init(loader)
     self.DetectionDetail = self.Session.DetectionDetail or "No status signal has been reported."
     self.FreeRoamEnabled = self.Session.FreeRoamEnabled == true
     self.IsFullScreen = self.Session.FullScreenEnabled == true
+    self.ButtonGlowEnabled = self.Session.ButtonGlowEnabled ~= false
+    self.NavigationGlowEnabled = self.Session.NavigationGlowEnabled ~= false
+    self.CloseConfirmationEnabled = self.Session.CloseConfirmationEnabled ~= false
     self.LastSafePosition = self.Session.LastSafePosition
     self.MinimizedByFreeRoam = false
     self.AppStatus = "STARTING"
@@ -1655,6 +1668,14 @@ function App:ShowCloseConfirmation()
         return
     end
 
+    if not self.CloseConfirmationEnabled then
+        if self.Session then
+            self.Session.UserClosed = true
+        end
+        self:Destroy(true)
+        return
+    end
+
     if self.CloseModal and self.CloseModal.Parent then
         self.CloseModal:Destroy()
     end
@@ -2452,7 +2473,7 @@ function App:CreateNavigationButton(definition)
     label.Parent = button
 
     local function setSelected(selected)
-        selectedGlow.Visible = selected
+        selectedGlow.Visible = selected and self.NavigationGlowEnabled
         self:Tween(button, {
             BackgroundColor3 = selected and accent or self.Colors.Sidebar,
             BackgroundTransparency = selected and 0.72 or 0,
@@ -2777,6 +2798,33 @@ function App:CreateWindowActionCard(parent, title, description, color, layoutOrd
     return {Card = card, Button = action}
 end
 
+function App:RefreshNavigationAppearance()
+    for pageName, entry in pairs(self.NavigationButtons or {}) do
+        if type(entry) == "table" and type(entry.SetSelected) == "function" then
+            entry.SetSelected(pageName == self.CurrentPage)
+        end
+    end
+end
+
+function App:SetButtonGlowEnabled(state)
+    self.ButtonGlowEnabled = state and true or false
+    if self.Session then self.Session.ButtonGlowEnabled = self.ButtonGlowEnabled end
+    self:RefreshWindowSettings()
+end
+
+function App:SetNavigationGlowEnabled(state)
+    self.NavigationGlowEnabled = state and true or false
+    if self.Session then self.Session.NavigationGlowEnabled = self.NavigationGlowEnabled end
+    self:RefreshNavigationAppearance()
+    self:RefreshWindowSettings()
+end
+
+function App:SetCloseConfirmationEnabled(state)
+    self.CloseConfirmationEnabled = state and true or false
+    if self.Session then self.Session.CloseConfirmationEnabled = self.CloseConfirmationEnabled end
+    self:RefreshWindowSettings()
+end
+
 function App:RefreshWindowSettings()
     local widgets = self.WindowSettingsWidgets
     if not widgets then
@@ -2798,6 +2846,9 @@ function App:RefreshWindowSettings()
 
     refreshToggle(widgets.FreeRoam, self.FreeRoamEnabled)
     refreshToggle(widgets.FullScreen, self.IsFullScreen)
+    refreshToggle(widgets.ButtonGlow, self.ButtonGlowEnabled)
+    refreshToggle(widgets.NavigationGlow, self.NavigationGlowEnabled)
+    refreshToggle(widgets.CloseConfirmation, self.CloseConfirmationEnabled)
 end
 
 function App:BuildSettingsPage(page)
@@ -2806,7 +2857,7 @@ function App:BuildSettingsPage(page)
     local padding = self.Profile.ContentPadding
     local root = Instance.new("Frame")
     root.Position = UDim2.fromOffset(padding, padding)
-    root.Size = UDim2.new(1, -(padding * 2), 0, 230)
+    root.Size = UDim2.new(1, -(padding * 2), 0, 438)
     root.BackgroundTransparency = 1
     root.BorderSizePixel = 0
     root.Parent = page
@@ -2818,19 +2869,19 @@ function App:BuildSettingsPage(page)
         ZIndex = 1012,
     })
 
-    self:CreateText(root, "Universal three-column controls for movement, recovery, and full-screen scaling.", UDim2.new(1, 0, 0, 22), UDim2.fromOffset(0, 30), {
+    self:CreateText(root, "Application behavior and recovery controls. Game enhancements remain under UI.", UDim2.new(1, 0, 0, 22), UDim2.fromOffset(0, 30), {
         Font = Enum.Font.GothamMedium,
         TextSize = self.DeviceClass == "Phone" and 10 or 11,
         Color = self.Colors.Muted,
         ZIndex = 1012,
     })
 
-    local row = self:CreateEqualThreeColumnRow(root, 62, 154, "WindowSettingsRow")
+    local windowRow = self:CreateEqualThreeColumnRow(root, 62, 154, "WindowSettingsRow")
 
     local freeRoam = self:CreateWindowToggleCard(
-        row,
+        windowRow,
         "FREE ROAM WINDOW",
-        "Move across the entire game screen. If too much of the app leaves the usable area, it minimizes to the recovery bubble.",
+        "Move across the game screen. If the app leaves the usable area, it minimizes and restores at the last safe position.",
         self:GetPageAccent("Players"),
         1,
         function() return self.FreeRoamEnabled end,
@@ -2838,9 +2889,9 @@ function App:BuildSettingsPage(page)
     )
 
     local fullScreen = self:CreateWindowToggleCard(
-        row,
+        windowRow,
         "FULL SCREEN MODE",
-        "Fill the complete usable viewport. The virtual canvas expands to the screen shape so the interface is not stretched.",
+        "Fill the complete usable viewport while preserving the internal three-column layout.",
         self:GetPageAccent("Detective"),
         2,
         function() return self.IsFullScreen end,
@@ -2848,13 +2899,59 @@ function App:BuildSettingsPage(page)
     )
 
     local reset = self:CreateWindowActionCard(
-        row,
+        windowRow,
         "RESET WINDOW",
-        "Restore the app to a centered, safe, movable position and leave maximized or full-screen mode.",
+        "Return to a centered, safe, movable position and leave maximized or full-screen mode.",
         self:GetPageAccent("Settings"),
         3,
         "RESET POSITION",
         function() self:ResetWindowPosition() end
+    )
+
+    self:CreateText(root, "INTERFACE FEEDBACK", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, 232), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = self.DeviceClass == "Phone" and 15 or 18,
+        Color = self:GetPageAccent("Settings"),
+        ZIndex = 1012,
+    })
+
+    self:CreateText(root, "General SquidNoMo application preferences.", UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, 259), {
+        Font = Enum.Font.GothamMedium,
+        TextSize = self.DeviceClass == "Phone" and 9 or 10,
+        Color = self.Colors.Muted,
+        ZIndex = 1012,
+    })
+
+    local interfaceRow = self:CreateEqualThreeColumnRow(root, 290, 140, "InterfaceSettingsRow")
+
+    local buttonGlow = self:CreateWindowToggleCard(
+        interfaceRow,
+        "BUTTON CLICK GLOW",
+        "Show the short themed glow pulse when application buttons are pressed.",
+        self:GetPageAccent("UI"),
+        1,
+        function() return self.ButtonGlowEnabled end,
+        function(value) self:SetButtonGlowEnabled(value) end
+    )
+
+    local navigationGlow = self:CreateWindowToggleCard(
+        interfaceRow,
+        "SELECTED PAGE GLOW",
+        "Keep the active navigation tab highlighted with its page-specific accent.",
+        self:GetPageAccent("Home"),
+        2,
+        function() return self.NavigationGlowEnabled end,
+        function(value) self:SetNavigationGlowEnabled(value) end
+    )
+
+    local closeConfirmation = self:CreateWindowToggleCard(
+        interfaceRow,
+        "CONFIRM BEFORE CLOSE",
+        "Require confirmation before closing the application to prevent accidental taps.",
+        self.Colors.Close,
+        3,
+        function() return self.CloseConfirmationEnabled end,
+        function(value) self:SetCloseConfirmationEnabled(value) end
     )
 
     self.WindowSettingsWidgets = {
@@ -2862,6 +2959,9 @@ function App:BuildSettingsPage(page)
         FreeRoam = freeRoam,
         FullScreen = fullScreen,
         Reset = reset,
+        ButtonGlow = buttonGlow,
+        NavigationGlow = navigationGlow,
+        CloseConfirmation = closeConfirmation,
     }
 
     self:RefreshWindowSettings()

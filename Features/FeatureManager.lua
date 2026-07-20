@@ -83,6 +83,9 @@ function FeatureManager:Initialize(Loader)
     Features.Player = Load(Loader, "Features/Player/Init.lua")
     Features.Player:Initialize(Loader)
 
+    Features.UI = Load(Loader, "Features/UI/Init.lua")
+    Features.UI:Initialize(Loader)
+
     self.Features = Features
     Loader.Features = Features
     self:Notify()
