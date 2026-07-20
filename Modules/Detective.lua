@@ -1,38 +1,54 @@
 local DetectivePage = {}
 
+-- Detective subpages are grouped around the actual investigation workflow.
 local CATEGORIES = {
-    {Name = "Find Island", Short = "ISLAND", Files = {"BoatDepositor"}},
-    {Name = "Evidence", Short = "EVIDENCE", Files = {"EvidenceCollector", "EvidenceESP"}},
-    {Name = "Extras", Short = "EXTRAS", Files = {"DisguiseManager"}},
+    {
+        Name = "Island Navigation",
+        Short = "WALK",
+        Features = {
+            {
+                Name = "Island Navigator",
+                Description = "Auto-walks from the boat/start area to the nearest evidence using pathfinding. No teleports.",
+                Path = "Features/Detective/IslandNavigator.lua",
+            },
+        },
+    },
+    {
+        Name = "Evidence",
+        Short = "EVIDENCE",
+        Features = {
+            {Name = "Evidence Collector", Path = "Features/Detective/EvidenceCollector.lua"},
+            {Name = "Evidence ESP", Path = "Features/Detective/EvidenceESP.lua"},
+        },
+    },
+    {
+        Name = "Boat Operations",
+        Short = "BOAT",
+        Features = {
+            {Name = "Boat Depositor", Path = "Features/Detective/BoatDepositor.lua"},
+        },
+    },
+    {
+        Name = "Disguise",
+        Short = "DISGUISE",
+        Features = {
+            {Name = "Disguise Manager", Path = "Features/Detective/DisguiseManager.lua"},
+        },
+    },
 }
-
-local function displayName(name)
-    return (name:gsub("(%l)(%u)", "%1 %2"))
-end
-
-local function featureList(item)
-    local result = {}
-    for _, file in ipairs(item.Files or {}) do
-        table.insert(result, {
-            Name = displayName(file),
-            Path = "Features/Detective/" .. file .. ".lua",
-        })
-    end
-    return result
-end
 
 function DetectivePage:Create(Page, App)
     App.Loader.CategoryStrip:Create(Page, App, {
         PageName = "Detective",
         SessionKey = "SelectedDetectiveCategory",
-        DefaultName = "Find Island",
+        DefaultName = CATEGORIES[1].Name,
         ScrollerName = "DetectiveCategoryScroller",
-        ButtonWidth = 260,
+        ButtonWidth = 240,
         Items = CATEGORIES,
         OnSelected = function(item)
             App.Loader.FeatureFolder:Render(Page, App, {
                 PageName = "Detective",
-                Features = featureList(item),
+                Features = item.Features or {},
             })
         end,
     })

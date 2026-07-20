@@ -1,10 +1,10 @@
 local GuardsPage = {}
 
+-- Guard has exactly three role-based subpages, each backed by a real feature folder.
 local CATEGORIES = {
-    {Name = "Moderation", Short = "MOD", Folder = "Player Moderation", Files = {"GuardLocalCleanup", "GuardLocalModerator"}},
-    {Name = "Kitchen", Short = "KITCHEN", Folder = "Kitchen", Files = {"AutoCooker", "AutoStorage", "AutoSupply"}},
-    {Name = "Morgue", Short = "MORGUE", Folder = "Coffin", Files = {"CoffinDisposal", "CoffinGrabber"}},
-    {Name = "Surveillance", Short = "CCTV", Folder = nil, Files = {}},
+    {Name = "Game Moderation", Short = "MOD", Folder = "Player Moderation", Files = {"GuardLocalCleanup", "GuardLocalModerator"}},
+    {Name = "Kitchen Staff", Short = "KITCHEN", Folder = "Kitchen", Files = {"AutoCooker", "AutoStorage", "AutoSupply"}},
+    {Name = "Morgue Staff", Short = "MORGUE", Folder = "Coffin", Files = {"CoffinDisposal", "CoffinGrabber"}},
 }
 
 local function displayName(name)
@@ -26,7 +26,7 @@ function GuardsPage:Create(Page, App)
     App.Loader.CategoryStrip:Create(Page, App, {
         PageName = "Guards",
         SessionKey = "SelectedGuardCategory",
-        DefaultName = "Moderation",
+        DefaultName = CATEGORIES[1].Name,
         ScrollerName = "GuardCategoryScroller",
         ButtonWidth = 220,
         Items = CATEGORIES,
