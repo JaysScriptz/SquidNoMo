@@ -551,7 +551,7 @@ function PlayersPage:Create(Page, App)
     local columns = App:CreateEqualThreeColumnRow(root, 100, 1390, "PlayersUniversalColumns")
 
     local _, movement = createColumn(App, columns, "MOVEMENT & CAMERA", "Local character and camera behavior.", App.Colors.Info, 1)
-    local _, esp = createColumn(App, columns, "PLAYER ESP", "Role, distance, health, and box overlays.", App.Colors.Success, 2)
+    local _, esp = createColumn(App, columns, "PLAYER ESP", "Role, distance, and health overlays.", App.Colors.Success, 2)
     local _, utilities = createColumn(App, columns, "LOCAL UTILITIES", "Stable quality-of-life controls and actions.", App.Colors.Warning, 3)
 
     local features = App.Features and App.Features.Player or {}
@@ -583,9 +583,6 @@ function PlayersPage:Create(Page, App)
         Color3.fromRGB(0, 205, 255), Color3.fromRGB(255, 196, 64), Color3.fromRGB(245, 245, 255),
     }, 5))
     table.insert(refreshers, createToggleRow(App, esp, "Health ESP", "Shows live health with green, yellow, and red states.", App.Colors.Success, features.HealthESP, 6))
-    table.insert(refreshers, createESPRow(App, esp, "Box ESP", "Draws a clean outline around every player.", App:GetPageAccent("Players"), features.BoxESP, {
-        Color3.fromRGB(255, 58, 145), Color3.fromRGB(172, 76, 255), Color3.fromRGB(255, 255, 255),
-    }, 7))
 
     table.insert(refreshers, createToggleRow(App, utilities, "Anti AFK", "Prevents idle disconnects during the session.", App.Colors.Success, features.AntiAFK, 1))
     table.insert(refreshers, createToggleRow(App, utilities, "Anti Lag", "Reduces local terrain water and explosion effects.", App.Colors.Info, features.AntiLag, 2))

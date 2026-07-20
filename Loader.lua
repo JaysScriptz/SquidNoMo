@@ -1,6 +1,6 @@
---// SquidNoMo loader v0.6.4-beta
+--// SquidNoMo loader v0.7.0-beta
 
-local BUILD_VERSION = "v0.6.4-beta"
+local BUILD_VERSION = "v0.7.0-beta"
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -50,6 +50,7 @@ if type(ExistingSession) == "table" and ExistingSession.JobId == game.JobId then
     ExistingSession.Loader = nil
     ExistingSession.App = nil
     ExistingSession.UserClosed = false
+    ExistingSession.FreeRoamEnabled = true
     ExistingSession.Version = BUILD_VERSION
 end
 
@@ -118,6 +119,7 @@ Loader.FeatureManager = Load("Features/FeatureManager.lua")
 Loader.App = Load("Core/App.lua")
 
 Loader.Home = Load("Modules/Home.lua")
+Loader.Games = Load("Modules/Games.lua")
 Loader.Players = Load("Modules/Players.lua")
 Loader.UI = Load("Modules/UI.lua")
 
@@ -154,7 +156,7 @@ if type(Session) ~= "table" or Session.JobId ~= game.JobId then
         JobId = game.JobId,
         TermsAccepted = false,
         UserClosed = false,
-        FreeRoamEnabled = false,
+        FreeRoamEnabled = true,
         FullScreenEnabled = false,
         LastSafePosition = nil,
     }

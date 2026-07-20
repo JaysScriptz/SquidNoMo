@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.6.4-beta"
+App.Version = "v0.7.0-beta"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -140,7 +140,7 @@ App.Config = {
     FreeRoamMinimumTitleWidth = 120,
     FreeRoamMinimumTitleHeight = 18,
     ForceMobile = false,
-    AssetVersion = "v0.6.4-beta",
+    AssetVersion = "v0.7.0-beta",
     RespectGuiInset = false,
     ShowHomeFooter = false,
 
@@ -257,7 +257,7 @@ App.HasBeenDragged = false
 App.IsMinimized = false
 App.IsMaximized = false
 App.IsFullScreen = false
-App.FreeRoamEnabled = false
+App.FreeRoamEnabled = true
 App.ButtonGlowEnabled = true
 App.NavigationGlowEnabled = true
 App.CloseConfirmationEnabled = true
@@ -503,7 +503,7 @@ function App:GetOrCreateSession()
             UserClosed = false,
             DetectionStatus = "UNKNOWN",
             DetectionDetail = "No status signal has been reported.",
-            FreeRoamEnabled = false,
+            FreeRoamEnabled = true,
             FullScreenEnabled = false,
             ButtonGlowEnabled = true,
             NavigationGlowEnabled = true,
@@ -669,7 +669,7 @@ function App:Init(loader)
     self.TermsAccepted = self.Session.TermsAccepted == true
     self.DetectionStatus = self.Session.DetectionStatus or "UNKNOWN"
     self.DetectionDetail = self.Session.DetectionDetail or "No status signal has been reported."
-    self.FreeRoamEnabled = self.Session.FreeRoamEnabled == true
+    self.FreeRoamEnabled = self.Session.FreeRoamEnabled ~= false
     self.IsFullScreen = self.Session.FullScreenEnabled == true
     self.ButtonGlowEnabled = self.Session.ButtonGlowEnabled ~= false
     self.NavigationGlowEnabled = self.Session.NavigationGlowEnabled ~= false
@@ -3101,7 +3101,7 @@ function App:SetWindowOpacity(value)
 end
 
 function App:ResetApplicationPreferences()
-    self:SetFreeRoamEnabled(false)
+    self:SetFreeRoamEnabled(true)
     self:SetFullScreen(false)
     self:SetButtonGlowEnabled(true)
     self:SetNavigationGlowEnabled(true)
