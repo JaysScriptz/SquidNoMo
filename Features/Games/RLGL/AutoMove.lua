@@ -4,11 +4,10 @@ local Players = game:GetService("Players")
 local AutoMove = {
     Enabled = false,
     Thread = nil,
+    ValidDollNames = {"Doll", "RedLightDoll", "Killer", "SquidDoll", "Mugunghwa"},
 }
 
--- CONFIG: Replace this with the position of the finish line in your game
-local FINISH_LINE_POSITION = Vector3.new(0, 5, 500) 
-
+-- Detects if Red Light is active
 local function isRedLight()
     local status = workspace:FindFirstChild("GameStatus", true) or workspace:FindFirstChild("Status", true)
     if status then
@@ -16,6 +15,15 @@ local function isRedLight()
         return val:match("red") or val == "stop"
     end
     return false
+end
+
+-- Locates the Doll dynamically
+local function getDoll()
+    for _, name in ipairs(AutoMove.ValidDollNames) do
+        local found = workspace:FindFirstChild(name, true)
+        if found and found:FindFirstChild("HumanoidRootPart") then return found end
+    end
+    return nil
 end
 
 function AutoMove:Toggle(state)
@@ -30,30 +38,33 @@ function AutoMove:Toggle(state)
             local path = PathfindingService:CreatePath({AgentRadius = 3, AgentHeight = 5})
             
             while self.Enabled do
-                if not isRedLight() then
-                    -- Compute path to goal
-                    local success, errorMessage = pcall(function()
-                        path:ComputeAsync(hrp.Position, FINISH_LINE_POSITION)
+                local doll = getDoll()
+                
+                if doll and not isRedLight() then
+                    -- Target the doll's position, but offset by 10 studs forward to "pass" it
+                    local goal = doll.HumanoidRootPart.Position + (doll.HumanoidRootPart.CFrame.LookVector * 10)
+                    
+                    local success, _ = pcall(function()
+                        path:ComputeAsync(hrp.Position, goal)
                     end)
 
                     if success and path.Status == Enum.PathStatus.Success then
                         local waypoints = path:GetWaypoints()
-                        -- Move to the next waypoint
                         if waypoints[2] then
                             humanoid:MoveTo(waypoints[2].Position)
                         end
                     end
                 else
-                    -- Stop moving immediately on Red Light
+                    -- Stop moving if Red Light OR Doll is missing
                     humanoid:MoveTo(hrp.Position)
                 end
-                task.wait(0.2) -- Path update frequency
+                task.wait(0.2)
             end
         end)
-        print("[SquidNoMo]: AutoMove Enabled.")
+        print("[SquidNoMo]: AutoMove (Doll-Tracking) Enabled.")
     else
         if self.Thread then task.cancel(self.Thread) end
-        humanoid:MoveTo(hrp.Position) -- Stop character
+        humanoid:MoveTo(hrp.Position)
         print("[SquidNoMo]: AutoMove Disabled.")
     end
 end
