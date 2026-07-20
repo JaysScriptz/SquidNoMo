@@ -235,13 +235,165 @@ function FeatureManager:Subscribe(callback)
     return connection
 end
 
+local function packColor(value)
+    if typeof(value) ~= "Color3" then
+        return nil
+    end
+    return {R = value.R, G = value.G, B = value.B}
+end
+
+local function unpackColor(value)
+    if type(value) ~= "table" then
+        return nil
+    end
+
+    local r = tonumber(value.R)
+    local g = tonumber(value.G)
+    local b = tonumber(value.B)
+    if not r or not g or not b then
+        return nil
+    end
+
+    return Color3.new(
+        math.clamp(r, 0, 1),
+        math.clamp(g, 0, 1),
+        math.clamp(b, 0, 1)
+    )
+end
+
+function FeatureManager:SetPersistenceCallback(callback)
+    self.PersistenceCallback =
+        type(callback) == "function" and callback or nil
+end
+
+function FeatureManager:ExportSettings()
+    local result = {}
+
+    for id, entry in pairs(self.Registry) do
+        local feature = entry.Feature
+        local data = {
+            Enabled = safeFeatureState(entry) ~= "off",
+        }
+
+        if type(feature) == "table"
+            and type(feature.Get) == "function"
+        then
+            local ok, value = pcall(feature.Get, feature)
+            if ok and (
+                type(value) == "number"
+                or type(value) == "string"
+                or type(value) == "boolean"
+            ) then
+                data.Value = value
+            end
+        end
+
+        if type(feature) == "table"
+            and type(feature.GetColor) == "function"
+        then
+            local ok, color = pcall(feature.GetColor, feature)
+            if ok then
+                data.Color = packColor(color)
+            end
+        end
+
+        result[id] = data
+    end
+
+    return result
+end
+
+function FeatureManager:ApplySettings(saved)
+    if type(saved) ~= "table" then
+        return 0
+    end
+
+    self.SuppressPersistence = true
+    local count = 0
+
+    for id, data in pairs(saved) do
+        local entry = self.Registry[id]
+        if entry and type(data) == "table" then
+            local feature = entry.Feature
+
+            if data.Value ~= nil
+                and type(feature.Set) == "function"
+            then
+                pcall(feature.Set, feature, data.Value)
+            end
+
+            local color = unpackColor(data.Color)
+            if color and type(feature.SetColor) == "function" then
+                pcall(feature.SetColor, feature, color)
+            end
+
+            local enabled = data.Enabled == true
+            local method = enabled
+                and feature.Enable
+                or feature.Disable
+
+            if type(method) == "function" then
+                local ok = pcall(method, feature)
+                if ok then
+                    entry.State = enabled and "on" or "off"
+                    count = count + 1
+                end
+            end
+        end
+    end
+
+    self.SuppressPersistence = false
+    self:Notify()
+    return count
+end
+
+function FeatureManager:ResetAll()
+    self.SuppressPersistence = true
+    local count = 0
+
+    for _, entry in pairs(self.Registry) do
+        local feature = entry.Feature
+        local options = entry.Options or {}
+
+        if type(feature.Disable) == "function" then
+            pcall(feature.Disable, feature)
+        end
+
+        if options.DefaultValue ~= nil
+            and type(feature.Set) == "function"
+        then
+            pcall(feature.Set, feature, options.DefaultValue)
+        end
+
+        if typeof(options.DefaultColor) == "Color3"
+            and type(feature.SetColor) == "function"
+        then
+            pcall(feature.SetColor, feature, options.DefaultColor)
+        end
+
+        entry.State = "off"
+        count = count + 1
+    end
+
+    self.SuppressPersistence = false
+    self:Notify()
+    return count
+end
+
 function FeatureManager:Notify()
     local snapshot = self:GetSnapshot()
+
     for id, callback in pairs(self.Listeners) do
         local ok = pcall(callback, snapshot)
         if not ok then
             self.Listeners[id] = nil
         end
+    end
+
+    if not self.SuppressPersistence
+        and type(self.PersistenceCallback) == "function"
+    then
+        pcall(self.PersistenceCallback, snapshot)
     end
 end
 

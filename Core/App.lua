@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.7.0-beta"
+App.Version = "v0.7.2-beta"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -140,7 +140,7 @@ App.Config = {
     FreeRoamMinimumTitleWidth = 120,
     FreeRoamMinimumTitleHeight = 18,
     ForceMobile = false,
-    AssetVersion = "v0.7.0-beta",
+    AssetVersion = "v0.7.2-beta",
     RespectGuiInset = false,
     ShowHomeFooter = false,
 
@@ -572,6 +572,15 @@ function App:AttachFeatureManager(manager, features)
         self.Features = features
     end
 
+    if self.FeatureManager
+        and type(self.FeatureManager.SetPersistenceCallback)
+            == "function"
+    then
+        self.FeatureManager:SetPersistenceCallback(function()
+            self:QueueSettingsSave()
+        end)
+    end
+
     self:StartFeatureTracking()
     self:RefreshFeatureDashboard()
 end
@@ -661,6 +670,7 @@ function App:Init(loader)
     self.Navigation = self.Loader.Navigation
     self.Utilities = self.Loader.Utilities
     self.Notifications = self.Loader.Notifications
+    self.SettingsStore = self.Loader.SettingsStore
     self.FeatureManager = self.Loader.FeatureManager
     self.Features = self.Loader.Features or {}
 
@@ -2466,7 +2476,7 @@ function App:CreateSidebarNotice(sidebar)
         makeCorner(button, 9)
         makeStroke(button, buttonColor, 1, 0.25)
 
-        button.MouseButton1Click:Connect(function()
+        button.Activated:Connect(function()
             if value and value ~= "" and not string.find(value, "REPLACE_") then
                 self:ShowSupportQR(labelText, value, qrPath, buttonColor)
             else
@@ -2588,7 +2598,7 @@ function App:CreateNavigationButton(definition)
         end
     end)
 
-    button.MouseButton1Click:Connect(function()
+    button.Activated:Connect(function()
         self:PulseGlow(button, accent)
         self:OpenPage(definition.Name)
     end)
@@ -2811,7 +2821,7 @@ function App:CreateWindowToggleCard(parent, title, description, color, layoutOrd
     button.ZIndex = 1015
     button.Parent = card
 
-    button.MouseButton1Click:Connect(function()
+    button.Activated:Connect(function()
         self:PulseGlow(card, color)
         setter(not getter())
     end)
@@ -2871,7 +2881,7 @@ function App:CreateWindowActionCard(parent, title, description, color, layoutOrd
     makeStroke(action, Color3.fromRGB(255, 255, 255), 1, 0.70)
     self:BindButtonFeedback(action, color)
 
-    action.MouseButton1Click:Connect(function()
+    action.Activated:Connect(function()
         callback()
     end)
 
@@ -3015,6 +3025,294 @@ function App:RefreshNavigationAppearance()
     end
 end
 
+function App:GetPersistentSettingsSnapshot()
+    local session = self.Session or {}
+    local features = {}
+
+    if self.FeatureManager
+        and type(self.FeatureManager.ExportSettings)
+            == "function"
+    then
+        features = self.FeatureManager:ExportSettings()
+    end
+
+    return {
+        BuildVersion = self.Version,
+        App = {
+            FreeRoamEnabled = self.FreeRoamEnabled == true,
+            FullScreenEnabled = self.IsFullScreen == true,
+            ButtonGlowEnabled =
+                self.ButtonGlowEnabled == true,
+            NavigationGlowEnabled =
+                self.NavigationGlowEnabled == true,
+            CloseConfirmationEnabled =
+                self.CloseConfirmationEnabled == true,
+            ReducedMotionEnabled =
+                self.ReducedMotionEnabled == true,
+            RememberLastPageEnabled =
+                self.RememberLastPageEnabled == true,
+            AutoCenterOnResizeEnabled =
+                self.AutoCenterOnResizeEnabled == true,
+            UserScale = self.UserScale,
+            BubbleSize = self.BubbleSize,
+            WindowOpacity = self.WindowOpacity,
+            LastPage = session.LastPage or "Home",
+            SelectedGameCategory =
+                session.SelectedGameCategory
+                or "Red Light, Green Light",
+            SelectedGuardCategory =
+                session.SelectedGuardCategory
+                or "Moderation",
+            SelectedFarmingCategory =
+                session.SelectedFarmingCategory
+                or "Player Farming",
+            DetectiveStage =
+                tonumber(session.DetectiveStage) or 1,
+            DetectiveEvidenceCount =
+                tonumber(session.DetectiveEvidenceCount) or 0,
+            DetectiveDepositedCount =
+                tonumber(session.DetectiveDepositedCount) or 0,
+        },
+        Features = features,
+    }
+end
+
+function App:SavePersistentSettingsNow(notify)
+    if self._suspendSettingsSave
+        or not self.SettingsStore
+    then
+        return false
+    end
+
+    local ok, mode = self.SettingsStore:Save(
+        self:GetPersistentSettingsSnapshot()
+    )
+
+    if notify and self.Notifications then
+        if ok then
+            self.Notifications:Success(
+                "Settings",
+                "Settings saved using "
+                    .. tostring(mode)
+                    .. " storage.",
+                3
+            )
+        else
+            self.Notifications:Warning(
+                "Settings",
+                "Settings could not be saved.",
+                3
+            )
+        end
+    end
+
+    return ok
+end
+
+function App:QueueSettingsSave()
+    if self._suspendSettingsSave
+        or not self.SettingsStore
+    then
+        return
+    end
+
+    self._settingsSaveRevision =
+        (self._settingsSaveRevision or 0) + 1
+    local revision = self._settingsSaveRevision
+
+    task.delay(0.45, function()
+        if revision == self._settingsSaveRevision
+            and not self._suspendSettingsSave
+        then
+            self:SavePersistentSettingsNow(false)
+        end
+    end)
+end
+
+function App:ApplyPersistentSettingsSnapshot(saved)
+    if type(saved) ~= "table" then
+        return false
+    end
+
+    self._suspendSettingsSave = true
+    local values = saved.App
+
+    if type(values) == "table" then
+        if values.FreeRoamEnabled ~= nil then
+            self:SetFreeRoamEnabled(
+                values.FreeRoamEnabled
+            )
+        end
+        if values.FullScreenEnabled ~= nil then
+            self:SetFullScreen(values.FullScreenEnabled)
+        end
+        if values.ButtonGlowEnabled ~= nil then
+            self:SetButtonGlowEnabled(
+                values.ButtonGlowEnabled
+            )
+        end
+        if values.NavigationGlowEnabled ~= nil then
+            self:SetNavigationGlowEnabled(
+                values.NavigationGlowEnabled
+            )
+        end
+        if values.CloseConfirmationEnabled ~= nil then
+            self:SetCloseConfirmationEnabled(
+                values.CloseConfirmationEnabled
+            )
+        end
+        if values.ReducedMotionEnabled ~= nil then
+            self:SetReducedMotionEnabled(
+                values.ReducedMotionEnabled
+            )
+        end
+        if values.RememberLastPageEnabled ~= nil then
+            self:SetRememberLastPageEnabled(
+                values.RememberLastPageEnabled
+            )
+        end
+        if values.AutoCenterOnResizeEnabled ~= nil then
+            self:SetAutoCenterOnResizeEnabled(
+                values.AutoCenterOnResizeEnabled
+            )
+        end
+        if values.UserScale ~= nil then
+            self:SetUserScale(values.UserScale)
+        end
+        if values.BubbleSize ~= nil then
+            self:SetBubbleSize(values.BubbleSize)
+        end
+        if values.WindowOpacity ~= nil then
+            self:SetWindowOpacity(values.WindowOpacity)
+        end
+
+        if self.Session then
+            self.Session.LastPage =
+                values.LastPage or "Home"
+            self.Session.SelectedGameCategory =
+                values.SelectedGameCategory
+                or "Red Light, Green Light"
+            self.Session.SelectedGuardCategory =
+                values.SelectedGuardCategory
+                or "Moderation"
+            self.Session.SelectedFarmingCategory =
+                values.SelectedFarmingCategory
+                or "Player Farming"
+            self.Session.DetectiveStage =
+                tonumber(values.DetectiveStage) or 1
+            self.Session.DetectiveEvidenceCount =
+                tonumber(values.DetectiveEvidenceCount) or 0
+            self.Session.DetectiveDepositedCount =
+                tonumber(values.DetectiveDepositedCount) or 0
+        end
+    end
+
+    if self.FeatureManager
+        and type(self.FeatureManager.ApplySettings)
+            == "function"
+    then
+        self.FeatureManager:ApplySettings(
+            saved.Features
+        )
+    end
+
+    self._suspendSettingsSave = false
+    self:RefreshWindowSettings()
+    self:RefreshFeatureDashboard()
+
+    if self.RememberLastPageEnabled
+        and self.Session
+        and self.Pages[self.Session.LastPage]
+    then
+        self:OpenPage(self.Session.LastPage)
+    end
+
+    return true
+end
+
+function App:ReloadPersistentSettings()
+    if not self.SettingsStore then
+        return false
+    end
+
+    local ok = self:ApplyPersistentSettingsSnapshot(
+        self.SettingsStore:Load()
+    )
+
+    if self.Notifications then
+        if ok then
+            self.Notifications:Success(
+                "Settings",
+                "Saved settings restored.",
+                3
+            )
+        else
+            self.Notifications:Warning(
+                "Settings",
+                "No saved settings were found.",
+                3
+            )
+        end
+    end
+
+    return ok
+end
+
+function App:ResetAllSettingsToOff()
+    self._suspendSettingsSave = true
+
+    if self.FeatureManager
+        and type(self.FeatureManager.ResetAll)
+            == "function"
+    then
+        self.FeatureManager:ResetAll()
+    end
+
+    self:SetFullScreen(false)
+    self:SetFreeRoamEnabled(false)
+    self:SetButtonGlowEnabled(false)
+    self:SetNavigationGlowEnabled(false)
+    self:SetCloseConfirmationEnabled(false)
+    self:SetReducedMotionEnabled(false)
+    self:SetRememberLastPageEnabled(false)
+    self:SetAutoCenterOnResizeEnabled(false)
+    self:SetUserScale(1.0)
+    self:SetBubbleSize(self:IsMobile() and 66 or 60)
+    self:SetWindowOpacity(0)
+
+    if self.Session then
+        self.Session.LastPage = "Home"
+        self.Session.SelectedGameCategory =
+            "Red Light, Green Light"
+        self.Session.SelectedGuardCategory = "Moderation"
+        self.Session.SelectedFarmingCategory = "Player Farming"
+        self.Session.DetectiveStage = 1
+        self.Session.DetectiveEvidenceCount = 0
+        self.Session.DetectiveDepositedCount = 0
+    end
+
+    self:ResetWindowPosition()
+
+    if self.SettingsStore then
+        self.SettingsStore:Clear()
+    end
+
+    self._suspendSettingsSave = false
+    self:SavePersistentSettingsNow(false)
+    self:RefreshWindowSettings()
+    self:RefreshFeatureDashboard()
+    self:OpenPage("Settings")
+
+    if self.Notifications then
+        self.Notifications:Success(
+            "Settings",
+            "All features and optional settings "
+                .. "were reset to OFF.",
+            4
+        )
+    end
+end
+
 function App:SetButtonGlowEnabled(state)
     self.ButtonGlowEnabled = state and true or false
     if self.Session then self.Session.ButtonGlowEnabled = self.ButtonGlowEnabled end
@@ -3152,6 +3450,8 @@ function App:RefreshWindowSettings()
     refreshSlider(widgets.UserScale, self.UserScale)
     refreshSlider(widgets.BubbleSize, self.BubbleSize or (self:IsMobile() and 66 or 60))
     refreshSlider(widgets.WindowOpacity, self.WindowOpacity)
+
+    self:QueueSettingsSave()
 end
 
 function App:BuildSettingsPage(page)
@@ -3160,7 +3460,7 @@ function App:BuildSettingsPage(page)
     local padding = self.Profile.ContentPadding
     local root = Instance.new("Frame")
     root.Position = UDim2.fromOffset(padding, padding)
-    root.Size = UDim2.new(1, -(padding * 2), 0, 910)
+    root.Size = UDim2.new(1, -(padding * 2), 0, 1135)
     root.BackgroundTransparency = 1
     root.BorderSizePixel = 0
     root.Parent = page
@@ -3358,6 +3658,90 @@ function App:BuildSettingsPage(page)
         function(value) return tostring(math.floor(value * 100 + 0.5)) .. "%" end
     )
 
+self:CreateText(
+    root,
+    "SAVED SETTINGS",
+    UDim2.new(1, 0, 0, 28),
+    UDim2.fromOffset(0, 914),
+    {
+        Font = Enum.Font.GothamBlack,
+        TextSize =
+            self.DeviceClass == "Phone" and 15 or 18,
+        Color = self:GetPageAccent("Settings"),
+        ZIndex = 1012,
+    }
+)
+
+local storageMode = self.SettingsStore
+    and self.SettingsStore:GetStorageMode()
+    or "SESSION"
+
+self:CreateText(
+    root,
+    storageMode == "FILE"
+        and "Preferences restore automatically "
+            .. "across reruns and new servers."
+        or "File storage is unavailable. "
+            .. "Preferences remain in executor "
+            .. "session memory.",
+    UDim2.new(1, 0, 0, 34),
+    UDim2.fromOffset(0, 941),
+    {
+        Font = Enum.Font.GothamMedium,
+        TextSize =
+            self.DeviceClass == "Phone" and 9 or 10,
+        Color = self.Colors.Muted,
+        Wrapped = true,
+        ZIndex = 1012,
+    }
+)
+
+local savedRow = self:CreateEqualThreeColumnRow(
+    root,
+    982,
+    140,
+    "SavedSettingsRow"
+)
+
+local saveNow = self:CreateWindowActionCard(
+    savedRow,
+    "AUTOMATIC MEMORY",
+    "Feature states, supported values, colors, "
+        .. "and app preferences save after changes.",
+    self.Colors.Success,
+    1,
+    "SAVE NOW",
+    function()
+        self:SavePersistentSettingsNow(true)
+    end
+)
+
+local restoreSaved = self:CreateWindowActionCard(
+    savedRow,
+    "RESTORE SAVED",
+    "Reload the most recently saved profile "
+        .. "without rerunning the application.",
+    self:GetPageAccent("Players"),
+    2,
+    "RESTORE PROFILE",
+    function()
+        self:ReloadPersistentSettings()
+    end
+)
+
+local resetAll = self:CreateWindowActionCard(
+    savedRow,
+    "RESET ALL SETTINGS",
+    "Disable every feature, turn optional app "
+        .. "settings off, and reset sliders.",
+    self.Colors.Error,
+    3,
+    "RESET ALL TO OFF",
+    function()
+        self:ResetAllSettingsToOff()
+    end
+)
+
     self.WindowSettingsWidgets = {
         Root = root,
         FreeRoam = freeRoam,
@@ -3372,6 +3756,9 @@ function App:BuildSettingsPage(page)
         UserScale = userScale,
         BubbleSize = bubbleSize,
         WindowOpacity = windowOpacity,
+        SaveNow = saveNow,
+        RestoreSaved = restoreSaved,
+        ResetAll = resetAll,
     }
 
     self:RefreshWindowSettings()
@@ -3404,6 +3791,7 @@ function App:OpenPage(name)
         self.PageTitle.Text = string.upper(name)
     end
 
+    self:QueueSettingsSave()
     return true
 end
 
@@ -3876,7 +4264,7 @@ function App:CreateFeatureCategoryCard(parent, categoryKey, title, description, 
     knob.Parent = switch
     makeCorner(knob, 999)
 
-    button.MouseButton1Click:Connect(function()
+    button.Activated:Connect(function()
         self:PulseGlow(card, color)
         local summary = self:GetFeatureOverview()
         local category = summary.Categories[categoryKey]

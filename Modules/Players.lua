@@ -454,6 +454,7 @@ local function createESPRow(App, parent, title, description, accent, feature, co
         swatch.Activated:Connect(function()
             if type(feature) == "table" and type(feature.SetColor) == "function" then
                 pcall(feature.SetColor, feature, color)
+                notifyManager(App)
                 for _, item in ipairs(swatches) do
                     item.Stroke.Transparency = item.Color == color and 0.08 or 0.72
                     item.Stroke.Thickness = item.Color == color and 2 or 1

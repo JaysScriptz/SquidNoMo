@@ -164,6 +164,7 @@ local function createFeatureRow(App, parent, title, description, accent, feature
             swatch.Activated:Connect(function()
                 if type(feature) == "table" and type(feature.SetColor) == "function" then
                     pcall(feature.SetColor, feature, color)
+                    notifyManager(App)
                     refs:Refresh()
                 end
             end)

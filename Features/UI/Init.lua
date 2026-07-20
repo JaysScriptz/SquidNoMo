@@ -57,7 +57,7 @@ function UI:Initialize(Loader)
 
     local manager = Loader.FeatureManager
     if manager and type(manager.RegisterFeature) == "function" then
-        manager:RegisterFeature("ui.crosshair", self.Crosshair, {Name = "Crosshair", Category = "Safe"})
+        manager:RegisterFeature("ui.crosshair", self.Crosshair, {Name = "Crosshair", Category = "Safe", DefaultColor = Color3.fromRGB(255, 58, 145)})
         manager:RegisterFeature("ui.performance_hud", self.PerformanceHUD, {Name = "Performance HUD", Category = "Safe"})
         manager:RegisterFeature("ui.role_legend", self.RoleLegend, {Name = "Role Legend", Category = "Safe"})
         manager:RegisterFeature("ui.session_hud", self.SessionHUD, {Name = "Session Timer HUD", Category = "Safe"})
@@ -80,7 +80,7 @@ function UI:Initialize(Loader)
         manager:RegisterFeature("ui.remove_fog", self.RemoveFog, {Name = "Remove Fog", Category = "Safe"})
         manager:RegisterFeature("ui.disable_shadows", self.DisableShadows, {Name = "Disable Shadows", Category = "Safe"})
         manager:RegisterFeature("ui.disable_particles", self.DisableParticles, {Name = "Disable Particles", Category = "Safe"})
-        manager:RegisterFeature("ui.camera_fov", self.CameraFOV, {Name = "Camera FOV", Category = "Safe"})
+        manager:RegisterFeature("ui.camera_fov", self.CameraFOV, {Name = "Camera FOV", Category = "Safe", DefaultValue = 70})
         manager:RegisterFeature("ui.high_contrast", self.HighContrast, {Name = "High Contrast", Category = "Safe"})
     end
 

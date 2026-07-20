@@ -1,6 +1,6 @@
---// SquidNoMo loader v0.7.0-beta
+--// SquidNoMo loader v0.7.2-beta
 
-local BUILD_VERSION = "v0.7.0-beta"
+local BUILD_VERSION = "v0.7.2-beta"
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -114,13 +114,19 @@ Loader.Components = Load("Core/Components.lua")
 Loader.Navigation = Load("Core/Navigation.lua")
 Loader.Utilities = Load("Core/Utilities.lua")
 Loader.Notifications = Load("Core/Notifications.lua")
+Loader.SettingsStore = Load("Core/SettingsStore.lua")
+Loader.SavedSettings = Loader.SettingsStore:Load()
 
 Loader.FeatureManager = Load("Features/FeatureManager.lua")
 Loader.App = Load("Core/App.lua")
 
 Loader.Home = Load("Modules/Home.lua")
+Loader.CategoryStrip = Load("Modules/CategoryStrip.lua")
 Loader.Games = Load("Modules/Games.lua")
 Loader.Players = Load("Modules/Players.lua")
+Loader.Guards = Load("Modules/Guards.lua")
+Loader.Detective = Load("Modules/Detective.lua")
+Loader.Farming = Load("Modules/Farming.lua")
 Loader.UI = Load("Modules/UI.lua")
 
 Loader.HeroBanner = Load("Modules/Home/HeroBanner.lua")
@@ -133,6 +139,79 @@ Loader.Supporters = Load("Modules/Home/Supporters.lua")
 Loader.ImportantNotice = Load("Modules/Home/ImportantNotice.lua")
 Loader.Footer = Load("Modules/Home/Footer.lua")
 
+local function GetOrCreateSession()
+    local session = Environment.__SquidNoMoSession
+
+    if type(session) ~= "table"
+        or session.JobId ~= game.JobId
+    then
+        session = {
+            JobId = game.JobId,
+            TermsAccepted = false,
+            UserClosed = false,
+            DetectionStatus = "UNKNOWN",
+            DetectionDetail =
+                "No status signal has been reported.",
+            FreeRoamEnabled = true,
+            FullScreenEnabled = false,
+            ButtonGlowEnabled = true,
+            NavigationGlowEnabled = true,
+            CloseConfirmationEnabled = true,
+            ReducedMotionEnabled = false,
+            RememberLastPageEnabled = true,
+            AutoCenterOnResizeEnabled = true,
+            UserScale = 1.0,
+            BubbleSize = nil,
+            WindowOpacity = 0,
+            LastPage = "Home",
+            SelectedGameCategory =
+                "Red Light, Green Light",
+            SelectedGuardCategory = "Moderation",
+            SelectedFarmingCategory = "Player Farming",
+            DetectiveStage = 1,
+            DetectiveEvidenceCount = 0,
+            DetectiveDepositedCount = 0,
+            LastSafePosition = nil,
+        }
+        Environment.__SquidNoMoSession = session
+    end
+
+    return session
+end
+
+local Session = GetOrCreateSession()
+local savedApp = Loader.SavedSettings
+    and Loader.SavedSettings.App
+
+if type(savedApp) == "table" then
+    local keys = {
+        "FreeRoamEnabled",
+        "FullScreenEnabled",
+        "ButtonGlowEnabled",
+        "NavigationGlowEnabled",
+        "CloseConfirmationEnabled",
+        "ReducedMotionEnabled",
+        "RememberLastPageEnabled",
+        "AutoCenterOnResizeEnabled",
+        "UserScale",
+        "BubbleSize",
+        "WindowOpacity",
+        "LastPage",
+        "SelectedGameCategory",
+        "SelectedGuardCategory",
+        "SelectedFarmingCategory",
+        "DetectiveStage",
+        "DetectiveEvidenceCount",
+        "DetectiveDepositedCount",
+    }
+
+    for _, key in ipairs(keys) do
+        if savedApp[key] ~= nil then
+            Session[key] = savedApp[key]
+        end
+    end
+end
+
 -- Features must exist before Players and UI pages capture their references.
 local featuresLoaded, featuresOrError = pcall(function()
     return Loader.FeatureManager:Initialize(Loader)
@@ -140,6 +219,19 @@ end)
 
 if featuresLoaded then
     Loader.Features = featuresOrError
+
+    if Loader.SavedSettings
+        and type(Loader.SavedSettings.Features) == "table"
+        and type(Loader.FeatureManager.ApplySettings) == "function"
+    then
+        print(
+            "[Loader] Restored feature settings:",
+            Loader.FeatureManager:ApplySettings(
+                Loader.SavedSettings.Features
+            )
+        )
+    end
+
     print("[Loader] Features initialized before page build")
 else
     warn("[Loader] Feature initialization failed:", featuresOrError)
@@ -149,19 +241,6 @@ end
 Loader.App.Features = Loader.Features
 Loader.App:Build(Loader)
 Loader.App:AttachFeatureManager(Loader.FeatureManager, Loader.Features)
-
-local Session = Environment.__SquidNoMoSession
-if type(Session) ~= "table" or Session.JobId ~= game.JobId then
-    Session = {
-        JobId = game.JobId,
-        TermsAccepted = false,
-        UserClosed = false,
-        FreeRoamEnabled = true,
-        FullScreenEnabled = false,
-        LastSafePosition = nil,
-    }
-    Environment.__SquidNoMoSession = Session
-end
 
 Session.Version = BUILD_VERSION
 Session.Loader = Loader
