@@ -1,6 +1,6 @@
---// SquidNoMo loader v0.7.2-beta
+--// SquidNoMo loader v0.8.0-beta
 
-local BUILD_VERSION = "v0.7.2-beta"
+local BUILD_VERSION = "v0.8.0-beta"
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -115,6 +115,7 @@ Loader.Navigation = Load("Core/Navigation.lua")
 Loader.Utilities = Load("Core/Utilities.lua")
 Loader.Notifications = Load("Core/Notifications.lua")
 Loader.SettingsStore = Load("Core/SettingsStore.lua")
+Loader.UIStyleManager = Load("Core/UIStyleManager.lua")
 Loader.SavedSettings = Loader.SettingsStore:Load()
 
 Loader.FeatureManager = Load("Features/FeatureManager.lua")
@@ -168,9 +169,11 @@ local function GetOrCreateSession()
                 "Red Light, Green Light",
             SelectedGuardCategory = "Moderation",
             SelectedFarmingCategory = "Player Farming",
-            DetectiveStage = 1,
-            DetectiveEvidenceCount = 0,
-            DetectiveDepositedCount = 0,
+            SelectedDetectiveCategory = "Find Island",
+            SelectedUICategory = "Layout & Scale",
+            UIEditScope = "Entire App",
+            UIEditTargetPage = "Players",
+            UIStyles = nil,
             LastSafePosition = nil,
         }
         Environment.__SquidNoMoSession = session
@@ -200,9 +203,11 @@ if type(savedApp) == "table" then
         "SelectedGameCategory",
         "SelectedGuardCategory",
         "SelectedFarmingCategory",
-        "DetectiveStage",
-        "DetectiveEvidenceCount",
-        "DetectiveDepositedCount",
+        "SelectedDetectiveCategory",
+        "SelectedUICategory",
+        "UIEditScope",
+        "UIEditTargetPage",
+        "UIStyles",
     }
 
     for _, key in ipairs(keys) do

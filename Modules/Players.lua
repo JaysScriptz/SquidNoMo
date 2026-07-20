@@ -97,7 +97,7 @@ local function createColumn(App, row, title, subtitle, accent, order)
     layout.FillDirection = Enum.FillDirection.Vertical
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 8)
+    layout.Padding = UDim.new(0, App:GetUIStyleValue("Players", "SectionSpacing", "MainPage") or 8)
     layout.Parent = holder
 
     return card, holder
@@ -112,7 +112,7 @@ local function createToggleRow(App, parent, title, description, accent, feature,
     row.LayoutOrder = order
     row.ZIndex = 1013
     row.Parent = parent
-    corner(row, 11)
+    corner(row, App:GetUIStyleValue("Players", "CardRadius", "MainPage") or 11)
     local outline = stroke(row, accent, 1, 0.72)
 
     App:CreateText(row, title, UDim2.new(1, -82, 0, 20), UDim2.fromOffset(12, 8), {
@@ -134,7 +134,9 @@ local function createToggleRow(App, parent, title, description, accent, feature,
     local switch = Instance.new("Frame")
     switch.AnchorPoint = Vector2.new(1, 0.5)
     switch.Position = UDim2.new(1, -12, 0.5, 0)
-    switch.Size = UDim2.fromOffset(54, 30)
+    local toggleWidth = App:GetUIStyleValue("Players", "ToggleWidth", "MainPage") or 54
+    local toggleHeight = App:GetUIStyleValue("Players", "ToggleHeight", "MainPage") or 30
+    switch.Size = UDim2.fromOffset(toggleWidth, toggleHeight)
     switch.BackgroundColor3 = Color3.fromRGB(68, 64, 78)
     switch.BorderSizePixel = 0
     switch.ZIndex = 1014
@@ -143,7 +145,8 @@ local function createToggleRow(App, parent, title, description, accent, feature,
 
     local knob = Instance.new("Frame")
     knob.Position = UDim2.fromOffset(3, 3)
-    knob.Size = UDim2.fromOffset(24, 24)
+    local knobSize = math.max(16, toggleHeight - 6)
+    knob.Size = UDim2.fromOffset(knobSize, knobSize)
     knob.BackgroundColor3 = Color3.fromRGB(245, 242, 248)
     knob.BorderSizePixel = 0
     knob.ZIndex = 1015
@@ -165,7 +168,7 @@ local function createToggleRow(App, parent, title, description, accent, feature,
     function refs:Refresh()
         local on = isEnabled(feature)
         switch.BackgroundColor3 = on and accent or Color3.fromRGB(68, 64, 78)
-        knob.Position = UDim2.fromOffset(on and 27 or 3, 3)
+        knob.Position = UDim2.fromOffset(on and (toggleWidth - knobSize - 3) or 3, 3)
         outline.Transparency = on and 0.20 or 0.72
     end
 
@@ -192,7 +195,7 @@ local function createSliderRow(App, parent, title, minimum, maximum, defaultValu
     row.LayoutOrder = order
     row.ZIndex = 1013
     row.Parent = parent
-    corner(row, 11)
+    corner(row, App:GetUIStyleValue("Players", "CardRadius", "MainPage") or 11)
     stroke(row, accent, 1, 0.72)
 
     App:CreateText(row, title, UDim2.new(1, -90, 0, 20), UDim2.fromOffset(12, 8), {
@@ -212,7 +215,7 @@ local function createSliderRow(App, parent, title, minimum, maximum, defaultValu
 
     local track = Instance.new("Frame")
     track.Position = UDim2.fromOffset(12, 57)
-    track.Size = UDim2.new(1, -24, 0, 8)
+    track.Size = UDim2.new(1, -24, 0, App:GetUIStyleValue("Players", "SliderTrack", "MainPage") or 8)
     track.BackgroundColor3 = Color3.fromRGB(55, 48, 65)
     track.BorderSizePixel = 0
     track.ZIndex = 1014
@@ -230,7 +233,8 @@ local function createSliderRow(App, parent, title, minimum, maximum, defaultValu
     local knob = Instance.new("Frame")
     knob.AnchorPoint = Vector2.new(0.5, 0.5)
     knob.Position = UDim2.new(0, 0, 0.5, 0)
-    knob.Size = UDim2.fromOffset(16, 16)
+    local sliderKnob = App:GetUIStyleValue("Players", "SliderKnob", "MainPage") or 16
+    knob.Size = UDim2.fromOffset(sliderKnob, sliderKnob)
     knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     knob.BorderSizePixel = 0
     knob.ZIndex = 1016
@@ -317,7 +321,7 @@ local function createActionButton(App, parent, title, description, accent, order
     row.LayoutOrder = order
     row.ZIndex = 1013
     row.Parent = parent
-    corner(row, 11)
+    corner(row, App:GetUIStyleValue("Players", "CardRadius", "MainPage") or 11)
     stroke(row, accent, 1, 0.58)
 
     App:CreateText(row, title, UDim2.new(1, -112, 0, 20), UDim2.fromOffset(12, 9), {
@@ -339,7 +343,7 @@ local function createActionButton(App, parent, title, description, accent, order
     local action = Instance.new("TextButton")
     action.AnchorPoint = Vector2.new(1, 0.5)
     action.Position = UDim2.new(1, -10, 0.5, 0)
-    action.Size = UDim2.fromOffset(94, 38)
+    action.Size = UDim2.fromOffset(94, math.clamp(App:GetUIStyleValue("Players", "ButtonHeight", "MainPage") or 38, 34, 58))
     action.BackgroundColor3 = accent
     action.BackgroundTransparency = 0.08
     action.BorderSizePixel = 0
@@ -370,7 +374,7 @@ local function createESPRow(App, parent, title, description, accent, feature, co
     row.LayoutOrder = order
     row.ZIndex = 1013
     row.Parent = parent
-    corner(row, 11)
+    corner(row, App:GetUIStyleValue("Players", "CardRadius", "MainPage") or 11)
     local outline = stroke(row, accent, 1, 0.72)
 
     local icon = Instance.new("TextLabel")
@@ -406,7 +410,9 @@ local function createESPRow(App, parent, title, description, accent, feature, co
     local switch = Instance.new("Frame")
     switch.AnchorPoint = Vector2.new(1, 0)
     switch.Position = UDim2.new(1, -10, 0, 10)
-    switch.Size = UDim2.fromOffset(54, 30)
+    local toggleWidth = App:GetUIStyleValue("Players", "ToggleWidth", "MainPage") or 54
+    local toggleHeight = App:GetUIStyleValue("Players", "ToggleHeight", "MainPage") or 30
+    switch.Size = UDim2.fromOffset(toggleWidth, toggleHeight)
     switch.BackgroundColor3 = Color3.fromRGB(68, 64, 78)
     switch.BorderSizePixel = 0
     switch.ZIndex = 1014
@@ -415,7 +421,8 @@ local function createESPRow(App, parent, title, description, accent, feature, co
 
     local knob = Instance.new("Frame")
     knob.Position = UDim2.fromOffset(3, 3)
-    knob.Size = UDim2.fromOffset(24, 24)
+    local knobSize = math.max(16, toggleHeight - 6)
+    knob.Size = UDim2.fromOffset(knobSize, knobSize)
     knob.BackgroundColor3 = Color3.fromRGB(245, 242, 248)
     knob.BorderSizePixel = 0
     knob.ZIndex = 1015
@@ -494,7 +501,7 @@ local function createESPRow(App, parent, title, description, accent, feature, co
         icon.TextColor3 = currentColor
         icon.BackgroundColor3 = currentColor
         switch.BackgroundColor3 = on and currentColor or Color3.fromRGB(68, 64, 78)
-        knob.Position = UDim2.fromOffset(on and 27 or 3, 3)
+        knob.Position = UDim2.fromOffset(on and (toggleWidth - knobSize - 3) or 3, 3)
         outline.Color = currentColor
         outline.Transparency = on and 0.20 or 0.72
         for _, item in ipairs(swatches) do

@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.7.2-beta"
+App.Version = "v0.8.0-beta"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -140,7 +140,7 @@ App.Config = {
     FreeRoamMinimumTitleWidth = 120,
     FreeRoamMinimumTitleHeight = 18,
     ForceMobile = false,
-    AssetVersion = "v0.7.2-beta",
+    AssetVersion = "v0.8.0-beta",
     RespectGuiInset = false,
     ShowHomeFooter = false,
 
@@ -346,14 +346,114 @@ function App:Tween(instance, properties, duration)
         return nil
     end
 
+    local animationSpeed = tonumber(
+        self:GetUIStyleForInstance(instance, "AnimationSpeed")
+    ) or 100
+    local adjustedDuration = (duration or 0.18)
+        * (100 / math.clamp(animationSpeed, 50, 200))
+
     local tween = TweenService:Create(
         instance,
-        TweenInfo.new(duration or 0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        TweenInfo.new(
+            adjustedDuration,
+            Enum.EasingStyle.Quint,
+            Enum.EasingDirection.Out
+        ),
         properties
     )
 
     tween:Play()
     return tween
+end
+
+function App:GetUIStyleContext(instance)
+    local pageName = nil
+    local context = "MainPage"
+
+    if instance and self.Pages then
+        for name, page in pairs(self.Pages) do
+            local ok, belongs = pcall(function()
+                return instance == page
+                    or instance:IsDescendantOf(page)
+            end)
+            if ok and belongs then
+                pageName = name
+                break
+            end
+        end
+    end
+
+    local current = instance
+    while current do
+        if current:GetAttribute("SquidNoMoSubpage") then
+            context = "Subpage"
+            break
+        end
+        current = current.Parent
+    end
+
+    return pageName, context
+end
+
+function App:GetUIStyleValue(pageName, key, context)
+    if not self.UIStyleManager or not self.UIStyleProfile then
+        return nil
+    end
+
+    return self.UIStyleManager:GetValue(
+        self.UIStyleProfile,
+        pageName,
+        key,
+        context or "MainPage"
+    )
+end
+
+function App:GetUIStyleForInstance(instance, key)
+    local pageName, context = self:GetUIStyleContext(instance)
+    return self:GetUIStyleValue(pageName, key, context)
+end
+
+function App:SetUIStyleProfile(profile, rebuild)
+    if not self.UIStyleManager then
+        return false
+    end
+
+    self.UIStyleProfile = self.UIStyleManager:Normalize(
+        self.UIStyleManager:Clone(profile)
+    )
+
+    if self.Session then
+        self.Session.UIStyles = self.UIStyleProfile
+        local scale = self.UIStyleManager:GetValue(
+            self.UIStyleProfile,
+            nil,
+            "AppScale",
+            "Global"
+        )
+        if scale then
+            self.Session.UserScale = scale
+        end
+        self.Session.LastPage = "UI"
+    end
+
+    self:SavePersistentSettingsNow(false)
+
+    if rebuild then
+        self:RebuildForUIStyle()
+    end
+
+    return true
+end
+
+function App:RebuildForUIStyle()
+    local loader = self.Loader
+    local manager = self.FeatureManager
+    local features = self.Features
+
+    task.defer(function()
+        self:Build(loader)
+        self:AttachFeatureManager(manager, features)
+    end)
 end
 
 function App:GetPageAccent(pageName)
@@ -369,6 +469,13 @@ function App:PulseGlow(guiObject, color)
         return
     end
 
+    local intensity = tonumber(
+        self:GetUIStyleForInstance(guiObject, "GlowIntensity")
+    ) or 70
+    if intensity <= 0 then
+        return
+    end
+
     local pulse = Instance.new("Frame")
     pulse.Name = "ClickGlow"
     pulse.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -380,7 +487,13 @@ function App:PulseGlow(guiObject, color)
     pulse.Parent = guiObject
     makeCorner(pulse, 12)
 
-    local stroke = makeStroke(pulse, color or self.Colors.Accent, 3, 0.10)
+    local strength = math.clamp(intensity / 100, 0, 1)
+    local stroke = makeStroke(
+        pulse,
+        color or self.Colors.Accent,
+        1 + (3 * strength),
+        0.18 - (0.14 * strength)
+    )
 
     if self.ReducedMotionEnabled then
         task.delay(0.08, function()
@@ -411,6 +524,32 @@ function App:BindButtonFeedback(button, color)
     end
 
     button:SetAttribute("SquidNoMoFeedback", true)
+
+    local buttonStyle = self:GetUIStyleForInstance(
+        button,
+        "ButtonStyle"
+    ) or "Soft Glow"
+
+    if button.BackgroundTransparency < 0.98 then
+        if buttonStyle == "Filled" then
+            button.BackgroundTransparency = math.min(
+                button.BackgroundTransparency,
+                0.06
+            )
+        elseif buttonStyle == "Outline" then
+            button.BackgroundTransparency = math.max(
+                button.BackgroundTransparency,
+                0.72
+            )
+        elseif buttonStyle == "Flat" then
+            button.BackgroundTransparency = math.max(
+                button.BackgroundTransparency,
+                0.16
+            )
+        elseif buttonStyle == "Glass" then
+            button.BackgroundTransparency = 0.34
+        end
+    end
 
     local baseTransparency = button.BackgroundTransparency
 
@@ -515,6 +654,11 @@ function App:GetOrCreateSession()
             BubbleSize = nil,
             WindowOpacity = 0,
             LastPage = "Home",
+            SelectedDetectiveCategory = "Find Island",
+            SelectedUICategory = "Layout & Scale",
+            UIEditScope = "Entire App",
+            UIEditTargetPage = "Players",
+            UIStyles = nil,
             LastSafePosition = nil,
         }
         environment.__SquidNoMoSession = session
@@ -541,7 +685,28 @@ end
 function App:ApplyDeviceProfile(viewport)
     viewport = viewport or self:GetViewportSize()
     local deviceClass = self:GetDeviceClass(viewport)
-    local profile = self.Config.DeviceProfiles[deviceClass] or self.Config.DeviceProfiles.Desktop
+    local sourceProfile = self.Config.DeviceProfiles[deviceClass]
+        or self.Config.DeviceProfiles.Desktop
+    local profile = {}
+
+    for key, value in pairs(sourceProfile) do
+        if type(value) == "table" then
+            local copy = {}
+            for nestedKey, nestedValue in pairs(value) do
+                copy[nestedKey] = nestedValue
+            end
+            profile[key] = copy
+        else
+            profile[key] = value
+        end
+    end
+
+    if self.UIStyleManager and self.UIStyleProfile then
+        self.UIStyleManager:ApplyProfileMetrics(
+            profile,
+            self.UIStyleProfile
+        )
+    end
 
     self.DeviceClass = deviceClass
     self.Profile = profile
@@ -671,25 +836,62 @@ function App:Init(loader)
     self.Utilities = self.Loader.Utilities
     self.Notifications = self.Loader.Notifications
     self.SettingsStore = self.Loader.SettingsStore
+    self.UIStyleManager = self.Loader.UIStyleManager
     self.FeatureManager = self.Loader.FeatureManager
     self.Features = self.Loader.Features or {}
 
     self.Session = self:GetOrCreateSession()
     self.Session.UserClosed = false
+
+    if self.UIStyleManager then
+        self.UIStyleProfile = self.UIStyleManager:Normalize(
+            self.Session.UIStyles
+        )
+        self.Session.UIStyles = self.UIStyleProfile
+        self.Colors, self.PageAccents =
+            self.UIStyleManager:BuildPalette(
+                self.UIStyleProfile
+            )
+    end
+
     self.TermsAccepted = self.Session.TermsAccepted == true
     self.DetectionStatus = self.Session.DetectionStatus or "UNKNOWN"
-    self.DetectionDetail = self.Session.DetectionDetail or "No status signal has been reported."
+    self.DetectionDetail = self.Session.DetectionDetail
+        or "No status signal has been reported."
     self.FreeRoamEnabled = self.Session.FreeRoamEnabled ~= false
     self.IsFullScreen = self.Session.FullScreenEnabled == true
     self.ButtonGlowEnabled = self.Session.ButtonGlowEnabled ~= false
     self.NavigationGlowEnabled = self.Session.NavigationGlowEnabled ~= false
-    self.CloseConfirmationEnabled = self.Session.CloseConfirmationEnabled ~= false
-    self.ReducedMotionEnabled = self.Session.ReducedMotionEnabled == true
-    self.RememberLastPageEnabled = self.Session.RememberLastPageEnabled ~= false
-    self.AutoCenterOnResizeEnabled = self.Session.AutoCenterOnResizeEnabled ~= false
-    self.UserScale = math.clamp(tonumber(self.Session.UserScale) or 1.0, 0.75, 1.15)
+    self.CloseConfirmationEnabled =
+        self.Session.CloseConfirmationEnabled ~= false
+    self.ReducedMotionEnabled =
+        self.Session.ReducedMotionEnabled == true
+    self.RememberLastPageEnabled =
+        self.Session.RememberLastPageEnabled ~= false
+    self.AutoCenterOnResizeEnabled =
+        self.Session.AutoCenterOnResizeEnabled ~= false
+
+    local styleScale = 1.0
+    if self.UIStyleManager and self.UIStyleProfile then
+        styleScale = self.UIStyleManager:GetValue(
+            self.UIStyleProfile,
+            nil,
+            "AppScale",
+            "Global"
+        ) or 1.0
+    end
+
+    self.UserScale = math.clamp(
+        tonumber(self.Session.UserScale) or styleScale,
+        0.75,
+        1.15
+    )
     self.BubbleSize = tonumber(self.Session.BubbleSize)
-    self.WindowOpacity = math.clamp(tonumber(self.Session.WindowOpacity) or 0, 0, 0.35)
+    self.WindowOpacity = math.clamp(
+        tonumber(self.Session.WindowOpacity) or 0,
+        0,
+        0.35
+    )
     self.LastSafePosition = self.Session.LastSafePosition
     self.MinimizedByFreeRoam = false
     self.AppStatus = "STARTING"
@@ -1330,8 +1532,11 @@ end
 
 function App:CreateTopbarButton(parent, name, textValue, rightOffset, baseColor)
     local mobile = self:IsMobile()
-    local width = mobile and 44 or 40
-    local height = mobile and 40 or 34
+    local preferredHeight = tonumber(
+        self:GetUIStyleValue(nil, "ButtonHeight", "Global")
+    ) or (mobile and 40 or 34)
+    local height = math.clamp(preferredHeight, 34, 52)
+    local width = math.max(mobile and 44 or 40, height)
 
     local button = Instance.new("TextButton")
     button.Name = name
@@ -1347,7 +1552,10 @@ function App:CreateTopbarButton(parent, name, textValue, rightOffset, baseColor)
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.ZIndex = 1030
     button.Parent = parent
-    makeCorner(button, 9)
+    makeCorner(
+        button,
+        self:GetUIStyleValue(nil, "ButtonRadius", "Global") or 9
+    )
     makeStroke(button, Color3.fromRGB(255, 255, 255), 1, 0.72)
 
     button.MouseEnter:Connect(function()
@@ -2666,7 +2874,11 @@ function App:CreatePage(name)
     page.BorderSizePixel = 0
     page.CanvasSize = UDim2.new(0, 0, 0, 0)
     page.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    page.ScrollBarThickness = 3
+    page.ScrollBarThickness = self:GetUIStyleValue(
+        name,
+        "ScrollbarThickness",
+        "MainPage"
+    ) or 3
     page.ScrollBarImageColor3 = self.Colors.AccentDark
     page.ScrollingDirection = Enum.ScrollingDirection.Y
     page.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
@@ -2789,7 +3001,21 @@ function App:CreateWindowToggleCard(parent, title, description, color, layoutOrd
     local switch = Instance.new("Frame")
     switch.AnchorPoint = Vector2.new(1, 0)
     switch.Position = UDim2.new(1, -16, 0, 14)
-    switch.Size = UDim2.fromOffset(phone and 48 or 52, phone and 26 or 28)
+    local toggleWidth = math.floor(
+        tonumber(self:GetUIStyleValue(
+            "Settings",
+            "ToggleWidth",
+            "MainPage"
+        )) or (phone and 48 or 52)
+    )
+    local toggleHeight = math.floor(
+        tonumber(self:GetUIStyleValue(
+            "Settings",
+            "ToggleHeight",
+            "MainPage"
+        )) or (phone and 26 or 28)
+    )
+    switch.Size = UDim2.fromOffset(toggleWidth, toggleHeight)
     switch.BackgroundColor3 = Color3.fromRGB(68, 64, 78)
     switch.BorderSizePixel = 0
     switch.ZIndex = 1013
@@ -2798,7 +3024,8 @@ function App:CreateWindowToggleCard(parent, title, description, color, layoutOrd
 
     local knob = Instance.new("Frame")
     knob.Position = UDim2.fromOffset(3, 3)
-    knob.Size = UDim2.fromOffset(phone and 20 or 22, phone and 20 or 22)
+    local knobSize = math.max(16, toggleHeight - 6)
+    knob.Size = UDim2.fromOffset(knobSize, knobSize)
     knob.BackgroundColor3 = Color3.fromRGB(245, 242, 248)
     knob.BorderSizePixel = 0
     knob.ZIndex = 1014
@@ -2866,7 +3093,20 @@ function App:CreateWindowActionCard(parent, title, description, color, layoutOrd
     local action = Instance.new("TextButton")
     action.AnchorPoint = Vector2.new(0.5, 1)
     action.Position = UDim2.new(0.5, 0, 1, -14)
-    action.Size = UDim2.new(1, -32, 0, phone and 36 or 40)
+    action.Size = UDim2.new(
+        1,
+        -32,
+        0,
+        math.clamp(
+            tonumber(self:GetUIStyleValue(
+                "Settings",
+                "ButtonHeight",
+                "MainPage"
+            )) or (phone and 36 or 40),
+            34,
+            58
+        )
+    )
     action.BackgroundColor3 = color
     action.BackgroundTransparency = 0.08
     action.BorderSizePixel = 0
@@ -2924,7 +3164,16 @@ function App:CreateWindowSliderCard(parent, title, description, color, layoutOrd
 
     local track = Instance.new("Frame")
     track.Position = UDim2.new(0, 16, 1, phone and -30 or -32)
-    track.Size = UDim2.new(1, -32, 0, 8)
+    track.Size = UDim2.new(
+        1,
+        -32,
+        0,
+        self:GetUIStyleValue(
+            "Settings",
+            "SliderTrack",
+            "MainPage"
+        ) or 8
+    )
     track.BackgroundColor3 = Color3.fromRGB(55, 48, 65)
     track.BorderSizePixel = 0
     track.ZIndex = 1013
@@ -2942,7 +3191,12 @@ function App:CreateWindowSliderCard(parent, title, description, color, layoutOrd
     local knob = Instance.new("Frame")
     knob.AnchorPoint = Vector2.new(0.5, 0.5)
     knob.Position = UDim2.new(0, 0, 0.5, 0)
-    knob.Size = UDim2.fromOffset(phone and 16 or 18, phone and 16 or 18)
+    local sliderKnob = self:GetUIStyleValue(
+        "Settings",
+        "SliderKnob",
+        "MainPage"
+    ) or (phone and 16 or 18)
+    knob.Size = UDim2.fromOffset(sliderKnob, sliderKnob)
     knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     knob.BorderSizePixel = 0
     knob.ZIndex = 1015
@@ -3066,12 +3320,23 @@ function App:GetPersistentSettingsSnapshot()
             SelectedFarmingCategory =
                 session.SelectedFarmingCategory
                 or "Player Farming",
-            DetectiveStage =
-                tonumber(session.DetectiveStage) or 1,
-            DetectiveEvidenceCount =
-                tonumber(session.DetectiveEvidenceCount) or 0,
-            DetectiveDepositedCount =
-                tonumber(session.DetectiveDepositedCount) or 0,
+            SelectedDetectiveCategory =
+                session.SelectedDetectiveCategory
+                or "Find Island",
+            SelectedUICategory =
+                session.SelectedUICategory
+                or "Layout & Scale",
+            UIEditScope =
+                session.UIEditScope
+                or "Entire App",
+            UIEditTargetPage =
+                session.UIEditTargetPage
+                or "Players",
+            UIStyles = self.UIStyleManager
+                and self.UIStyleManager:Clone(
+                    self.UIStyleProfile
+                )
+                or session.UIStyles,
         },
         Features = features,
     }
@@ -3198,12 +3463,28 @@ function App:ApplyPersistentSettingsSnapshot(saved)
             self.Session.SelectedFarmingCategory =
                 values.SelectedFarmingCategory
                 or "Player Farming"
-            self.Session.DetectiveStage =
-                tonumber(values.DetectiveStage) or 1
-            self.Session.DetectiveEvidenceCount =
-                tonumber(values.DetectiveEvidenceCount) or 0
-            self.Session.DetectiveDepositedCount =
-                tonumber(values.DetectiveDepositedCount) or 0
+            self.Session.SelectedDetectiveCategory =
+                values.SelectedDetectiveCategory
+                or "Find Island"
+            self.Session.SelectedUICategory =
+                values.SelectedUICategory
+                or "Layout & Scale"
+            self.Session.UIEditScope =
+                values.UIEditScope
+                or "Entire App"
+            self.Session.UIEditTargetPage =
+                values.UIEditTargetPage
+                or "Players"
+
+            if values.UIStyles and self.UIStyleManager then
+                self.UIStyleProfile =
+                    self.UIStyleManager:Normalize(
+                        self.UIStyleManager:Clone(
+                            values.UIStyles
+                        )
+                    )
+                self.Session.UIStyles = self.UIStyleProfile
+            end
         end
     end
 
@@ -3220,7 +3501,9 @@ function App:ApplyPersistentSettingsSnapshot(saved)
     self:RefreshWindowSettings()
     self:RefreshFeatureDashboard()
 
-    if self.RememberLastPageEnabled
+    if values and values.UIStyles then
+        self:RebuildForUIStyle()
+    elseif self.RememberLastPageEnabled
         and self.Session
         and self.Pages[self.Session.LastPage]
     then
@@ -3286,9 +3569,15 @@ function App:ResetAllSettingsToOff()
             "Red Light, Green Light"
         self.Session.SelectedGuardCategory = "Moderation"
         self.Session.SelectedFarmingCategory = "Player Farming"
-        self.Session.DetectiveStage = 1
-        self.Session.DetectiveEvidenceCount = 0
-        self.Session.DetectiveDepositedCount = 0
+        self.Session.SelectedDetectiveCategory = "Find Island"
+        self.Session.SelectedUICategory = "Layout & Scale"
+        self.Session.UIEditScope = "Entire App"
+        self.Session.UIEditTargetPage = "Players"
+        if self.UIStyleManager then
+            self.UIStyleProfile =
+                self.UIStyleManager:CreateDefaultProfile()
+            self.Session.UIStyles = self.UIStyleProfile
+        end
     end
 
     self:ResetWindowPosition()
@@ -3359,7 +3648,19 @@ end
 
 function App:SetUserScale(value)
     self.UserScale = math.clamp(tonumber(value) or 1.0, 0.75, 1.15)
-    if self.Session then self.Session.UserScale = self.UserScale end
+    if self.Session then
+        self.Session.UserScale = self.UserScale
+        if self.UIStyleManager and self.UIStyleProfile then
+            self.UIStyleManager:SetValue(
+                self.UIStyleProfile,
+                "Entire App",
+                nil,
+                "AppScale",
+                self.UserScale
+            )
+            self.Session.UIStyles = self.UIStyleProfile
+        end
+    end
     if self.Host and not self.IsFullScreen and not self.IsMaximized then
         self:UpdateResponsive(true)
     end
@@ -3472,7 +3773,7 @@ function App:BuildSettingsPage(page)
         ZIndex = 1012,
     })
 
-    self:CreateText(root, "Application behavior and recovery controls. Game enhancements remain under UI.", UDim2.new(1, 0, 0, 22), UDim2.fromOffset(0, 30), {
+    self:CreateText(root, "Application behavior, recovery, and saved profiles. Visual customization is under UI.", UDim2.new(1, 0, 0, 22), UDim2.fromOffset(0, 30), {
         Font = Enum.Font.GothamMedium,
         TextSize = self.DeviceClass == "Phone" and 10 or 11,
         Color = self.Colors.Muted,
@@ -3787,6 +4088,10 @@ function App:OpenPage(name)
         self.Session.LastPage = name
     end
 
+    if self.Session and name ~= "UI" then
+        self.Session.UIEditTargetPage = name
+    end
+
     if self.PageTitle then
         self.PageTitle.Text = string.upper(name)
     end
@@ -3802,6 +4107,26 @@ end
 function App:CreateCard(parent, size, options)
     options = options or {}
 
+    local pageName, context = self:GetUIStyleContext(parent)
+    local styleRadius = self:GetUIStyleValue(
+        pageName,
+        "CardRadius",
+        context
+    ) or 14
+    local requestedRadius = options.Radius
+    local radius = requestedRadius or styleRadius
+    if requestedRadius and requestedRadius < 90 then
+        radius = styleRadius
+    end
+
+    local borderThickness = options.BorderThickness
+        or self:GetUIStyleValue(
+            pageName,
+            "BorderThickness",
+            context
+        )
+        or 1
+
     local card = Instance.new("Frame")
     card.Size = size
     card.BackgroundColor3 = options.Color or self.Colors.Card
@@ -3810,11 +4135,11 @@ function App:CreateCard(parent, size, options)
     card.ClipsDescendants = options.ClipsDescendants ~= false
     card.ZIndex = options.ZIndex or 1010
     card.Parent = parent
-    makeCorner(card, options.Radius or 14)
+    makeCorner(card, radius)
     makeStroke(
         card,
         options.BorderColor or self.Colors.BorderSoft,
-        options.BorderThickness or 1,
+        borderThickness,
         options.BorderTransparency or 0.15
     )
 
@@ -3840,7 +4165,14 @@ function App:CreateText(parent, text, size, position, options)
             requestedTextSize = requestedTextSize + 1
         end
     end
-    label.TextSize = requestedTextSize
+    local textScale = tonumber(
+        self:GetUIStyleForInstance(parent, "TextScale")
+    ) or 1
+    label.TextSize = math.clamp(
+        math.floor((requestedTextSize * textScale) + 0.5),
+        8,
+        36
+    )
     label.TextColor3 = options.Color or self.Colors.Text
     label.TextTransparency = options.Transparency or 0
     label.TextWrapped = options.Wrapped or false
@@ -4011,7 +4343,10 @@ function App:CreateEqualThreeColumnRow(parent, y, height, name)
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
     layout.VerticalAlignment = Enum.VerticalAlignment.Top
     layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 12)
+    layout.Padding = UDim.new(
+        0,
+        self:GetUIStyleForInstance(parent, "ColumnGap") or 12
+    )
     layout.Parent = row
 
     return row
