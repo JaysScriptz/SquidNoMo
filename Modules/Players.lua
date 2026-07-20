@@ -1,211 +1,151 @@
 local PlayersPage = {}
 
-local UserInputService = game:GetService("UserInputService")
-
-local function corner(parent, radius)
-    local value = Instance.new("UICorner")
-    value.CornerRadius = UDim.new(0, radius or 12)
-    value.Parent = parent
-    return value
-end
-
-local function stroke(parent, color, thickness, transparency)
-    local value = Instance.new("UIStroke")
-    value.Color = color
-    value.Thickness = thickness or 1
-    value.Transparency = transparency or 0
-    value.Parent = parent
-    return value
+local function resolveFeature(App, id)
+    local manager = App.FeatureManager
+    if not manager or not manager.Registry then
+        return nil
+    end
+    local entry = manager.Registry[id]
+    return entry and entry.Feature or nil
 end
 
 local function notifyManager(App)
     if App.FeatureManager and type(App.FeatureManager.Notify) == "function" then
-        pcall(function()
-            App.FeatureManager:Notify()
-        end)
+        App.FeatureManager:Notify()
     end
 end
 
-local function isEnabled(feature)
-    if type(feature) ~= "table" then
-        return false
-    end
-
-    local ok, result = pcall(function()
-        if type(feature.IsEnabled) == "function" then
-            return feature:IsEnabled()
-        end
-        if type(feature.GetState) == "function" then
-            local state = feature:GetState()
-            return state == true or state == "on" or state == "enabled"
-        end
-        return false
-    end)
-
-    return ok and result == true
-end
-
-local function setEnabled(feature, state)
-    if type(feature) ~= "table" then
-        return false
-    end
-
-    local method = state and feature.Enable or feature.Disable
-    if type(method) ~= "function" then
-        return false
-    end
-
-    local ok, result = pcall(method, feature)
-    return ok and result ~= false
-end
-
-local function createColumn(App, row, title, subtitle, accent, order)
-    local card = App:CreateCard(row, UDim2.new(0.333333, -8, 1, 0), {
-        Color = Color3.fromRGB(14, 10, 20),
+local function createColumnShell(App, parent, title, subtitle, accent, order)
+    local column = App:CreateCard(parent, UDim2.new(0, 0, 1, 0), {
+        Color = App.Colors.Card,
         BorderColor = accent,
-        BorderTransparency = 0.12,
-        Radius = App:IsMobile() and 13 or 16,
+        BorderTransparency = 0.14,
+        Radius = App:IsMobile() and 14 or 16,
     })
-    card.LayoutOrder = order
-    card.ClipsDescendants = true
+    column.Name = title:gsub("%s+", "") .. "Column"
+    column.LayoutOrder = order or 1
 
-    App:CreateText(card, title, UDim2.new(1, -28, 0, 25), UDim2.fromOffset(14, 12), {
-        Font = Enum.Font.GothamBlack,
-        TextSize = App:IsMobile() and 17 or 19,
-        Color = accent,
-        ZIndex = 1013,
-    })
+    App:CreateText(
+        column,
+        string.upper(title),
+        UDim2.new(1, -24, 0, 26),
+        UDim2.fromOffset(14, 12),
+        {
+            Font = Enum.Font.GothamBlack,
+            TextSize = App:IsMobile() and 14 or 17,
+            Color = accent,
+            ZIndex = 1012,
+        }
+    )
 
-    App:CreateText(card, subtitle, UDim2.new(1, -28, 0, 34), UDim2.fromOffset(14, 39), {
-        Font = Enum.Font.GothamMedium,
-        TextSize = App:IsMobile() and 12 or 13,
-        Color = App.Colors.Text,
-        Wrapped = true,
-        YAlignment = Enum.TextYAlignment.Top,
-        ZIndex = 1013,
-    })
+    App:CreateText(
+        column,
+        subtitle,
+        UDim2.new(1, -24, 0, 34),
+        UDim2.fromOffset(14, 38),
+        {
+            Font = Enum.Font.GothamMedium,
+            TextSize = App:IsMobile() and 10 or 11,
+            Color = App.Colors.Muted,
+            Wrapped = true,
+            ZIndex = 1012,
+        }
+    )
 
-    local holder = Instance.new("Frame")
-    holder.Position = UDim2.fromOffset(12, 88)
-    holder.Size = UDim2.new(1, -24, 1, -100)
-    holder.BackgroundTransparency = 1
-    holder.BorderSizePixel = 0
-    holder.ZIndex = 1012
-    holder.Parent = card
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Name = "Scroll"
+    scroll.Position = UDim2.fromOffset(10, 82)
+    scroll.Size = UDim2.new(1, -20, 1, -92)
+    scroll.BackgroundTransparency = 1
+    scroll.BorderSizePixel = 0
+    scroll.CanvasSize = UDim2.fromOffset(0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.ScrollBarThickness = App:IsMobile() and 6 or 8
+    scroll.ScrollBarImageColor3 = accent
+    scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+    scroll.Parent = column
 
     local layout = Instance.new("UIListLayout")
-    layout.FillDirection = Enum.FillDirection.Vertical
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, App:GetUIStyleValue("Players", "SectionSpacing", "MainPage") or 8)
-    layout.Parent = holder
+    layout.Padding = UDim.new(0, 10)
+    layout.Parent = scroll
 
-    return card, holder
+    local pad = Instance.new("UIPadding")
+    pad.PaddingTop = UDim.new(0, 4)
+    pad.PaddingBottom = UDim.new(0, 4)
+    pad.Parent = scroll
+
+    return column, scroll
 end
 
-local function createToggleRow(App, parent, title, description, accent, feature, order)
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 98)
-    row.BackgroundColor3 = App.Colors.CardAlt
-    row.BackgroundTransparency = 0.20
-    row.BorderSizePixel = 0
-    row.LayoutOrder = order
-    row.ZIndex = 1013
-    row.Parent = parent
-    corner(row, App:GetUIStyleValue("Players", "CardRadius", "MainPage") or 11)
-    local outline = stroke(row, accent, 1, 0.72)
+local function createActionToggle(App, parent, title, description, accent, featureId)
+    local card = App:CreateCard(parent, UDim2.new(1, 0, 0, 104), {
+        Color = App.Colors.CardAlt,
+        BorderColor = accent,
+        BorderTransparency = 0.22,
+        Radius = 14,
+    })
 
-    App:CreateText(row, title, UDim2.new(1, -82, 0, 20), UDim2.fromOffset(12, 8), {
+    App:CreateText(card, title, UDim2.new(1, -88, 0, 22), UDim2.fromOffset(14, 12), {
         Font = Enum.Font.GothamBold,
         TextSize = App:IsMobile() and 13 or 14,
         Color = App.Colors.Text,
         ZIndex = 1014,
     })
 
-    local detail = App:CreateText(row, description, UDim2.new(1, -84, 0, 28), UDim2.fromOffset(12, 31), {
+    App:CreateText(card, description, UDim2.new(1, -100, 0, 42), UDim2.fromOffset(14, 36), {
         Font = Enum.Font.GothamMedium,
-        TextSize = App:IsMobile() and 11 or 12,
-        Color = App.Colors.Text,
+        TextSize = App:IsMobile() and 10 or 11,
+        Color = App.Colors.Muted,
         Wrapped = true,
-        YAlignment = Enum.TextYAlignment.Top,
         ZIndex = 1014,
     })
 
-    local switch = Instance.new("Frame")
-    switch.AnchorPoint = Vector2.new(1, 0.5)
-    switch.Position = UDim2.new(1, -12, 0.5, 0)
-    local toggleWidth = App:GetUIStyleValue("Players", "ToggleWidth", "MainPage") or 54
-    local toggleHeight = App:GetUIStyleValue("Players", "ToggleHeight", "MainPage") or 30
-    switch.Size = UDim2.fromOffset(toggleWidth, toggleHeight)
-    switch.BackgroundColor3 = Color3.fromRGB(68, 64, 78)
-    switch.BorderSizePixel = 0
-    switch.ZIndex = 1014
-    switch.Parent = row
-    corner(switch, 99)
+    local toggle = App:CreateToggle(card, UDim2.fromOffset(60, 30), UDim2.new(1, -74, 0, 14), false, {
+        AccentColor = accent,
+        ZIndex = 1015,
+    })
 
-    local knob = Instance.new("Frame")
-    knob.Position = UDim2.fromOffset(3, 3)
-    local knobSize = math.max(16, toggleHeight - 6)
-    knob.Size = UDim2.fromOffset(knobSize, knobSize)
-    knob.BackgroundColor3 = Color3.fromRGB(245, 242, 248)
-    knob.BorderSizePixel = 0
-    knob.ZIndex = 1015
-    knob.Parent = switch
-    corner(knob, 99)
-
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.fromScale(1, 1)
-    button.BackgroundTransparency = 1
-    button.BorderSizePixel = 0
-    button.AutoButtonColor = false
-    button.Text = ""
-    button.ZIndex = 1016
-    button.Parent = row
-    App:BindButtonFeedback(button, accent)
-
-    local refs = {Feature = feature, Row = row, Switch = switch, Knob = knob, Outline = outline, Detail = detail}
-
-    function refs:Refresh()
-        local on = isEnabled(feature)
-        switch.BackgroundColor3 = on and accent or Color3.fromRGB(68, 64, 78)
-        knob.Position = UDim2.fromOffset(on and (toggleWidth - knobSize - 3) or 3, 3)
-        outline.Transparency = on and 0.20 or 0.72
+    local feature = resolveFeature(App, featureId)
+    if feature and type(feature.IsEnabled) == "function" then
+        local ok, enabled = pcall(feature.IsEnabled, feature)
+        if ok and enabled then
+            toggle:Set(true)
+        end
     end
 
-    button.Activated:Connect(function()
-        local desired = not isEnabled(feature)
-        if setEnabled(feature, desired) then
-            notifyManager(App)
-            refs:Refresh()
-        elseif App.Notifications and type(App.Notifications.Warning) == "function" then
-            App.Notifications:Warning("Players", title .. " is unavailable in this runtime.", 3)
+    toggle.Changed:Connect(function(state)
+        if not feature then
+            feature = resolveFeature(App, featureId)
         end
+        if not feature then
+            return
+        end
+
+        if state then
+            if type(feature.Enable) == "function" then
+                pcall(feature.Enable, feature)
+            end
+        else
+            if type(feature.Disable) == "function" then
+                pcall(feature.Disable, feature)
+            end
+        end
+        notifyManager(App)
     end)
 
-    refs:Refresh()
-    return refs
+    return card
 end
 
-local function createSliderRow(App, parent, title, minimum, maximum, defaultValue, feature, accent, order)
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 82)
-    row.BackgroundColor3 = App.Colors.CardAlt
-    row.BackgroundTransparency = 0.20
-    row.BorderSizePixel = 0
-    row.LayoutOrder = order
-    row.ZIndex = 1013
-    row.Parent = parent
-    corner(row, App:GetUIStyleValue("Players", "CardRadius", "MainPage") or 11)
-    stroke(row, accent, 1, 0.72)
-
-    App:CreateText(row, title, UDim2.new(1, -90, 0, 20), UDim2.fromOffset(12, 8), {
-        Font = Enum.Font.GothamBold,
-        TextSize = App:IsMobile() and 13 or 14,
-        Color = App.Colors.Text,
-        ZIndex = 1014,
+local function createSliderCard(App, parent, title, accent, featureId, minValue, maxValue, step)
+    local card = App:CreateCard(parent, UDim2.new(1, 0, 0, 132), {
+        Color = App.Colors.CardAlt,
+        BorderColor = accent,
+        BorderTransparency = 0.22,
+        Radius = 14,
     })
 
-    local valueLabel = App:CreateText(row, tostring(defaultValue), UDim2.fromOffset(68, 20), UDim2.new(1, -80, 0, 8), {
+    local valueLabel = App:CreateText(card, "0", UDim2.fromOffset(58, 22), UDim2.new(1, -72, 0, 12), {
         Font = Enum.Font.GothamBlack,
         TextSize = App:IsMobile() and 13 or 14,
         Color = accent,
@@ -213,414 +153,260 @@ local function createSliderRow(App, parent, title, minimum, maximum, defaultValu
         ZIndex = 1014,
     })
 
-    local track = Instance.new("Frame")
-    track.Position = UDim2.fromOffset(12, 57)
-    track.Size = UDim2.new(1, -24, 0, App:GetUIStyleValue("Players", "SliderTrack", "MainPage") or 8)
-    track.BackgroundColor3 = Color3.fromRGB(55, 48, 65)
-    track.BorderSizePixel = 0
-    track.ZIndex = 1014
-    track.Parent = row
-    corner(track, 99)
+    App:CreateText(card, title, UDim2.new(1, -80, 0, 22), UDim2.fromOffset(14, 12), {
+        Font = Enum.Font.GothamBold,
+        TextSize = App:IsMobile() and 13 or 14,
+        Color = App.Colors.Text,
+        ZIndex = 1014,
+    })
 
-    local fill = Instance.new("Frame")
-    fill.Size = UDim2.new(0, 0, 1, 0)
-    fill.BackgroundColor3 = accent
-    fill.BorderSizePixel = 0
-    fill.ZIndex = 1015
-    fill.Parent = track
-    corner(fill, 99)
+    local feature = resolveFeature(App, featureId)
+    local currentValue = minValue
 
-    local knob = Instance.new("Frame")
-    knob.AnchorPoint = Vector2.new(0.5, 0.5)
-    knob.Position = UDim2.new(0, 0, 0.5, 0)
-    local sliderKnob = App:GetUIStyleValue("Players", "SliderKnob", "MainPage") or 16
-    knob.Size = UDim2.fromOffset(sliderKnob, sliderKnob)
-    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    knob.BorderSizePixel = 0
-    knob.ZIndex = 1016
-    knob.Parent = track
-    corner(knob, 99)
-    stroke(knob, accent, 2, 0.05)
-
-    local hitbox = Instance.new("TextButton")
-    hitbox.Position = UDim2.fromOffset(0, -12)
-    hitbox.Size = UDim2.new(1, 0, 0, 32)
-    hitbox.BackgroundTransparency = 1
-    hitbox.BorderSizePixel = 0
-    hitbox.AutoButtonColor = false
-    hitbox.Text = ""
-    hitbox.ZIndex = 1017
-    hitbox.Parent = track
-
-    local current = defaultValue
-    local dragging = false
-
-    local function getValue()
-        if type(feature) == "table" and type(feature.Get) == "function" then
-            local ok, value = pcall(feature.Get, feature)
-            if ok and type(value) == "number" then
-                return value
-            end
+    if feature and type(feature.Get) == "function" then
+        local ok, value = pcall(feature.Get, feature)
+        if ok and type(value) == "number" then
+            currentValue = value
         end
-        return current
     end
 
-    local function render(value)
-        current = math.clamp(math.floor(value + 0.5), minimum, maximum)
-        local alpha = (current - minimum) / math.max(1, maximum - minimum)
-        fill.Size = UDim2.new(alpha, 0, 1, 0)
-        knob.Position = UDim2.new(alpha, 0, 0.5, 0)
-        valueLabel.Text = tostring(current)
-    end
-
-    local function setFromInput(input)
-        local width = math.max(1, track.AbsoluteSize.X)
-        local alpha = math.clamp((input.Position.X - track.AbsolutePosition.X) / width, 0, 1)
-        local value = minimum + ((maximum - minimum) * alpha)
-        render(value)
-        if type(feature) == "table" and type(feature.Set) == "function" then
-            pcall(feature.Set, feature, current)
+    local function applyValue(value)
+        local rounded = math.clamp(math.floor((value / step) + 0.5) * step, minValue, maxValue)
+        currentValue = rounded
+        valueLabel.Text = tostring(rounded)
+        if not feature then
+            feature = resolveFeature(App, featureId)
+        end
+        if feature and type(feature.Set) == "function" then
+            pcall(feature.Set, feature, rounded)
             notifyManager(App)
         end
     end
 
-    hitbox.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            setFromInput(input)
-        end
-    end)
-
-    hitbox.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            setFromInput(input)
-        end
-    end)
-
-    render(getValue())
-
-    return {
-        Refresh = function()
-            render(getValue())
+    local slider = App:CreateSlider(card, {
+        Position = UDim2.fromOffset(14, 42),
+        Size = UDim2.new(1, -28, 0, 26),
+        Min = minValue,
+        Max = maxValue,
+        Value = currentValue,
+        AccentColor = accent,
+        TrackHeight = 12,
+        KnobSize = 24,
+        TouchMultiplier = 0.45,
+        OnChanged = function(value)
+            applyValue(value)
         end,
+    })
+
+    local row = Instance.new("Frame")
+    row.Name = "AdjustRow"
+    row.Position = UDim2.fromOffset(14, 82)
+    row.Size = UDim2.new(1, -28, 0, 34)
+    row.BackgroundTransparency = 1
+    row.BorderSizePixel = 0
+    row.Parent = card
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.Padding = UDim.new(0, 8)
+    layout.Parent = row
+
+    local adjusters = {
+        {-10, "-10"},
+        {-5, "-5"},
+        {-1, "-1"},
+        {1, "+1"},
+        {5, "+5"},
+        {10, "+10"},
     }
-end
 
-local function createActionButton(App, parent, title, description, accent, order, callback)
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 90)
-    row.BackgroundColor3 = App.Colors.CardAlt
-    row.BackgroundTransparency = 0.20
-    row.BorderSizePixel = 0
-    row.LayoutOrder = order
-    row.ZIndex = 1013
-    row.Parent = parent
-    corner(row, App:GetUIStyleValue("Players", "CardRadius", "MainPage") or 11)
-    stroke(row, accent, 1, 0.58)
-
-    App:CreateText(row, title, UDim2.new(1, -112, 0, 20), UDim2.fromOffset(12, 9), {
-        Font = Enum.Font.GothamBold,
-        TextSize = App:IsMobile() and 13 or 14,
-        Color = App.Colors.Text,
-        ZIndex = 1014,
-    })
-
-    App:CreateText(row, description, UDim2.new(1, -116, 0, 34), UDim2.fromOffset(12, 32), {
-        Font = Enum.Font.GothamMedium,
-        TextSize = App:IsMobile() and 11 or 12,
-        Color = App.Colors.Text,
-        Wrapped = true,
-        YAlignment = Enum.TextYAlignment.Top,
-        ZIndex = 1014,
-    })
-
-    local action = Instance.new("TextButton")
-    action.AnchorPoint = Vector2.new(1, 0.5)
-    action.Position = UDim2.new(1, -10, 0.5, 0)
-    action.Size = UDim2.fromOffset(94, math.clamp(App:GetUIStyleValue("Players", "ButtonHeight", "MainPage") or 38, 34, 58))
-    action.BackgroundColor3 = accent
-    action.BackgroundTransparency = 0.08
-    action.BorderSizePixel = 0
-    action.AutoButtonColor = false
-    action.Font = Enum.Font.GothamBold
-    action.Text = "RUN"
-    action.TextSize = 10
-    action.TextColor3 = Color3.fromRGB(255, 255, 255)
-    action.ZIndex = 1015
-    action.Parent = row
-    corner(action, 9)
-    App:BindButtonFeedback(action, accent)
-
-    action.Activated:Connect(function()
-        local ok = pcall(callback)
-        if not ok and App.Notifications and type(App.Notifications.Warning) == "function" then
-            App.Notifications:Warning("Players", title .. " could not run.", 3)
-        end
-    end)
-end
-
-local function createESPRow(App, parent, title, description, accent, feature, colors, order)
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 112)
-    row.BackgroundColor3 = App.Colors.CardAlt
-    row.BackgroundTransparency = 0.20
-    row.BorderSizePixel = 0
-    row.LayoutOrder = order
-    row.ZIndex = 1013
-    row.Parent = parent
-    corner(row, App:GetUIStyleValue("Players", "CardRadius", "MainPage") or 11)
-    local outline = stroke(row, accent, 1, 0.72)
-
-    local icon = Instance.new("TextLabel")
-    icon.Position = UDim2.fromOffset(10, 8)
-    icon.Size = UDim2.fromOffset(28, 28)
-    icon.BackgroundColor3 = accent
-    icon.BackgroundTransparency = 0.78
-    icon.BorderSizePixel = 0
-    icon.Font = Enum.Font.GothamBlack
-    icon.Text = "●"
-    icon.TextSize = 15
-    icon.TextColor3 = accent
-    icon.ZIndex = 1014
-    icon.Parent = row
-    corner(icon, 9)
-
-    App:CreateText(row, title, UDim2.new(1, -104, 0, 20), UDim2.fromOffset(44, 8), {
-        Font = Enum.Font.GothamBold,
-        TextSize = App:IsMobile() and 13 or 14,
-        Color = App.Colors.Text,
-        ZIndex = 1014,
-    })
-
-    App:CreateText(row, description, UDim2.new(1, -104, 0, 23), UDim2.fromOffset(44, 29), {
-        Font = Enum.Font.GothamMedium,
-        TextSize = App:IsMobile() and 11 or 12,
-        Color = App.Colors.Text,
-        Wrapped = true,
-        YAlignment = Enum.TextYAlignment.Top,
-        ZIndex = 1014,
-    })
-
-    local switch = Instance.new("Frame")
-    switch.AnchorPoint = Vector2.new(1, 0)
-    switch.Position = UDim2.new(1, -10, 0, 10)
-    local toggleWidth = App:GetUIStyleValue("Players", "ToggleWidth", "MainPage") or 54
-    local toggleHeight = App:GetUIStyleValue("Players", "ToggleHeight", "MainPage") or 30
-    switch.Size = UDim2.fromOffset(toggleWidth, toggleHeight)
-    switch.BackgroundColor3 = Color3.fromRGB(68, 64, 78)
-    switch.BorderSizePixel = 0
-    switch.ZIndex = 1014
-    switch.Parent = row
-    corner(switch, 99)
-
-    local knob = Instance.new("Frame")
-    knob.Position = UDim2.fromOffset(3, 3)
-    local knobSize = math.max(16, toggleHeight - 6)
-    knob.Size = UDim2.fromOffset(knobSize, knobSize)
-    knob.BackgroundColor3 = Color3.fromRGB(245, 242, 248)
-    knob.BorderSizePixel = 0
-    knob.ZIndex = 1015
-    knob.Parent = switch
-    corner(knob, 99)
-
-    local swatchHolder = Instance.new("Frame")
-    swatchHolder.Position = UDim2.fromOffset(44, 82)
-    swatchHolder.Size = UDim2.new(1, -56, 0, 20)
-    swatchHolder.BackgroundTransparency = 1
-    swatchHolder.ZIndex = 1014
-    swatchHolder.Parent = row
-
-    local swatchLayout = Instance.new("UIListLayout")
-    swatchLayout.FillDirection = Enum.FillDirection.Horizontal
-    swatchLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-    swatchLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-    swatchLayout.Padding = UDim.new(0, 7)
-    swatchLayout.Parent = swatchHolder
-
-    local swatches = {}
-    for index, color in ipairs(colors) do
-        local swatch = Instance.new("TextButton")
-        swatch.Size = UDim2.fromOffset(20, 20)
-        swatch.BackgroundColor3 = color
-        swatch.BorderSizePixel = 0
-        swatch.AutoButtonColor = false
-        swatch.Text = ""
-        swatch.LayoutOrder = index
-        swatch.ZIndex = 1015
-        swatch.Parent = swatchHolder
-        corner(swatch, 6)
-        local swatchStroke = stroke(swatch, Color3.fromRGB(255, 255, 255), 1, 0.72)
-        App:BindButtonFeedback(swatch, color)
-
-        swatch.Activated:Connect(function()
-            if type(feature) == "table" and type(feature.SetColor) == "function" then
-                pcall(feature.SetColor, feature, color)
-                notifyManager(App)
-                for _, item in ipairs(swatches) do
-                    item.Stroke.Transparency = item.Color == color and 0.08 or 0.72
-                    item.Stroke.Thickness = item.Color == color and 2 or 1
-                end
+    for _, info in ipairs(adjusters) do
+        local delta, label = info[1], info[2]
+        local button = App:CreateQuickButton(row, label, UDim2.fromOffset(48, 34), accent)
+        button.Activated:Connect(function()
+            local nextValue = currentValue + (delta * step)
+            applyValue(nextValue)
+            if slider and slider.SetValue then
+                slider:SetValue(currentValue)
             end
         end)
-        table.insert(swatches, {Button = swatch, Stroke = swatchStroke, Color = color})
     end
 
-    local toggle = Instance.new("TextButton")
-    toggle.Size = UDim2.fromScale(1, 1)
-    toggle.BackgroundTransparency = 1
-    toggle.BorderSizePixel = 0
-    toggle.AutoButtonColor = false
-    toggle.Text = ""
-    toggle.ZIndex = 1013
-    toggle.Parent = row
+    applyValue(currentValue)
+    return card
+end
 
-    -- Keep color swatches clickable above the row toggle.
-    swatchHolder.ZIndex = 1017
-    for _, item in ipairs(swatches) do
-        item.Button.ZIndex = 1018
-    end
-    switch.ZIndex = 1017
-    knob.ZIndex = 1018
+local function createColorEspCard(App, parent, title, description, accent, featureId, swatches)
+    local card = createActionToggle(App, parent, title, description, accent, featureId)
+    card.Size = UDim2.new(1, 0, 0, 126)
 
-    local refs = {}
-    function refs:Refresh()
-        local on = isEnabled(feature)
-        local currentColor = accent
-        if type(feature) == "table" and type(feature.GetColor) == "function" then
-            local ok, result = pcall(feature.GetColor, feature)
-            if ok and typeof(result) == "Color3" then
-                currentColor = result
+    local row = Instance.new("Frame")
+    row.Name = "Swatches"
+    row.Position = UDim2.fromOffset(14, 82)
+    row.Size = UDim2.new(1, -28, 0, 28)
+    row.BackgroundTransparency = 1
+    row.Parent = card
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.Padding = UDim.new(0, 10)
+    layout.Parent = row
+
+    local feature = resolveFeature(App, featureId)
+    for _, color in ipairs(swatches or {}) do
+        local sw = Instance.new("TextButton")
+        sw.AutoButtonColor = false
+        sw.Text = ""
+        sw.Size = UDim2.fromOffset(22, 22)
+        sw.BackgroundColor3 = color
+        sw.BorderSizePixel = 0
+        sw.Parent = row
+
+        local c = Instance.new("UICorner")
+        c.CornerRadius = UDim.new(1, 0)
+        c.Parent = sw
+
+        sw.Activated:Connect(function()
+            if not feature then
+                feature = resolveFeature(App, featureId)
             end
-        end
-        icon.TextColor3 = currentColor
-        icon.BackgroundColor3 = currentColor
-        switch.BackgroundColor3 = on and currentColor or Color3.fromRGB(68, 64, 78)
-        knob.Position = UDim2.fromOffset(on and (toggleWidth - knobSize - 3) or 3, 3)
-        outline.Color = currentColor
-        outline.Transparency = on and 0.20 or 0.72
-        for _, item in ipairs(swatches) do
-            local selected = item.Color == currentColor
-            item.Stroke.Transparency = selected and 0.08 or 0.72
-            item.Stroke.Thickness = selected and 2 or 1
-        end
+            if feature and type(feature.SetColor) == "function" then
+                pcall(feature.SetColor, feature, color)
+                notifyManager(App)
+            end
+        end)
     end
 
-    toggle.Activated:Connect(function()
-        local desired = not isEnabled(feature)
-        if setEnabled(feature, desired) then
-            notifyManager(App)
-            refs:Refresh()
-        end
-    end)
-
-    refs:Refresh()
-    return refs
+    return card
 end
 
 function PlayersPage:Create(Page, App)
     Page:ClearAllChildren()
 
     local padding = App.Profile.ContentPadding
-    local root = Instance.new("Frame")
-    root.Position = UDim2.fromOffset(padding, padding)
-    root.Size = UDim2.new(1, -(padding * 2), 0, 1510)
-    root.BackgroundTransparency = 1
-    root.BorderSizePixel = 0
-    root.Parent = Page
 
-    local banner = App:CreateCard(root, UDim2.new(1, 0, 0, 88), {
-        Color = Color3.fromRGB(15, 10, 23),
+    local header = App:CreateCard(Page, UDim2.new(1, -(padding * 2), 0, 88), {
+        Color = App.Colors.PagePanel or App.Colors.Card,
         BorderColor = App:GetPageAccent("Players"),
-        BorderTransparency = 0.08,
-        Radius = App:IsMobile() and 14 or 17,
+        BorderTransparency = 0.12,
+        Radius = App:IsMobile() and 14 or 16,
     })
-    banner.Position = UDim2.fromOffset(0, 0)
+    header.Position = UDim2.fromOffset(padding, padding)
 
-    App:CreateText(banner, "PLAYER FEATURES", UDim2.new(1, -36, 0, 28), UDim2.fromOffset(18, 10), {
+    App:CreateText(header, "PLAYER FEATURES", UDim2.new(1, -24, 0, 28), UDim2.fromOffset(18, 14), {
         Font = Enum.Font.GothamBlack,
-        TextSize = App:IsMobile() and 20 or 23,
+        TextSize = App:IsMobile() and 18 or 22,
         Color = App:GetPageAccent("Players"),
-        ZIndex = 1013,
-    })
-    App:CreateText(banner, "Stable local movement, player information, camera controls, and session utilities linked to the live feature registry.", UDim2.new(1, -36, 0, 24), UDim2.fromOffset(18, 39), {
-        Font = Enum.Font.GothamMedium,
-        TextSize = App:IsMobile() and 12 or 13,
-        Color = App.Colors.Text,
-        Wrapped = true,
-        ZIndex = 1013,
+        ZIndex = 1012,
     })
 
-    local columns = App:CreateEqualThreeColumnRow(root, 100, 1390, "PlayersUniversalColumns")
+    App:CreateText(
+        header,
+        "Stable local movement, player overlays, and quality-of-life utilities in a balanced three-column layout.",
+        UDim2.new(1, -24, 0, 32),
+        UDim2.fromOffset(18, 46),
+        {
+            Font = Enum.Font.GothamMedium,
+            TextSize = App:IsMobile() and 10 or 11,
+            Color = App.Colors.Muted,
+            Wrapped = true,
+            ZIndex = 1012,
+        }
+    )
 
-    local _, movement = createColumn(App, columns, "MOVEMENT & CAMERA", "Local character and camera behavior.", App.Colors.Info, 1)
-    local _, esp = createColumn(App, columns, "PLAYER ESP", "Role, distance, and health overlays.", App.Colors.Success, 2)
-    local _, utilities = createColumn(App, columns, "LOCAL UTILITIES", "Stable quality-of-life controls and actions.", App.Colors.Warning, 3)
+    local bodyY = padding + 100
+    local bodyH = Page.AbsoluteSize.Y - bodyY - padding
+    if bodyH < 260 then
+        bodyH = 260
+    end
 
-    local features = App.Features and App.Features.Player or {}
-    local refreshers = {}
+    local body = Instance.new("Frame")
+    body.Name = "Body"
+    body.Position = UDim2.fromOffset(padding, bodyY)
+    body.Size = UDim2.new(1, -(padding * 2), 1, -(bodyY + padding))
+    body.BackgroundTransparency = 1
+    body.Parent = Page
 
-    table.insert(refreshers, createSliderRow(App, movement, "Walk Speed", 16, 100, 16, features.WalkSpeed, App.Colors.Info, 1))
-    table.insert(refreshers, createSliderRow(App, movement, "Jump Power", 50, 200, 50, features.JumpPower, App:GetPageAccent("Players"), 2))
-    table.insert(refreshers, createSliderRow(App, movement, "Gravity", 20, 300, 196, features.Gravity, App.Colors.Warning, 3))
-    table.insert(refreshers, createToggleRow(App, movement, "Infinite Jump", "Allows repeated jumps while airborne.", App.Colors.Warning, features.InfiniteJump, 4))
-    table.insert(refreshers, createToggleRow(App, movement, "Auto Jump", "Jumps automatically while moving on the ground.", App.Colors.Success, features.AutoJump, 5))
-    table.insert(refreshers, createToggleRow(App, movement, "Noclip", "Disables local character collisions.", App.Colors.Error, features.Noclip, 6))
-    table.insert(refreshers, createToggleRow(App, movement, "Force Third Person", "Keeps the local camera in third-person view.", App.Colors.Info, features.ForceThirdPerson, 7))
-    table.insert(refreshers, createToggleRow(App, movement, "Unlock Camera Zoom", "Expands the local camera zoom range.", App:GetPageAccent("Players"), features.UnlockZoom, 8))
-    table.insert(refreshers, createToggleRow(App, movement, "Auto Stand", "Automatically exits seated states.", App.Colors.Success, features.AutoStand, 9))
+    local grid = Instance.new("UIGridLayout")
+    grid.CellPadding = UDim2.fromOffset(14, 0)
+    grid.FillDirection = Enum.FillDirection.Horizontal
+    grid.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    grid.SortOrder = Enum.SortOrder.LayoutOrder
+    grid.VerticalAlignment = Enum.VerticalAlignment.Top
+    grid.Parent = body
 
-    table.insert(refreshers, createESPRow(App, esp, "Player ESP", "Highlights standard players.", Color3.fromRGB(0, 170, 255), features.PlayerESP, {
-        Color3.fromRGB(0, 170, 255), Color3.fromRGB(45, 232, 98), Color3.fromRGB(245, 245, 255),
-    }, 1))
-    table.insert(refreshers, createESPRow(App, esp, "Guard ESP", "Highlights detected guards.", Color3.fromRGB(235, 55, 70), features.GuardESP, {
-        Color3.fromRGB(235, 55, 70), Color3.fromRGB(255, 132, 40), Color3.fromRGB(255, 58, 145),
-    }, 2))
-    table.insert(refreshers, createESPRow(App, esp, "Detective ESP", "Highlights detected detectives.", Color3.fromRGB(0, 230, 150), features.DetectiveESP, {
-        Color3.fromRGB(0, 230, 150), Color3.fromRGB(0, 205, 255), Color3.fromRGB(255, 214, 70),
-    }, 3))
-    table.insert(refreshers, createESPRow(App, esp, "Frontman ESP", "Highlights detected frontmen.", Color3.fromRGB(172, 76, 255), features.FrontmanESP, {
-        Color3.fromRGB(172, 76, 255), Color3.fromRGB(232, 67, 255), Color3.fromRGB(245, 245, 255),
-    }, 4))
-    table.insert(refreshers, createESPRow(App, esp, "Distance ESP", "Shows distance from the local character.", Color3.fromRGB(0, 205, 255), features.DistanceESP, {
-        Color3.fromRGB(0, 205, 255), Color3.fromRGB(255, 196, 64), Color3.fromRGB(245, 245, 255),
-    }, 5))
-    table.insert(refreshers, createToggleRow(App, esp, "Health ESP", "Shows live health with green, yellow, and red states.", App.Colors.Success, features.HealthESP, 6))
-
-    table.insert(refreshers, createToggleRow(App, utilities, "Anti AFK", "Prevents idle disconnects during the session.", App.Colors.Success, features.AntiAFK, 1))
-    table.insert(refreshers, createToggleRow(App, utilities, "Anti Lag", "Reduces local terrain water and explosion effects.", App.Colors.Info, features.AntiLag, 2))
-    table.insert(refreshers, createToggleRow(App, utilities, "Hide Other Players", "Makes other characters invisible only on your client.", App:GetPageAccent("Players"), features.HideOthers, 3))
-    table.insert(refreshers, createToggleRow(App, utilities, "Hide Local Character", "Hides your own character locally without affecting others.", App.Colors.Info, features.HideSelf, 4))
-    table.insert(refreshers, createToggleRow(App, utilities, "Mute Character Sounds", "Mutes sounds attached to your local character.", App.Colors.Warning, features.MuteCharacterSounds, 5))
-
-    createActionButton(App, utilities, "Reset Character", "Respawns the local character.", App.Colors.Error, 6, function()
-        if features.Reset and type(features.Reset.Execute) == "function" then
-            features.Reset:Execute()
+    local function refreshGrid()
+        local width = body.AbsoluteSize.X
+        local gap = 14
+        local colWidth = math.floor((width - (gap * 2)) / 3)
+        if colWidth < 220 then
+            colWidth = 220
         end
-    end)
-    createActionButton(App, utilities, "Rejoin Server", "Reconnects to the current place.", App:GetPageAccent("Players"), 7, function()
-        if features.Rejoin and type(features.Rejoin.Execute) == "function" then
-            features.Rejoin:Execute()
-        end
-    end)
+        grid.CellSize = UDim2.fromOffset(colWidth, body.AbsoluteSize.Y)
+    end
 
+    body:GetPropertyChangedSignal("AbsoluteSize"):Connect(refreshGrid)
+    refreshGrid()
 
-    task.spawn(function()
-        while Page and Page.Parent do
-            task.wait(0.5)
-            for _, refs in ipairs(refreshers) do
-                if refs and type(refs.Refresh) == "function" then
-                    pcall(refs.Refresh, refs)
-                end
-            end
-        end
-    end)
+    local moveCol, moveScroll = createColumnShell(
+        App,
+        body,
+        "Movement & Camera",
+        "Smooth sliders, jump helpers, and stable local character control.",
+        Color3.fromRGB(0, 190, 255),
+        1
+    )
+
+    local espCol, espScroll = createColumnShell(
+        App,
+        body,
+        "Player ESP",
+        "Role, distance, and health overlays with color selection.",
+        Color3.fromRGB(0, 255, 120),
+        2
+    )
+
+    local utilCol, utilScroll = createColumnShell(
+        App,
+        body,
+        "Local Utilities",
+        "Lightweight client-side helpers that improve session comfort.",
+        Color3.fromRGB(255, 193, 58),
+        3
+    )
+
+    createSliderCard(App, moveScroll, "Walk Speed", Color3.fromRGB(0,190,255), "player.walk_speed", 16, 120, 1)
+    createSliderCard(App, moveScroll, "Jump Power", Color3.fromRGB(188,84,255), "player.jump_power", 50, 220, 1)
+    createSliderCard(App, moveScroll, "Gravity", Color3.fromRGB(255,199,74), "player.gravity", 50, 196, 1)
+    createActionToggle(App, moveScroll, "Infinite Jump", "Allows repeated jumps while airborne.", Color3.fromRGB(255,95,95), "player.infinite_jump")
+    createActionToggle(App, moveScroll, "Auto Jump", "Retries jump input in a stable loop while enabled.", Color3.fromRGB(255,142,78), "player.auto_jump")
+
+    createColorEspCard(App, espScroll, "Player ESP", "Highlights standard players.", Color3.fromRGB(0,170,255), "player.player_esp", {
+        Color3.fromRGB(0,170,255), Color3.fromRGB(66,255,105), Color3.fromRGB(255,255,255)
+    })
+    createColorEspCard(App, espScroll, "Guard ESP", "Highlights detected guards.", Color3.fromRGB(235,55,70), "player.guard_esp", {
+        Color3.fromRGB(235,55,70), Color3.fromRGB(255,146,54), Color3.fromRGB(255,64,164)
+    })
+    createColorEspCard(App, espScroll, "Detective ESP", "Highlights detected detectives.", Color3.fromRGB(0,230,150), "player.detective_esp", {
+        Color3.fromRGB(0,230,150), Color3.fromRGB(0,198,255), Color3.fromRGB(255,214,74)
+    })
+    createColorEspCard(App, espScroll, "Frontman ESP", "Highlights detected frontmen.", Color3.fromRGB(172,76,255), "player.frontman_esp", {
+        Color3.fromRGB(172,76,255), Color3.fromRGB(225,73,255), Color3.fromRGB(240,240,255)
+    })
+    createColorEspCard(App, espScroll, "Distance ESP", "Displays distance readouts for nearby tracked roles.", Color3.fromRGB(0,205,255), "player.distance_esp", {
+        Color3.fromRGB(0,205,255), Color3.fromRGB(90,255,210), Color3.fromRGB(255,255,255)
+    })
+    createColorEspCard(App, espScroll, "Health ESP", "Shows health bars or health readouts for tracked roles.", Color3.fromRGB(255,82,82), "player.health_esp", {
+        Color3.fromRGB(255,82,82), Color3.fromRGB(255,172,64), Color3.fromRGB(85,255,127)
+    })
+
+    createActionToggle(App, utilScroll, "Anti AFK", "Prevents idle disconnects during the session.", Color3.fromRGB(66,255,130), "player.anti_afk")
+    createActionToggle(App, utilScroll, "Anti Lag", "Reduces local terrain water and explosion effects.", Color3.fromRGB(0,170,255), "player.anti_lag")
+    createActionToggle(App, utilScroll, "Hide Other Players", "Makes other characters invisible only on your client.", Color3.fromRGB(188,84,255), "player.hide_others")
+    createActionToggle(App, utilScroll, "Hide Local Character", "Hides your own character locally without affecting others.", Color3.fromRGB(255,159,67), "player.hide_local_character")
+    createActionToggle(App, utilScroll, "Tool ESP", "Highlights dropped tools and important interactables.", Color3.fromRGB(255,210,60), "player.tool_esp")
 end
-
 
 return PlayersPage
