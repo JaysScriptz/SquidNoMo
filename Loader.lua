@@ -1,6 +1,6 @@
 --// SquidNoMo loader v0.8.2-beta
 
-local BUILD_VERSION = "v0.8.2-beta"
+local BUILD_VERSION = "v0.8.3-beta"
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -70,6 +70,18 @@ local Loader = {}
 Loader.Config = Config
 Loader.BuildVersion = BUILD_VERSION
 
+local Bootstrap = Environment.__SquidNoMoBootstrap
+local loadStep = 0
+local estimatedSteps = 34
+
+local function ReportLoading(message, progress)
+    if type(Bootstrap) == "table" and type(Bootstrap.SetStatus) == "function" then
+        Bootstrap:SetStatus(message, progress)
+    end
+end
+
+ReportLoading("Configuration loaded...", 0.28)
+
 function Loader:GetRemoteUrl(path)
     return AddVersion(self.Config.Repository .. path)
 end
@@ -80,6 +92,11 @@ end
 
 function Loader:LoadRemote(path)
     print("[Loader] " .. path)
+    loadStep = loadStep + 1
+    local readable = string.gsub(path, "%.lua$", "")
+    readable = string.gsub(readable, "/", " › ")
+    local progress = 0.28 + (math.min(loadStep, estimatedSteps) / estimatedSteps) * 0.58
+    ReportLoading("Loading " .. readable .. "...", progress)
 
     local source = self:FetchSource(path)
     local chunk, compileError = loadstring(source)
@@ -238,6 +255,8 @@ if type(savedApp) == "table" then
     end
 end
 
+ReportLoading("Initializing feature modules...", 0.88)
+
 -- Features must exist before Players and UI pages capture their references.
 local featuresLoaded, featuresOrError = pcall(function()
     return Loader.FeatureManager:Initialize(Loader)
@@ -265,8 +284,10 @@ else
 end
 
 Loader.App.Features = Loader.Features
+ReportLoading("Building the interface...", 0.94)
 Loader.App:Build(Loader)
 Loader.App:AttachFeatureManager(Loader.FeatureManager, Loader.Features)
+ReportLoading("Finalizing startup...", 0.98)
 
 Session.Version = BUILD_VERSION
 Session.Loader = Loader

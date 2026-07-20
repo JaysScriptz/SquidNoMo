@@ -4178,11 +4178,13 @@ function App:CreateText(parent, text, size, position, options)
     label.Text = tostring(text or "")
     local requestedTextSize = options.TextSize or 13
     if self.Config.MobileTextBoost and self:IsMobile() then
-        if requestedTextSize <= 9 then
-            requestedTextSize = 10
-        elseif requestedTextSize <= 10 then
-            requestedTextSize = 11
-        elseif requestedTextSize <= 12 then
+        -- Phone displays shrink the app surface considerably. Keep labels
+        -- readable even when the window is not expanded to fullscreen.
+        if requestedTextSize <= 10 then
+            requestedTextSize = 12
+        elseif requestedTextSize <= 13 then
+            requestedTextSize = requestedTextSize + 2
+        else
             requestedTextSize = requestedTextSize + 1
         end
     end

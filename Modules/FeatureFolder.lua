@@ -58,13 +58,17 @@ function FeatureFolder:Render(Page, App, options)
 
     local grid = Instance.new("UIGridLayout")
     grid.SortOrder = Enum.SortOrder.LayoutOrder
-    grid.CellPadding = UDim2.fromOffset(12, 12)
-    grid.CellSize = UDim2.new(App:IsMobile() and 1 or 0.5, App:IsMobile() and 0 or -6, 0, 122)
+    -- Feature subpages always use two columns, including phones. This keeps
+    -- controls compact instead of stretching every button across the page.
+    local cellGap = App:IsMobile() and 8 or 12
+    local cardHeight = App:IsMobile() and 158 or 142
+    grid.CellPadding = UDim2.fromOffset(cellGap, cellGap)
+    grid.CellSize = UDim2.new(0.5, -(cellGap / 2), 0, cardHeight)
     grid.Parent = content
 
     local features = options.Features or {}
     for index, info in ipairs(features) do
-        local card = App:CreateCard(content, UDim2.new(1, 0, 0, 122), {
+        local card = App:CreateCard(content, UDim2.new(1, 0, 0, cardHeight), {
             Color = App.Colors.CardAlt,
             BorderColor = accent,
             BorderTransparency = 0.18,
@@ -72,16 +76,18 @@ function FeatureFolder:Render(Page, App, options)
         })
         card.LayoutOrder = index
 
-        App:CreateText(card, info.Name, UDim2.new(1, -92, 0, 24), UDim2.fromOffset(14, 14), {
+        App:CreateText(card, info.Name, UDim2.new(1, -28, 0, 44), UDim2.fromOffset(14, 12), {
             Font = Enum.Font.GothamBold,
-            TextSize = App:IsMobile() and 13 or 14,
+            TextSize = App:IsMobile() and 14 or 15,
+            Wrapped = true,
+            YAlignment = Enum.TextYAlignment.Top,
             Color = App.Colors.Text,
             ZIndex = 1014,
         })
 
-        App:CreateText(card, info.Description or ("Loads " .. info.Path), UDim2.new(1, -98, 0, 55), UDim2.fromOffset(14, 44), {
+        App:CreateText(card, info.Description or ("Loads " .. info.Path), UDim2.new(1, -28, 0, App:IsMobile() and 58 or 48), UDim2.fromOffset(14, 58), {
             Font = Enum.Font.GothamMedium,
-            TextSize = App:IsMobile() and 10 or 11,
+            TextSize = App:IsMobile() and 12 or 12,
             Color = App.Colors.Muted,
             Wrapped = true,
             YAlignment = Enum.TextYAlignment.Top,
@@ -89,9 +95,11 @@ function FeatureFolder:Render(Page, App, options)
         })
 
         local button = Instance.new("TextButton")
-        button.AnchorPoint = Vector2.new(1, 0)
-        button.Position = UDim2.new(1, -14, 0, 14)
-        button.Size = UDim2.fromOffset(58, 32)
+        button.AnchorPoint = Vector2.new(0.5, 1)
+        button.Position = UDim2.new(0.5, 0, 1, -12)
+        local toggleWidth = App:IsMobile() and 68 or 62
+        local toggleHeight = App:IsMobile() and 38 or 34
+        button.Size = UDim2.fromOffset(toggleWidth, toggleHeight)
         button.BackgroundColor3 = Color3.fromRGB(70, 66, 80)
         button.BorderSizePixel = 0
         button.AutoButtonColor = false
@@ -101,7 +109,8 @@ function FeatureFolder:Render(Page, App, options)
         makeCorner(button, 999)
 
         local knob = Instance.new("Frame")
-        knob.Size = UDim2.fromOffset(26, 26)
+        local knobSize = toggleHeight - 6
+        knob.Size = UDim2.fromOffset(knobSize, knobSize)
         knob.Position = UDim2.fromOffset(3, 3)
         knob.BackgroundColor3 = Color3.fromRGB(242, 239, 247)
         knob.BorderSizePixel = 0
@@ -113,7 +122,8 @@ function FeatureFolder:Render(Page, App, options)
         local function render()
             local on = enabledState(feature)
             button.BackgroundColor3 = on and accent or Color3.fromRGB(70, 66, 80)
-            knob.Position = UDim2.fromOffset(on and 29 or 3, 3)
+            local travel = toggleWidth - knobSize - 3
+            knob.Position = UDim2.fromOffset(on and travel or 3, 3)
         end
 
         button.Activated:Connect(function()
@@ -144,9 +154,12 @@ function FeatureFolder:Render(Page, App, options)
     end
 
     task.defer(function()
-        local rows = math.max(1, math.ceil(#features / (App:IsMobile() and 1 or 2)))
+        local rows = math.max(1, math.ceil(#features / 2))
         Page.AutomaticCanvasSize = Enum.AutomaticSize.None
-        Page.CanvasSize = UDim2.fromOffset(0, topY + rows * 134 + 36)
+        Page.CanvasSize = UDim2.fromOffset(
+            0,
+            topY + rows * (cardHeight + cellGap) + 36
+        )
     end)
 
     return content

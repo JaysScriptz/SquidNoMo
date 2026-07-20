@@ -36,6 +36,9 @@ function CategoryStrip:Create(Page, App, options)
         'CategoryBubbleWidth',
         'Subpage'
     ) or options.ButtonWidth or 190
+    if App:IsMobile() then
+        buttonWidth = math.max(buttonWidth, 176)
+    end
     local buttonHeight = App:GetUIStyleValue(
         pageName,
         'CategoryBubbleHeight',
@@ -216,7 +219,7 @@ function CategoryStrip:Create(Page, App, options)
             UDim2.fromOffset(12, 8),
             {
                 Font = Enum.Font.GothamBlack,
-                TextSize = 10,
+                TextSize = App:IsMobile() and 12 or 11,
                 Color = accent,
                 ZIndex = 1014,
             }
@@ -229,7 +232,7 @@ function CategoryStrip:Create(Page, App, options)
             UDim2.fromOffset(12, 25),
             {
                 Font = Enum.Font.GothamBold,
-                TextSize = App:IsMobile() and 11 or 12,
+                TextSize = App:IsMobile() and 14 or 13,
                 Color = App.Colors.Text,
                 Wrapped = true,
                 YAlignment = Enum.TextYAlignment.Center,
