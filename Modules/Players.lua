@@ -534,7 +534,7 @@ function PlayersPage:Create(Page, App)
     })
     banner.Position = UDim2.fromOffset(0, 0)
 
-    App:CreateText(banner, "PLAYER FEATURES", UDim2.new(1, -220, 0, 28), UDim2.fromOffset(18, 10), {
+    App:CreateText(banner, "PLAYER FEATURES", UDim2.new(1, -36, 0, 28), UDim2.fromOffset(18, 10), {
         Font = Enum.Font.GothamBlack,
         TextSize = App:IsMobile() and 20 or 23,
         Color = App:GetPageAccent("Players"),
@@ -547,12 +547,11 @@ function PlayersPage:Create(Page, App)
         Wrapped = true,
         ZIndex = 1013,
     })
-    App:CreatePill(banner, "3-COLUMN UNIVERSAL", App:GetPageAccent("Players"), UDim2.new(1, -176, 0, 18), 158)
 
     local columns = App:CreateEqualThreeColumnRow(root, 100, 1390, "PlayersUniversalColumns")
 
     local _, movement = createColumn(App, columns, "MOVEMENT & CAMERA", "Local character and camera behavior.", App.Colors.Info, 1)
-    local _, esp = createColumn(App, columns, "PLAYER ESP", "Independent information overlays and colors.", App.Colors.Success, 2)
+    local _, esp = createColumn(App, columns, "PLAYER ESP", "Role, distance, health, and box overlays.", App.Colors.Success, 2)
     local _, utilities = createColumn(App, columns, "LOCAL UTILITIES", "Stable quality-of-life controls and actions.", App.Colors.Warning, 3)
 
     local features = App.Features and App.Features.Player or {}
@@ -580,16 +579,13 @@ function PlayersPage:Create(Page, App)
     table.insert(refreshers, createESPRow(App, esp, "Frontman ESP", "Highlights detected frontmen.", Color3.fromRGB(172, 76, 255), features.FrontmanESP, {
         Color3.fromRGB(172, 76, 255), Color3.fromRGB(232, 67, 255), Color3.fromRGB(245, 245, 255),
     }, 4))
-    table.insert(refreshers, createESPRow(App, esp, "Name ESP", "Shows each player's display name.", Color3.fromRGB(245, 245, 255), features.NameESP, {
-        Color3.fromRGB(245, 245, 255), Color3.fromRGB(0, 205, 255), Color3.fromRGB(255, 58, 145),
-    }, 5))
     table.insert(refreshers, createESPRow(App, esp, "Distance ESP", "Shows distance from the local character.", Color3.fromRGB(0, 205, 255), features.DistanceESP, {
         Color3.fromRGB(0, 205, 255), Color3.fromRGB(255, 196, 64), Color3.fromRGB(245, 245, 255),
-    }, 6))
-    table.insert(refreshers, createToggleRow(App, esp, "Health ESP", "Shows live health with green, yellow, and red states.", App.Colors.Success, features.HealthESP, 7))
+    }, 5))
+    table.insert(refreshers, createToggleRow(App, esp, "Health ESP", "Shows live health with green, yellow, and red states.", App.Colors.Success, features.HealthESP, 6))
     table.insert(refreshers, createESPRow(App, esp, "Box ESP", "Draws a clean outline around every player.", App:GetPageAccent("Players"), features.BoxESP, {
         Color3.fromRGB(255, 58, 145), Color3.fromRGB(172, 76, 255), Color3.fromRGB(255, 255, 255),
-    }, 8))
+    }, 7))
 
     table.insert(refreshers, createToggleRow(App, utilities, "Anti AFK", "Prevents idle disconnects during the session.", App.Colors.Success, features.AntiAFK, 1))
     table.insert(refreshers, createToggleRow(App, utilities, "Anti Lag", "Reduces local terrain water and explosion effects.", App.Colors.Info, features.AntiLag, 2))
@@ -608,30 +604,6 @@ function PlayersPage:Create(Page, App)
         end
     end)
 
-    local status = Instance.new("Frame")
-    status.Size = UDim2.new(1, 0, 0, 62)
-    status.BackgroundColor3 = App.Colors.CardAlt
-    status.BackgroundTransparency = 0.20
-    status.BorderSizePixel = 0
-    status.LayoutOrder = 8
-    status.ZIndex = 1013
-    status.Parent = utilities
-    corner(status, 11)
-    stroke(status, App.Colors.BorderSoft, 1, 0.55)
-
-    App:CreateText(status, "LIVE FEATURE LINK", UDim2.new(1, -24, 0, 18), UDim2.fromOffset(12, 8), {
-        Font = Enum.Font.GothamBold,
-        TextSize = App:IsMobile() and 12 or 13,
-        Color = App.Colors.Warning,
-        ZIndex = 1014,
-    })
-    App:CreateText(status, "Every toggle refreshes from the central feature registry.", UDim2.new(1, -24, 0, 30), UDim2.fromOffset(12, 27), {
-        Font = Enum.Font.GothamMedium,
-        TextSize = App:IsMobile() and 11 or 12,
-        Color = App.Colors.Text,
-        Wrapped = true,
-        ZIndex = 1014,
-    })
 
     task.spawn(function()
         while Page and Page.Parent do

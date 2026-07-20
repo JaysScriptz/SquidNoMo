@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.6.2-beta"
+App.Version = "v0.6.4-beta"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -76,7 +76,7 @@ App.Config = {
             HomeGap = 8,
             HeroHeight = 130,
             FeatureHeight = 196,
-            BottomStatsHeight = 124,
+            BottomStatsHeight = 242,
             NavigationButtonHeight = 37,
             NavigationPadding = 4,
             SupportPanelHeight = 184,
@@ -95,7 +95,7 @@ App.Config = {
             HomeGap = 10,
             HeroHeight = 168,
             FeatureHeight = 220,
-            BottomStatsHeight = 150,
+            BottomStatsHeight = 274,
             NavigationButtonHeight = 42,
             NavigationPadding = 5,
             SupportPanelHeight = 196,
@@ -114,7 +114,7 @@ App.Config = {
             HomeGap = 11,
             HeroHeight = 176,
             FeatureHeight = 224,
-            BottomStatsHeight = 160,
+            BottomStatsHeight = 272,
             NavigationButtonHeight = 44,
             NavigationPadding = 6,
             SupportPanelHeight = 204,
@@ -140,7 +140,7 @@ App.Config = {
     FreeRoamMinimumTitleWidth = 120,
     FreeRoamMinimumTitleHeight = 18,
     ForceMobile = false,
-    AssetVersion = "v0.6.2-beta",
+    AssetVersion = "v0.6.4-beta",
     RespectGuiInset = false,
     ShowHomeFooter = false,
 
@@ -412,14 +412,47 @@ function App:BindButtonFeedback(button, color)
 
     button:SetAttribute("SquidNoMoFeedback", true)
 
-    self:Track(button.MouseButton1Down:Connect(function()
+    local baseTransparency = button.BackgroundTransparency
+
+    local function isPressInput(input)
+        return input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch
+    end
+
+    self:Track(button.InputBegan:Connect(function(input)
+        if not isPressInput(input) then
+            return
+        end
+
         self:PulseGlow(button, color or self.Colors.Accent)
-        self:Tween(button, {BackgroundTransparency = math.min(0.18, button.BackgroundTransparency + 0.08)}, 0.08)
+
+        -- Transparent hit targets stay transparent. Visible buttons receive
+        -- only a subtle pressed-state fade.
+        if baseTransparency < 0.98 then
+            self:Tween(
+                button,
+                {
+                    BackgroundTransparency = math.min(
+                        1,
+                        baseTransparency + 0.08
+                    ),
+                },
+                0.08
+            )
+        end
     end))
 
-    self:Track(button.MouseButton1Up:Connect(function()
+    self:Track(button.InputEnded:Connect(function(input)
+        if not isPressInput(input) then
+            return
+        end
+
         if button and button.Parent then
-            self:Tween(button, {BackgroundTransparency = 0}, 0.12)
+            self:Tween(
+                button,
+                {BackgroundTransparency = baseTransparency},
+                0.12
+            )
         end
     end))
 end
@@ -4072,32 +4105,71 @@ function App:CreateThreeColumnRow(parent, height, layoutOrder)
     return row
 end
 
-function App:CreateCompactMetric(parent, position, widthScale, labelText, valueText, valueColor)
+function App:CreateCompactMetric(
+    parent,
+    position,
+    widthScale,
+    labelText,
+    valueText,
+    valueColor,
+    detailText,
+    height
+)
+    local phone = self.DeviceClass == "Phone"
+    local metricHeight = height or (phone and 76 or 90)
+
     local frame = Instance.new("Frame")
     frame.Position = position
-    frame.Size = UDim2.new(widthScale, -18, 0, self.DeviceClass == "Phone" and 76 or 90)
+    frame.Size = UDim2.new(widthScale, -18, 0, metricHeight)
     frame.BackgroundColor3 = self.Colors.CardAlt
-    frame.BackgroundTransparency = 0.34
+    frame.BackgroundTransparency = 0.22
     frame.BorderSizePixel = 0
     frame.ZIndex = 1012
     frame.Parent = parent
-    makeCorner(frame, 11)
+    makeCorner(frame, 12)
+    makeStroke(frame, self.Colors.BorderSoft, 1, 0.62)
 
-    self:CreateText(frame, labelText, UDim2.new(1, -12, 0, 20), UDim2.fromOffset(6, 9), {
-        Font = Enum.Font.GothamMedium,
-        TextSize = self.DeviceClass == "Phone" and 9 or 10,
-        Color = self.Colors.Muted,
-        XAlignment = Enum.TextXAlignment.Center,
-        ZIndex = 1013,
-    })
+    self:CreateText(
+        frame,
+        labelText,
+        UDim2.new(1, -18, 0, 22),
+        UDim2.fromOffset(9, 14),
+        {
+            Font = Enum.Font.GothamBold,
+            TextSize = phone and 11 or 12,
+            Color = self.Colors.Muted,
+            XAlignment = Enum.TextXAlignment.Center,
+            ZIndex = 1013,
+        }
+    )
 
-    local value = self:CreateText(frame, valueText, UDim2.new(1, -12, 0, 30), UDim2.fromOffset(6, self.DeviceClass == "Phone" and 32 or 39), {
-        Font = Enum.Font.GothamBold,
-        TextSize = self.DeviceClass == "Phone" and 14 or 16,
-        Color = valueColor or self.Colors.Text,
-        XAlignment = Enum.TextXAlignment.Center,
-        ZIndex = 1013,
-    })
+    local value = self:CreateText(
+        frame,
+        valueText,
+        UDim2.new(1, -18, 0, 42),
+        UDim2.new(0, 9, 0.5, -20),
+        {
+            Font = Enum.Font.GothamBlack,
+            TextSize = phone and 24 or 28,
+            Color = valueColor or self.Colors.Text,
+            XAlignment = Enum.TextXAlignment.Center,
+            ZIndex = 1013,
+        }
+    )
+
+    self:CreateText(
+        frame,
+        string.upper(detailText or "LIVE"),
+        UDim2.new(1, -18, 0, 20),
+        UDim2.new(0, 9, 1, -34),
+        {
+            Font = Enum.Font.GothamBold,
+            TextSize = phone and 9 or 10,
+            Color = self.Colors.Accent,
+            XAlignment = Enum.TextXAlignment.Center,
+            ZIndex = 1013,
+        }
+    )
 
     return value
 end
@@ -4136,14 +4208,70 @@ function App:BuildBottomStatsRow(parent)
         ZIndex = 1013,
     })
 
-    local metricY = phone and 43 or 50
-    local playersValue = self:CreateCompactMetric(left, UDim2.fromOffset(14, metricY), 0.333, "Players", tostring(#Players:GetPlayers()), self.Colors.Text)
-    local pingValue = self:CreateCompactMetric(left, UDim2.new(0.333333, 7, 0, metricY), 0.333333, "Ping", "-- ms", self.Colors.Text)
-    local fpsValue = self:CreateCompactMetric(left, UDim2.new(0.666666, 0, 0, metricY), 0.333334, "FPS", "--", self.Colors.Text)
+    local metricY = phone and 46 or 52
+    local metricHeight = rowHeight - metricY - (phone and 12 or 14)
 
-    local uptimeValue = self:CreateCompactMetric(right, UDim2.fromOffset(14, metricY), 0.333, "Uptime", "00:00", self.Colors.Text)
-    local memoryValue = self:CreateCompactMetric(right, UDim2.new(0.333333, 7, 0, metricY), 0.333333, "Memory", "-- MB", self.Colors.Text)
-    local versionValue = self:CreateCompactMetric(right, UDim2.new(0.666666, 0, 0, metricY), 0.333334, "Version", self.Version, self.Colors.Text)
+    local playersValue = self:CreateCompactMetric(
+        left,
+        UDim2.fromOffset(14, metricY),
+        0.333,
+        "Players",
+        tostring(#Players:GetPlayers()),
+        self.Colors.Text,
+        "In Server",
+        metricHeight
+    )
+    local pingValue = self:CreateCompactMetric(
+        left,
+        UDim2.new(0.333333, 7, 0, metricY),
+        0.333333,
+        "Ping",
+        "-- ms",
+        self.Colors.Text,
+        "Network",
+        metricHeight
+    )
+    local fpsValue = self:CreateCompactMetric(
+        left,
+        UDim2.new(0.666666, 0, 0, metricY),
+        0.333334,
+        "FPS",
+        "--",
+        self.Colors.Text,
+        "Rendering",
+        metricHeight
+    )
+
+    local uptimeValue = self:CreateCompactMetric(
+        right,
+        UDim2.fromOffset(14, metricY),
+        0.333,
+        "Uptime",
+        "00:00",
+        self.Colors.Text,
+        "Session",
+        metricHeight
+    )
+    local memoryValue = self:CreateCompactMetric(
+        right,
+        UDim2.new(0.333333, 7, 0, metricY),
+        0.333333,
+        "Memory",
+        "-- MB",
+        self.Colors.Text,
+        "Client",
+        metricHeight
+    )
+    local versionValue = self:CreateCompactMetric(
+        right,
+        UDim2.new(0.666666, 0, 0, metricY),
+        0.333334,
+        "Version",
+        self.Version,
+        self.Colors.Text,
+        "Current Build",
+        metricHeight
+    )
 
     self.FeatureWidgets.LoadedValue = nil
 
