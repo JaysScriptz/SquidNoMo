@@ -140,6 +140,7 @@ Loader.App = Load("Core/App.lua")
 
 Loader.Home = Load("Modules/Home.lua")
 Loader.CategoryStrip = Load("Modules/CategoryStrip.lua")
+Loader.FeatureFolder = Load("Modules/FeatureFolder.lua")
 Loader.Games = Load("Modules/Games.lua")
 Loader.Players = Load("Modules/Players.lua")
 Loader.Guards = Load("Modules/Guards.lua")

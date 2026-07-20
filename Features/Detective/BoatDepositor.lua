@@ -1,6 +1,23 @@
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local Navigator = require(script.Parent.Parent.IslandNavigator)
+local PathfindingService = game:GetService("PathfindingService")
+
+local Navigator = { Active = true }
+function Navigator:NavigateTo(targetPosition)
+    local player = Players.LocalPlayer
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChildOfClass("Humanoid") then return end
+    local path = PathfindingService:CreatePath({AgentRadius = 3, AgentHeight = 5})
+    local ok = pcall(function() path:ComputeAsync(char.HumanoidRootPart.Position, targetPosition) end)
+    if ok and path.Status == Enum.PathStatus.Success then
+        for _, waypoint in ipairs(path:GetWaypoints()) do
+            if not self.Active then break end
+            char:FindFirstChildOfClass("Humanoid"):MoveTo(waypoint.Position)
+            char:FindFirstChildOfClass("Humanoid").MoveToFinished:Wait()
+        end
+    end
+end
+
 
 local BoatDepositor = { Enabled = false }
 
