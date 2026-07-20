@@ -14,7 +14,6 @@ local function interactWithTarget(targetPart)
     end
 end
 
--- Checks inventory specifically for a finished/cooked meal
 local function getCookedFoodTool(player)
     local inventory = player.Backpack:GetChildren()
     if player.Character then
@@ -47,20 +46,15 @@ function KitchenCookedHandler:Toggle(state)
             local kitchenFolder = Workspace:FindFirstChild("Kitchen") or Workspace:FindFirstChild("FoodStations") or Workspace
             local cookedTool = getCookedFoodTool(localPlayer)
             
-            -- PHASE 1: If we HAVE cooked food, prioritize storing it in the cabinet
+            -- PHASE 1: Store cooked food in cabinet
             if cookedTool then
                 for _, obj in ipairs(kitchenFolder:GetDescendants()) do
                     if obj:IsA("BasePart") or obj:IsA("Model") then
                         local partName = obj.Name:lower()
                         if partName:match("cabinet") or partName:match("storage") or partName:match("tray") then
                             local targetPos = obj:IsA("Model") and (obj.PrimaryPart and obj.PrimaryPart.Position or obj:GetModelCFrame().Position) or obj.Position
-                            local dist = (targetPos - character.HumanoidRootPart.Position).Magnitude
-                            
-                            -- Strict local distance check
-                            if dist <= self.MaxInteractRange then
-                                if cookedTool.Parent == localPlayer.Backpack then
-                                    cookedTool.Parent = character
-                                end
+                            if (targetPos - character.HumanoidRootPart.Position).Magnitude <= self.MaxInteractRange then
+                                if cookedTool.Parent == localPlayer.Backpack then cookedTool.Parent = character end
                                 interactWithTarget(obj)
                                 self.ActionCooldown = tick()
                                 return
@@ -68,29 +62,29 @@ function KitchenCookedHandler:Toggle(state)
                         end
                     end
                 end
-                return -- Stop executing further if we are currently holding food but not near a cabinet
+                return
             end
             
-            -- PHASE 2: If we DO NOT have cooked food, look for pots to grab finished food from
-            -- (Assuming raw supplies are handled by the separate KitchenPotCooker script)
+            -- PHASE 2: Grab finished food from the pot
             local currentEquipped = character:FindFirstChildOfClass("Tool")
-            if not currentEquipped then -- Ensure hands are completely empty to grab from pot
+            if not currentEquipped then 
                 for _, obj in ipairs(kitchenFolder:GetDescendants()) do
                     if obj:IsA("BasePart") or obj:IsA("Model") then
                         local partName = obj.Name:lower()
                         if partName:match("pot") or partName:match("stove") then
                             
-                            -- Verify if the pot has an active prompt (ready to be grabbed)
                             local prompt = obj:FindFirstChildOfClass("ProximityPrompt")
                             if prompt and prompt.Enabled then
-                                -- Optional: You can add a check for prompt.ActionText == "Grab" if the game uses specific text
-                                local targetPos = obj:IsA("Model") and (obj.PrimaryPart and obj.PrimaryPart.Position or obj:GetModelCFrame().Position) or obj.Position
-                                local dist = (targetPos - character.HumanoidRootPart.Position).Magnitude
-                                
-                                if dist <= self.MaxInteractRange then
-                                    interactWithTarget(obj)
-                                    self.ActionCooldown = tick()
-                                    return
+                                -- CRITICAL FIX: Ensure the prompt is for taking food, not placing raw meat
+                                local actionText = prompt.ActionText:lower()
+                                if actionText:match("take") or actionText:match("grab") or actionText:match("collect") then
+                                    
+                                    local targetPos = obj:IsA("Model") and (obj.PrimaryPart and obj.PrimaryPart.Position or obj:GetModelCFrame().Position) or obj.Position
+                                    if (targetPos - character.HumanoidRootPart.Position).Magnitude <= self.MaxInteractRange then
+                                        interactWithTarget(obj)
+                                        self.ActionCooldown = tick()
+                                        return
+                                    end
                                 end
                             end
                             
@@ -100,7 +94,7 @@ function KitchenCookedHandler:Toggle(state)
             end
             
         end)
-        print("[SquidNoMo]: KitchenCookedHandler Enabled. Managing Pot-to-Cabinet transfers.")
+        print("[SquidNoMo]: KitchenCookedHandler Enabled.")
     else
         if self.Connection then self.Connection:Disconnect() end
         print("[SquidNoMo]: KitchenCookedHandler Disabled.")
