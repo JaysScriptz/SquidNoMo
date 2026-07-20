@@ -1,7 +1,7 @@
 # SquidNoMo Module Verification and Repair Report
 
 Generated: 2026-07-20
-Build: **v0.8.5-beta**
+Build: **1.1 beta 1**
 
 ## Final static result
 
@@ -24,7 +24,17 @@ Build: **v0.8.5-beta**
 6. Rebuilt Hide & Seek Auto Grab Key and Auto Grab Knife to cancel active workers/tweens cleanly.
 7. Fixed Hide & Seek Auto Path to Exit so it discovers the exit itself. The page previously supplied no `mapFolder`, making the original module unusable from its button.
 8. Removed Luau-only `continue` usage from the three Hide & Seek modules, allowing all files to pass the same static parser.
-9. Bumped the loader build to **v0.8.5-beta**.
+9. Bumped the loader build to **1.1 beta 1**.
+
+## Mobile layout repairs in 1.1 beta 1
+
+- Preserved the existing sidebar content and page order.
+- Reserved separate vertical regions for navigation and the support panel, preventing overlap on phone layouts.
+- Increased restored phone fill from **82%** to **90%** so the app uses more of the landscape viewport without forcing fullscreen.
+- Increased phone sidebar width to **260 design pixels** and normalized navigation button/gap sizing.
+- Prevented labels created by the shared text builder from receiving the mobile readability boost twice.
+- Re-spaced the Settings page so Window & Display, Interface Feedback, and Accessibility & Session fit cleanly in the initial phone viewport.
+- Kept the existing three-column settings cards and all original sidebar/support content.
 
 ## Guard subpages verified
 

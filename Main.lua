@@ -1,6 +1,6 @@
 --// SquidNoMo entry point
 
-local BUILD_VERSION = "v0.8.6-beta"
+local BUILD_VERSION = "1.1 beta 1"
 local BUILD_TOKEN = string.gsub(BUILD_VERSION, "[^%w_%-]", "_")
 local REPOSITORY = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
 local BANNER_PATH = "Images/BannerGuards.png"

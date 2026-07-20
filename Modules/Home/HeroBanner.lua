@@ -59,7 +59,7 @@ function HeroBanner:Create(Parent, App)
 	Version.Size = UDim2.fromOffset(180,22)
 	Version.BackgroundTransparency = 1
 	Version.Font = Theme.FontBold
-	Version.Text = "Beta 5.0"
+	Version.Text = "1.1 beta 1"
 	Version.TextSize = 15
 	Version.TextColor3 = Theme.Accent
 	Version.TextXAlignment = Enum.TextXAlignment.Right

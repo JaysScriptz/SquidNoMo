@@ -53,7 +53,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "v0.8.6-beta"
+App.Version = "1.1 beta 1"
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -66,21 +66,21 @@ App.Config = {
         Phone = {
             DesignWidth = 1225,
             DesignHeight = 690,
-            SidebarWidth = 250,
-            TopbarHeight = 60,
-            StatusbarHeight = 34,
+            SidebarWidth = 260,
+            TopbarHeight = 58,
+            StatusbarHeight = 36,
             SafeFill = 1.0,
-            RestoreFill = 0.82,
+            RestoreFill = 0.90,
             WindowRadius = 14,
-            ContentPadding = 8,
-            HomeGap = 8,
-            HeroHeight = 130,
+            ContentPadding = 10,
+            HomeGap = 9,
+            HeroHeight = 136,
             FeatureHeight = 196,
             BottomStatsHeight = 242,
-            NavigationButtonHeight = 46,
-            NavigationPadding = 6,
-            SupportPanelHeight = 184,
-            Margins = {Left = 0.010, Right = 0.010, Top = 0.012, Bottom = 0.012},
+            NavigationButtonHeight = 41,
+            NavigationPadding = 4,
+            SupportPanelHeight = 188,
+            Margins = {Left = 0.008, Right = 0.008, Top = 0.010, Bottom = 0.010},
         },
         Tablet = {
             DesignWidth = 1280,
@@ -140,7 +140,7 @@ App.Config = {
     FreeRoamMinimumTitleWidth = 120,
     FreeRoamMinimumTitleHeight = 18,
     ForceMobile = false,
-    AssetVersion = "v0.8.6-beta",
+    AssetVersion = "1.1 beta 1",
     MobileTextBoost = true,
     RespectGuiInset = false,
     ShowHomeFooter = false,
@@ -655,7 +655,7 @@ function App:GetOrCreateSession()
             BubbleSize = nil,
             WindowOpacity = 0,
             LastPage = "Home",
-            SelectedDetectiveCategory = "Find Island",
+            SelectedDetectiveCategory = "Island Navigation",
             SelectedUICategory = "Layout & Scale",
             UIEditScope = "Entire App",
             UIEditTargetPage = "Players",
@@ -2216,7 +2216,7 @@ end
 function App:CreateSidebar()
     local mobile = self:IsMobile()
     local sidebarWidth = self.Config.SidebarWidth
-    local headerHeight = mobile and 86 or 92
+    local headerHeight = mobile and 84 or 92
 
     local sidebar = Instance.new("Frame")
     sidebar.Name = "Sidebar"
@@ -2266,7 +2266,8 @@ function App:CreateSidebar()
     brand.Size = UDim2.new(1, -(brandX + 10), 0, 27)
     brand.Font = Enum.Font.GothamBlack
     brand.Text = "SQUIDNOMO"
-    brand.TextSize = mobile and 15 or 17
+    brand.TextSize = mobile and 18 or 17
+    brand:SetAttribute("SquidReadableText", true)
     brand.TextColor3 = self.Colors.Text
     brand.TextXAlignment = Enum.TextXAlignment.Left
     brand.ZIndex = 1012
@@ -2278,7 +2279,8 @@ function App:CreateSidebar()
     keyless.Size = UDim2.new(1, -(brandX + 10), 0, 16)
     keyless.Font = Enum.Font.GothamBold
     keyless.Text = "FULLY KEYLESS"
-    keyless.TextSize = mobile and 10 or 11
+    keyless.TextSize = mobile and 12 or 11
+    keyless:SetAttribute("SquidReadableText", true)
     keyless.TextColor3 = self.Colors.Accent
     keyless.TextXAlignment = Enum.TextXAlignment.Left
     keyless.ZIndex = 1012
@@ -2290,7 +2292,8 @@ function App:CreateSidebar()
     version.Size = UDim2.new(1, -(brandX + 10), 0, 15)
     version.Font = Enum.Font.GothamMedium
     version.Text = self.Version
-    version.TextSize = 9
+    version.TextSize = mobile and 11 or 10
+    version:SetAttribute("SquidReadableText", true)
     version.TextColor3 = self.Colors.Muted
     version.TextXAlignment = Enum.TextXAlignment.Left
     version.ZIndex = 1012
@@ -2311,10 +2314,31 @@ function App:CreateSidebar()
     self.NavigationButtonHeight = self.Profile.NavigationButtonHeight
     self.NavigationButtonPadding = self.Profile.NavigationPadding
 
+    local navTop = headerHeight + 6
+    local panelHeight = self.Profile.SupportPanelHeight
+    local supportTop = self.Profile.DesignHeight
+        - self.Config.StatusbarHeight
+        - 10
+        - panelHeight
+    local availableNavHeight = math.max(280, supportTop - navTop - 12)
+    local requestedNavHeight = (self.NavigationButtonHeight * 8)
+        + (self.NavigationButtonPadding * 7)
+
+    if requestedNavHeight > availableNavHeight then
+        self.NavigationButtonHeight = math.max(
+            36,
+            math.floor(
+                (availableNavHeight - (self.NavigationButtonPadding * 7)) / 8
+            )
+        )
+        requestedNavHeight = (self.NavigationButtonHeight * 8)
+            + (self.NavigationButtonPadding * 7)
+    end
+
     local nav = Instance.new("Frame")
     nav.Name = "Navigation"
-    nav.Position = UDim2.fromOffset(12, headerHeight + 4)
-    nav.Size = UDim2.new(1, -24, 0, (self.NavigationButtonHeight * 8) + (self.NavigationButtonPadding * 7))
+    nav.Position = UDim2.fromOffset(12, navTop)
+    nav.Size = UDim2.new(1, -24, 0, requestedNavHeight)
     nav.BackgroundTransparency = 1
     nav.ZIndex = 1012
     nav.Parent = sidebar
@@ -2636,7 +2660,8 @@ function App:CreateSidebarNotice(sidebar)
     title.Size = UDim2.new(1, -28, 0, 22)
     title.Font = Enum.Font.GothamBold
     title.Text = "SUPPORT THE PROJECT"
-    title.TextSize = mobile and 12 or 13
+    title.TextSize = mobile and 13 or 13
+    title:SetAttribute("SquidReadableText", true)
     title.TextColor3 = self.Colors.Accent
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.ZIndex = 1013
@@ -2645,11 +2670,12 @@ function App:CreateSidebarNotice(sidebar)
     local body = Instance.new("TextLabel")
     body.BackgroundTransparency = 1
     body.Position = UDim2.fromOffset(14, 37)
-    body.Size = UDim2.new(1, -28, 0, mobile and 62 or 70)
+    body.Size = UDim2.new(1, -28, 0, mobile and 58 or 70)
     body.Font = Enum.Font.Gotham
     body.Text = "Your support helps fund updates, hosting, and testing. Every contribution keeps SquidNoMo improving."
     body.TextWrapped = true
-    body.TextSize = mobile and 10 or 11
+    body.TextSize = mobile and 12 or 11
+    body:SetAttribute("SquidReadableText", true)
     body.TextColor3 = self.Colors.Text
     body.TextXAlignment = Enum.TextXAlignment.Left
     body.TextYAlignment = Enum.TextYAlignment.Top
@@ -2678,7 +2704,8 @@ function App:CreateSidebarNotice(sidebar)
         button.AutoButtonColor = false
         button.Font = Enum.Font.GothamBold
         button.Text = labelText
-        button.TextSize = mobile and 11 or 12
+        button.TextSize = mobile and 13 or 12
+        button:SetAttribute("SquidReadableText", true)
         button.TextColor3 = Color3.fromRGB(255,255,255)
         button.ZIndex = 1013
         button.Parent = panel
@@ -2764,7 +2791,8 @@ function App:CreateNavigationButton(definition)
     label.Size = UDim2.new(1, -62, 1, 0)
     label.Font = Enum.Font.GothamMedium
     label.Text = definition.Name
-    label.TextSize = mobile and 17 or 15
+    label.TextSize = mobile and 18 or 15
+    label:SetAttribute("SquidReadableText", true)
     label.TextColor3 = self.Colors.Text
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.ZIndex = 1015
@@ -2987,14 +3015,14 @@ function App:CreateWindowToggleCard(parent, title, description, color, layoutOrd
     })
     card.LayoutOrder = layoutOrder
 
-    self:CreateText(card, title, UDim2.new(1, -94, 0, 24), UDim2.fromOffset(16, 14), {
+    self:CreateText(card, title, UDim2.new(1, -94, 0, 24), UDim2.fromOffset(16, phone and 12 or 14), {
         Font = Enum.Font.GothamBlack,
         TextSize = phone and 12 or 14,
         Color = color,
         ZIndex = 1013,
     })
 
-    local descriptionLabel = self:CreateText(card, description, UDim2.new(1, -32, 0, phone and 58 or 64), UDim2.fromOffset(16, 46), {
+    local descriptionLabel = self:CreateText(card, description, UDim2.new(1, -32, 0, phone and 50 or 64), UDim2.fromOffset(16, phone and 40 or 46), {
         Font = Enum.Font.GothamMedium,
         TextSize = phone and 9 or 10,
         Color = self.Colors.Text,
@@ -3005,7 +3033,7 @@ function App:CreateWindowToggleCard(parent, title, description, color, layoutOrd
 
     local switch = Instance.new("Frame")
     switch.AnchorPoint = Vector2.new(1, 0)
-    switch.Position = UDim2.new(1, -16, 0, 14)
+    switch.Position = UDim2.new(1, -16, 0, phone and 12 or 14)
     local toggleWidth = math.floor(
         tonumber(self:GetUIStyleValue(
             "Settings",
@@ -3037,7 +3065,7 @@ function App:CreateWindowToggleCard(parent, title, description, color, layoutOrd
     knob.Parent = switch
     makeCorner(knob, 999)
 
-    local stateLabel = self:CreateText(card, "OFF", UDim2.new(1, -32, 0, 22), UDim2.new(0, 16, 1, -34), {
+    local stateLabel = self:CreateText(card, "OFF", UDim2.new(1, -32, 0, 22), UDim2.new(0, 16, 1, phone and -30 or -34), {
         Font = Enum.Font.GothamBold,
         TextSize = phone and 10 or 11,
         Color = self.Colors.Muted,
@@ -3079,14 +3107,14 @@ function App:CreateWindowActionCard(parent, title, description, color, layoutOrd
     })
     card.LayoutOrder = layoutOrder
 
-    self:CreateText(card, title, UDim2.new(1, -32, 0, 24), UDim2.fromOffset(16, 14), {
+    self:CreateText(card, title, UDim2.new(1, -32, 0, 24), UDim2.fromOffset(16, phone and 12 or 14), {
         Font = Enum.Font.GothamBlack,
         TextSize = phone and 12 or 14,
         Color = color,
         ZIndex = 1013,
     })
 
-    self:CreateText(card, description, UDim2.new(1, -32, 0, phone and 54 or 60), UDim2.fromOffset(16, 46), {
+    self:CreateText(card, description, UDim2.new(1, -32, 0, phone and 50 or 60), UDim2.fromOffset(16, phone and 40 or 46), {
         Font = Enum.Font.GothamMedium,
         TextSize = phone and 9 or 10,
         Color = self.Colors.Text,
@@ -3097,7 +3125,7 @@ function App:CreateWindowActionCard(parent, title, description, color, layoutOrd
 
     local action = Instance.new("TextButton")
     action.AnchorPoint = Vector2.new(0.5, 1)
-    action.Position = UDim2.new(0.5, 0, 1, -14)
+    action.Position = UDim2.new(0.5, 0, 1, phone and -10 or -14)
     action.Size = UDim2.new(
         1,
         -32,
@@ -3107,7 +3135,7 @@ function App:CreateWindowActionCard(parent, title, description, color, layoutOrd
                 "Settings",
                 "ButtonHeight",
                 "MainPage"
-            )) or (phone and 36 or 40),
+            )) or (phone and 34 or 40),
             34,
             58
         )
@@ -3321,7 +3349,7 @@ function App:GetPersistentSettingsSnapshot()
                 or "Red Light, Green Light",
             SelectedGuardCategory =
                 session.SelectedGuardCategory
-                or "Moderation",
+                or "Game Moderation",
             SelectedPlayerCategory =
                 session.SelectedPlayerCategory
                 or "Movement & Camera",
@@ -3330,7 +3358,7 @@ function App:GetPersistentSettingsSnapshot()
                 or "Player Farming",
             SelectedDetectiveCategory =
                 session.SelectedDetectiveCategory
-                or "Find Island",
+                or "Island Navigation",
             SelectedUICategory =
                 session.SelectedUICategory
                 or "Layout & Scale",
@@ -3467,7 +3495,7 @@ function App:ApplyPersistentSettingsSnapshot(saved)
                 or "Red Light, Green Light"
             self.Session.SelectedGuardCategory =
                 values.SelectedGuardCategory
-                or "Moderation"
+                or "Game Moderation"
             self.Session.SelectedPlayerCategory =
                 values.SelectedPlayerCategory
                 or "Movement & Camera"
@@ -3476,7 +3504,7 @@ function App:ApplyPersistentSettingsSnapshot(saved)
                 or "Player Farming"
             self.Session.SelectedDetectiveCategory =
                 values.SelectedDetectiveCategory
-                or "Find Island"
+                or "Island Navigation"
             self.Session.SelectedUICategory =
                 values.SelectedUICategory
                 or "Layout & Scale"
@@ -3578,11 +3606,11 @@ function App:ResetAllSettingsToOff()
         self.Session.LastPage = "Home"
         self.Session.SelectedGameCategory =
             "Red Light, Green Light"
-        self.Session.SelectedGuardCategory = "Moderation"
+        self.Session.SelectedGuardCategory = "Game Moderation"
         self.Session.SelectedPlayerCategory =
             "Movement & Camera"
         self.Session.SelectedFarmingCategory = "Player Farming"
-        self.Session.SelectedDetectiveCategory = "Find Island"
+        self.Session.SelectedDetectiveCategory = "Island Navigation"
         self.Session.SelectedUICategory = "Layout & Scale"
         self.Session.UIEditScope = "Entire App"
         self.Session.UIEditTargetPage = "Players"
@@ -3772,9 +3800,54 @@ function App:BuildSettingsPage(page)
     page:ClearAllChildren()
 
     local padding = self.Profile.ContentPadding
+    local phone = self.DeviceClass == "Phone"
+    local settingsLayout = phone and {
+        RootHeight = 1060,
+        WindowRowY = 58,
+        WindowRowHeight = 146,
+        InterfaceHeaderY = 218,
+        InterfaceDescriptionY = 244,
+        InterfaceRowY = 270,
+        InterfaceRowHeight = 126,
+        AccessibilityHeaderY = 408,
+        AccessibilityDescriptionY = 434,
+        AccessibilityRowY = 458,
+        AccessibilityRowHeight = 126,
+        SizeHeaderY = 610,
+        SizeDescriptionY = 636,
+        SizeRowY = 662,
+        SizeRowHeight = 146,
+        SavedHeaderY = 830,
+        SavedDescriptionY = 856,
+        SavedRowY = 898,
+        SavedRowHeight = 132,
+        CanvasHeight = 1080,
+    } or {
+        RootHeight = 1135,
+        WindowRowY = 62,
+        WindowRowHeight = 154,
+        InterfaceHeaderY = 232,
+        InterfaceDescriptionY = 259,
+        InterfaceRowY = 290,
+        InterfaceRowHeight = 140,
+        AccessibilityHeaderY = 456,
+        AccessibilityDescriptionY = 483,
+        AccessibilityRowY = 514,
+        AccessibilityRowHeight = 140,
+        SizeHeaderY = 680,
+        SizeDescriptionY = 707,
+        SizeRowY = 738,
+        SizeRowHeight = 154,
+        SavedHeaderY = 914,
+        SavedDescriptionY = 941,
+        SavedRowY = 982,
+        SavedRowHeight = 140,
+        CanvasHeight = 1180,
+    }
+
     local root = Instance.new("Frame")
     root.Position = UDim2.fromOffset(padding, padding)
-    root.Size = UDim2.new(1, -(padding * 2), 0, 1135)
+    root.Size = UDim2.new(1, -(padding * 2), 0, settingsLayout.RootHeight)
     root.BackgroundTransparency = 1
     root.BorderSizePixel = 0
     root.Parent = page
@@ -3793,7 +3866,7 @@ function App:BuildSettingsPage(page)
         ZIndex = 1012,
     })
 
-    local windowRow = self:CreateEqualThreeColumnRow(root, 62, 154, "WindowSettingsRow")
+    local windowRow = self:CreateEqualThreeColumnRow(root, settingsLayout.WindowRowY, settingsLayout.WindowRowHeight, "WindowSettingsRow")
 
     local freeRoam = self:CreateWindowToggleCard(
         windowRow,
@@ -3825,21 +3898,21 @@ function App:BuildSettingsPage(page)
         function() self:ResetWindowPosition() end
     )
 
-    self:CreateText(root, "INTERFACE FEEDBACK", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, 232), {
+    self:CreateText(root, "INTERFACE FEEDBACK", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, settingsLayout.InterfaceHeaderY), {
         Font = Enum.Font.GothamBlack,
         TextSize = self.DeviceClass == "Phone" and 15 or 18,
         Color = self:GetPageAccent("Settings"),
         ZIndex = 1012,
     })
 
-    self:CreateText(root, "General SquidNoMo interaction preferences.", UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, 259), {
+    self:CreateText(root, "General SquidNoMo interaction preferences.", UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, settingsLayout.InterfaceDescriptionY), {
         Font = Enum.Font.GothamMedium,
         TextSize = self.DeviceClass == "Phone" and 9 or 10,
         Color = self.Colors.Muted,
         ZIndex = 1012,
     })
 
-    local interfaceRow = self:CreateEqualThreeColumnRow(root, 290, 140, "InterfaceSettingsRow")
+    local interfaceRow = self:CreateEqualThreeColumnRow(root, settingsLayout.InterfaceRowY, settingsLayout.InterfaceRowHeight, "InterfaceSettingsRow")
 
     local buttonGlow = self:CreateWindowToggleCard(
         interfaceRow,
@@ -3871,21 +3944,21 @@ function App:BuildSettingsPage(page)
         function(value) self:SetCloseConfirmationEnabled(value) end
     )
 
-    self:CreateText(root, "ACCESSIBILITY & SESSION", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, 456), {
+    self:CreateText(root, "ACCESSIBILITY & SESSION", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, settingsLayout.AccessibilityHeaderY), {
         Font = Enum.Font.GothamBlack,
         TextSize = self.DeviceClass == "Phone" and 15 or 18,
         Color = self:GetPageAccent("Settings"),
         ZIndex = 1012,
     })
 
-    self:CreateText(root, "Motion, page memory, and orientation behavior.", UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, 483), {
+    self:CreateText(root, "Motion, page memory, and orientation behavior.", UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, settingsLayout.AccessibilityDescriptionY), {
         Font = Enum.Font.GothamMedium,
         TextSize = self.DeviceClass == "Phone" and 9 or 10,
         Color = self.Colors.Muted,
         ZIndex = 1012,
     })
 
-    local accessibilityRow = self:CreateEqualThreeColumnRow(root, 514, 140, "AccessibilitySettingsRow")
+    local accessibilityRow = self:CreateEqualThreeColumnRow(root, settingsLayout.AccessibilityRowY, settingsLayout.AccessibilityRowHeight, "AccessibilitySettingsRow")
 
     local reducedMotion = self:CreateWindowToggleCard(
         accessibilityRow,
@@ -3917,21 +3990,21 @@ function App:BuildSettingsPage(page)
         function(value) self:SetAutoCenterOnResizeEnabled(value) end
     )
 
-    self:CreateText(root, "SIZE & TRANSPARENCY", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, 680), {
+    self:CreateText(root, "SIZE & TRANSPARENCY", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, settingsLayout.SizeHeaderY), {
         Font = Enum.Font.GothamBlack,
         TextSize = self.DeviceClass == "Phone" and 15 or 18,
         Color = self:GetPageAccent("Settings"),
         ZIndex = 1012,
     })
 
-    self:CreateText(root, "Fine-tune the restored app, recovery bubble, and window background.", UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, 707), {
+    self:CreateText(root, "Fine-tune the restored app, recovery bubble, and window background.", UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, settingsLayout.SizeDescriptionY), {
         Font = Enum.Font.GothamMedium,
         TextSize = self.DeviceClass == "Phone" and 9 or 10,
         Color = self.Colors.Muted,
         ZIndex = 1012,
     })
 
-    local sizeRow = self:CreateEqualThreeColumnRow(root, 738, 154, "SizeSettingsRow")
+    local sizeRow = self:CreateEqualThreeColumnRow(root, settingsLayout.SizeRowY, settingsLayout.SizeRowHeight, "SizeSettingsRow")
 
     local userScale = self:CreateWindowSliderCard(
         sizeRow,
@@ -3976,7 +4049,7 @@ self:CreateText(
     root,
     "SAVED SETTINGS",
     UDim2.new(1, 0, 0, 28),
-    UDim2.fromOffset(0, 914),
+    UDim2.fromOffset(0, settingsLayout.SavedHeaderY),
     {
         Font = Enum.Font.GothamBlack,
         TextSize =
@@ -3999,7 +4072,7 @@ self:CreateText(
             .. "Preferences remain in executor "
             .. "session memory.",
     UDim2.new(1, 0, 0, 34),
-    UDim2.fromOffset(0, 941),
+    UDim2.fromOffset(0, settingsLayout.SavedDescriptionY),
     {
         Font = Enum.Font.GothamMedium,
         TextSize =
@@ -4012,8 +4085,8 @@ self:CreateText(
 
 local savedRow = self:CreateEqualThreeColumnRow(
     root,
-    982,
-    140,
+    settingsLayout.SavedRowY,
+    settingsLayout.SavedRowHeight,
     "SavedSettingsRow"
 )
 
@@ -4081,8 +4154,8 @@ local resetAll = self:CreateWindowActionCard(
     page.CanvasSize = UDim2.fromOffset(
         0,
         math.max(
-            1180,
-            (root and root.Size.Y.Offset or 1135) + 48
+            settingsLayout.CanvasHeight,
+            (root and root.Size.Y.Offset or settingsLayout.RootHeight) + 36
         )
     )
 end
@@ -4182,11 +4255,11 @@ function App:CreateText(parent, text, size, position, options)
         -- Phone displays shrink the app surface considerably. Keep labels
         -- readable even when the window is not expanded to fullscreen.
         if requestedTextSize <= 10 then
-            requestedTextSize = 12
+            requestedTextSize = 13
         elseif requestedTextSize <= 13 then
-            requestedTextSize = requestedTextSize + 2
+            requestedTextSize = requestedTextSize + 3
         else
-            requestedTextSize = requestedTextSize + 1
+            requestedTextSize = requestedTextSize + 2
         end
     end
     local textScale = tonumber(
@@ -4197,6 +4270,9 @@ function App:CreateText(parent, text, size, position, options)
         8,
         36
     )
+    if self.Config.MobileTextBoost and self:IsMobile() then
+        label:SetAttribute("SquidReadableText", true)
+    end
     label.TextColor3 = options.Color or self.Colors.Text
     label.TextTransparency = options.Transparency or 0
     label.TextWrapped = options.Wrapped or false
@@ -4352,10 +4428,13 @@ function App:CreateStatLine(parent, y, leftText, rightText, rightColor)
 end
 
 function App:CreateEqualThreeColumnRow(parent, y, height, name)
+    local phone = self.DeviceClass == "Phone"
+    local sideInset = phone and 8 or 16
+
     local row = Instance.new("Frame")
     row.Name = name or "ThreeColumnRow"
-    row.Position = UDim2.fromOffset(16, y)
-    row.Size = UDim2.new(1, -32, 0, height)
+    row.Position = UDim2.fromOffset(sideInset, y)
+    row.Size = UDim2.new(1, -(sideInset * 2), 0, height)
     row.BackgroundTransparency = 1
     row.BorderSizePixel = 0
     row.ClipsDescendants = true
@@ -4369,7 +4448,8 @@ function App:CreateEqualThreeColumnRow(parent, y, height, name)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Padding = UDim.new(
         0,
-        self:GetUIStyleForInstance(parent, "ColumnGap") or 12
+        self:GetUIStyleForInstance(parent, "ColumnGap")
+            or (phone and 10 or 12)
     )
     layout.Parent = row
 
