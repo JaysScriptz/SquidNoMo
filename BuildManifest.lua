@@ -3,9 +3,9 @@
 
 return {
     Version = "1.1 beta 1",
-    Revision = "feature-recode-r2",
-    FeatureRuntimeRevision = "1.1b1-feature-recode-r2",
-    PlayerRuntimeRevision = "1.1b1-player-recode-r1",
+    Revision = "ultralight-stable-r4",
+    FeatureRuntimeRevision = "1.1b1-ultralight-r4",
+    PlayerRuntimeRevision = "1.1b1-player-ultralight-r3",
     CatalogFeatureCount = 65,
     PlayerFeatureCount = 25,
     UIFeatureCount = 23,

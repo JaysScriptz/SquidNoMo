@@ -1,6 +1,6 @@
 --//========================================================--
 --// SquidNoMo
---// v0.5.0 Beta
+--// 1.1 beta 1
 --// Modules/Home/StatusPanels.lua
 --//========================================================--
 
@@ -132,7 +132,7 @@ function StatusPanels:Create(parent, App)
 
     task.spawn(function()
         while row.Parent and App.Gui do
-            task.wait(0.75)
+            task.wait(1.5)
             refresh()
         end
     end)

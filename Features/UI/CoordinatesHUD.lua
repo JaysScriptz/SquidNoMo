@@ -6,8 +6,8 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local Enabled = false
 local Gui = nil
-local Connection = nil
-local Elapsed = 0
+local Thread = nil
+local Generation = 0
 
 local function getParent()
     if type(gethui) == "function" then
@@ -58,29 +58,31 @@ end
 function CoordinatesHUD:Enable()
     if Enabled then return end
     Enabled = true
+    Generation = Generation + 1
+    local generation = Generation
     local label = build()
     Gui.Enabled = true
-    Elapsed = 0
-    Connection = RunService.Heartbeat:Connect(function(deltaTime)
-        Elapsed = Elapsed + deltaTime
-        if Elapsed < 0.15 then return end
-        Elapsed = 0
-        local character = LocalPlayer and LocalPlayer.Character
-        local root = character and character:FindFirstChild("HumanoidRootPart")
-        if label and label.Parent then
-            if root then
-                local p = root.Position
-                label.Text = string.format("X %.0f  Y %.0f  Z %.0f", p.X, p.Y, p.Z)
-            else
-                label.Text = "X --  Y --  Z --"
+    Thread = task.spawn(function()
+        while Enabled and generation == Generation and Gui and Gui.Parent do
+            local character = LocalPlayer and LocalPlayer.Character
+            local root = character and character:FindFirstChild("HumanoidRootPart")
+            if label and label.Parent then
+                if root then
+                    local position = root.Position
+                    label.Text = string.format("X %.0f  Y %.0f  Z %.0f", position.X, position.Y, position.Z)
+                else
+                    label.Text = "X --  Y --  Z --"
+                end
             end
+            task.wait(0.18)
         end
     end)
 end
 
 function CoordinatesHUD:Disable()
     Enabled = false
-    if Connection then Connection:Disconnect() Connection = nil end
+    Generation = Generation + 1
+    Thread = nil
     if Gui then Gui.Enabled = false end
 end
 

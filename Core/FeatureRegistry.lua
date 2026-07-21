@@ -1,6 +1,6 @@
 --//========================================================--
 --// SquidNoMo
---// v0.5.0 Beta
+--// 1.1 beta 1
 --// Core/FeatureRegistry.lua
 --// Read-only dashboard state for the existing feature objects.
 --//========================================================--

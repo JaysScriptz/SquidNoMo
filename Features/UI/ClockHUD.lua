@@ -5,6 +5,7 @@ local CoreGui = game:GetService("CoreGui")
 local Enabled = false
 local Gui = nil
 local Thread = nil
+local Generation = 0
 
 local function getParent()
     if type(gethui) == "function" then
@@ -56,10 +57,12 @@ end
 function ClockHUD:Enable()
     if Enabled then return end
     Enabled = true
+    Generation = Generation + 1
+    local generation = Generation
     local label = build()
     Gui.Enabled = true
     Thread = task.spawn(function()
-        while Enabled and Gui and Gui.Parent do
+        while Enabled and generation == Generation and Gui and Gui.Parent do
             if label and label.Parent then
                 label.Text = os.date("%I:%M:%S %p")
             end
@@ -70,6 +73,7 @@ end
 
 function ClockHUD:Disable()
     Enabled = false
+    Generation = Generation + 1
     Thread = nil
     if Gui then Gui.Enabled = false end
 end

@@ -7,9 +7,29 @@ local CoreGui = game:GetService("CoreGui")
 
 local Enabled = false
 local Gui = nil
-local Connection = nil
-local Frames = 0
-local LastUpdate = os.clock()
+local Thread = nil
+local Generation = 0
+
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then Environment = result end
+end
+local FrameSampler = Environment.__SquidNoMoFrameSampler
+if type(FrameSampler) ~= "table" or FrameSampler.Revision ~= "1.1b1-frame-sampler-r1" then
+    FrameSampler = {Revision = "1.1b1-frame-sampler-r1", FPS = 60, Frames = 0, LastUpdate = os.clock()}
+    FrameSampler.Connection = RunService.RenderStepped:Connect(function()
+        FrameSampler.Frames = FrameSampler.Frames + 1
+        local now = os.clock()
+        local elapsed = now - FrameSampler.LastUpdate
+        if elapsed >= 0.75 then
+            FrameSampler.FPS = math.max(1, math.floor(FrameSampler.Frames / elapsed + 0.5))
+            FrameSampler.Frames = 0
+            FrameSampler.LastUpdate = now
+        end
+    end)
+    Environment.__SquidNoMoFrameSampler = FrameSampler
+end
 
 local function getParent()
     if type(gethui) == "function" then
@@ -61,31 +81,33 @@ end
 function PerformanceHUD:Enable()
     if Enabled then return end
     Enabled = true
+    Generation = Generation + 1
+    local generation = Generation
     local label = build()
     Gui.Enabled = true
-    Frames = 0
-    LastUpdate = os.clock()
-    Connection = RunService.RenderStepped:Connect(function()
-        Frames = Frames + 1
-        local now = os.clock()
-        if now - LastUpdate >= 1 then
-            local fps = math.floor(Frames / math.max(0.001, now - LastUpdate))
+    Thread = task.spawn(function()
+        while Enabled and generation == Generation and Gui and Gui.Parent do
             local ping = "--"
             pcall(function()
                 ping = tostring(math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()))
             end)
             if label and label.Parent then
-                label.Text = string.format("FPS %d  |  PING %s ms  |  PLAYERS %d", fps, ping, #Players:GetPlayers())
+                label.Text = string.format(
+                    "FPS %d  |  PING %s ms  |  PLAYERS %d",
+                    FrameSampler.FPS,
+                    ping,
+                    #Players:GetPlayers()
+                )
             end
-            Frames = 0
-            LastUpdate = now
+            task.wait(1)
         end
     end)
 end
 
 function PerformanceHUD:Disable()
     Enabled = false
-    if Connection then Connection:Disconnect() Connection = nil end
+    Generation = Generation + 1
+    Thread = nil
     if Gui then Gui.Enabled = false end
 end
 

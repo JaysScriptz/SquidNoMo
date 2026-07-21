@@ -1,6 +1,6 @@
 --//========================================================--
 --// SquidNoMo
---// v0.5.0 Beta
+--// 1.1 beta 1
 --// Core/RuntimeStats.lua
 --// Lightweight client/session diagnostics for the dashboard.
 --//========================================================--
@@ -14,6 +14,27 @@ local RuntimeStats = {}
 RuntimeStats.__index = RuntimeStats
 
 local LocalPlayer = Players.LocalPlayer
+
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then Environment = result end
+end
+local FrameSampler = Environment.__SquidNoMoFrameSampler
+if type(FrameSampler) ~= "table" or FrameSampler.Revision ~= "1.1b1-frame-sampler-r1" then
+    FrameSampler = {Revision = "1.1b1-frame-sampler-r1", FPS = 60, Frames = 0, LastUpdate = os.clock()}
+    FrameSampler.Connection = RunService.RenderStepped:Connect(function()
+        FrameSampler.Frames = FrameSampler.Frames + 1
+        local now = os.clock()
+        local elapsed = now - FrameSampler.LastUpdate
+        if elapsed >= 0.75 then
+            FrameSampler.FPS = math.max(1, math.floor(FrameSampler.Frames / elapsed + 0.5))
+            FrameSampler.Frames = 0
+            FrameSampler.LastUpdate = now
+        end
+    end)
+    Environment.__SquidNoMoFrameSampler = FrameSampler
+end
 
 local function formatDuration(seconds)
     seconds = math.max(0, math.floor(tonumber(seconds) or 0))
@@ -29,38 +50,18 @@ function RuntimeStats.new()
     local self = setmetatable({}, RuntimeStats)
 
     self.StartedAt = os.clock()
-    self.FrameCount = 0
-    self.FPS = 0
-    self.LastFpsUpdate = os.clock()
+    self.FPS = FrameSampler.FPS
     self.Connection = nil
 
     return self
 end
 
 function RuntimeStats:Start()
-    if self.Connection then
-        return
-    end
-
-    self.Connection = RunService.RenderStepped:Connect(function()
-        self.FrameCount = self.FrameCount + 1
-
-        local now = os.clock()
-        local elapsed = now - self.LastFpsUpdate
-
-        if elapsed >= 0.75 then
-            self.FPS = math.floor((self.FrameCount / elapsed) + 0.5)
-            self.FrameCount = 0
-            self.LastFpsUpdate = now
-        end
-    end)
+    self.FPS = FrameSampler.FPS
 end
 
 function RuntimeStats:Destroy()
-    if self.Connection then
-        self.Connection:Disconnect()
-        self.Connection = nil
-    end
+    self.Connection = nil
 end
 
 function RuntimeStats:GetPing()
@@ -106,7 +107,7 @@ function RuntimeStats:GetSnapshot()
 
     return {
         Client = self:GetClientName(),
-        FPS = self.FPS > 0 and tostring(self.FPS) or "--",
+        FPS = FrameSampler.FPS > 0 and tostring(FrameSampler.FPS) or "--",
         Ping = string.format("%d ms", self:GetPing()),
         ServerAge = formatDuration(serverAge),
         Uptime = formatDuration(os.clock() - self.StartedAt),

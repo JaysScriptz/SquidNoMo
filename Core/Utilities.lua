@@ -73,17 +73,36 @@ end
 -- FPS
 ----------------------------------------------------------
 
-local FPS = 60
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then Environment = result end
+end
 
-RunService.RenderStepped:Connect(function(dt)
-
-	FPS = math.floor(1 / dt)
-
-end)
+local FrameSampler = Environment.__SquidNoMoFrameSampler
+if type(FrameSampler) ~= "table" or FrameSampler.Revision ~= "1.1b1-frame-sampler-r1" then
+    FrameSampler = {
+        Revision = "1.1b1-frame-sampler-r1",
+        FPS = 60,
+        Frames = 0,
+        LastUpdate = os.clock(),
+    }
+    FrameSampler.Connection = RunService.RenderStepped:Connect(function()
+        FrameSampler.Frames = FrameSampler.Frames + 1
+        local now = os.clock()
+        local elapsed = now - FrameSampler.LastUpdate
+        if elapsed >= 0.75 then
+            FrameSampler.FPS = math.max(1, math.floor(FrameSampler.Frames / elapsed + 0.5))
+            FrameSampler.Frames = 0
+            FrameSampler.LastUpdate = now
+        end
+    end)
+    Environment.__SquidNoMoFrameSampler = FrameSampler
+end
 
 function Utilities:GetFPS()
 
-	return FPS
+	return FrameSampler.FPS
 
 end
 

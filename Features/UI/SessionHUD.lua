@@ -5,6 +5,7 @@ local CoreGui = game:GetService("CoreGui")
 local Enabled = false
 local Gui = nil
 local Thread = nil
+local Generation = 0
 local StartedAt = 0
 
 local function getParent()
@@ -69,7 +70,7 @@ function SessionHUD:Enable()
     local label = build()
     Gui.Enabled = true
     Thread = task.spawn(function()
-        while Enabled and Gui and Gui.Parent do
+        while Enabled and generation == Generation and Gui and Gui.Parent do
             if label and label.Parent then
                 label.Text = "SESSION " .. formatTime(os.clock() - StartedAt)
             end
@@ -80,6 +81,7 @@ end
 
 function SessionHUD:Disable()
     Enabled = false
+    Generation = Generation + 1
     Thread = nil
     if Gui then Gui.Enabled = false end
 end

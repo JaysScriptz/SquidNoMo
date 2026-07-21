@@ -7,10 +7,13 @@ if type(getgenv) == "function" then
 end
 
 local Runtime = Environment.__SquidNoMoFeatureRuntime
-if type(Runtime) ~= "table" then
+if type(Runtime) ~= "table" or Runtime.Revision ~= "1.1b1-ultralight-r4" then
     local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_feature_recode_r2")
+    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_ultralight_r4")
     Runtime = loadstring(source)()
+end
+if type(Runtime) ~= "table" or Runtime.Revision ~= "1.1b1-ultralight-r4" then
+    error("SquidNoMo feature runtime revision mismatch; deploy the complete build")
 end
 
 return Runtime:CreateFeature({
@@ -19,6 +22,8 @@ return Runtime:CreateFeature({
     Description = "Moves on green light and stops automatically when the doll changes to red.",
     Kind = "RLGLAutoMove",
     TargetTokens = {"finish", "safe zone", "end zone", "goal"},
-    Interval = 0.15,
+    Interval = 0.10,
+    MovementPriority = 95,
+    IdleInterval = 0.65,
     WaitingMessage = "Waiting for the RLGL status and finish area",
 })

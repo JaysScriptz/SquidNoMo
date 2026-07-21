@@ -5,8 +5,8 @@ local RunService = game:GetService("RunService")
 
 local Enabled = false
 local Gui = nil
-local Connection = nil
-local Elapsed = 0
+local Thread = nil
+local Generation = 0
 
 local function getParent()
     if type(gethui) == "function" then
@@ -60,26 +60,28 @@ local directions = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"}
 function CompassHUD:Enable()
     if Enabled then return end
     Enabled = true
+    Generation = Generation + 1
+    local generation = Generation
     local label = build()
     Gui.Enabled = true
-    Elapsed = 0
-    Connection = RunService.Heartbeat:Connect(function(deltaTime)
-        Elapsed = Elapsed + deltaTime
-        if Elapsed < 0.12 then return end
-        Elapsed = 0
-        local camera = workspace.CurrentCamera
-        if camera and label and label.Parent then
-            local look = camera.CFrame.LookVector
-            local heading = (math.deg(math.atan2(-look.X, -look.Z)) + 360) % 360
-            local index = math.floor((heading + 22.5) / 45) % 8 + 1
-            label.Text = string.format("%s  %03d°", directions[index], math.floor(heading + 0.5))
+    Thread = task.spawn(function()
+        while Enabled and generation == Generation and Gui and Gui.Parent do
+            local camera = workspace.CurrentCamera
+            if camera and label and label.Parent then
+                local look = camera.CFrame.LookVector
+                local heading = (math.deg(math.atan2(-look.X, -look.Z)) + 360) % 360
+                local index = math.floor((heading + 22.5) / 45) % 8 + 1
+                label.Text = string.format("%s  %03d°", directions[index], math.floor(heading + 0.5))
+            end
+            task.wait(0.15)
         end
     end)
 end
 
 function CompassHUD:Disable()
     Enabled = false
-    if Connection then Connection:Disconnect() Connection = nil end
+    Generation = Generation + 1
+    Thread = nil
     if Gui then Gui.Enabled = false end
 end
 

@@ -2,7 +2,6 @@
 -- Shared implementation for every module under Features/Player.
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
@@ -11,7 +10,7 @@ local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 
 local Runtime = {
-    Revision = "1.1b1-player-recode-r1",
+    Revision = "1.1b1-player-ultralight-r3",
 }
 
 local Environment = _G
@@ -22,6 +21,65 @@ if type(getgenv) == "function" then
     end
 end
 Environment.__SquidNoMoPlayerRuntime = Runtime
+
+
+local Scheduler = Environment.__SquidNoMoScheduler
+if type(Scheduler) ~= "table" or Scheduler.Revision ~= "1.1b1-ultralight-scheduler-r1" then
+    -- Runtime.lua normally creates this first. The fallback is intentionally the
+    -- same cooperative scheduler so PlayerRuntime remains safe when loaded alone.
+    Scheduler = {
+        Revision = "1.1b1-ultralight-scheduler-r1",
+        Tasks = setmetatable({}, {__mode = "k"}),
+        Running = false,
+        Lightweight = true,
+    }
+    function Scheduler:SetLightweight(state) self.Lightweight = state ~= false end
+    function Scheduler:Add(owner, interval, idleInterval, callback)
+        interval = math.max(tonumber(interval) or 0.25, 0.03)
+        self.Tasks[owner] = {
+            Interval = interval,
+            IdleInterval = math.max(tonumber(idleInterval) or math.max(interval * 4, 1), interval),
+            Callback = callback,
+            NextRun = os.clock(),
+            Busy = false,
+        }
+        self:_Ensure()
+    end
+    function Scheduler:Remove(owner) self.Tasks[owner] = nil end
+    function Scheduler:_Ensure()
+        if self.Running then return end
+        self.Running = true
+        task.spawn(function()
+            while next(self.Tasks) do
+                local now, launched = os.clock(), 0
+                local launchBudget = self.Lightweight and 3 or 8
+                for owner, job in pairs(self.Tasks) do
+                    if launched >= launchBudget then break end
+                    if not owner or owner.Enabled ~= true then
+                        self.Tasks[owner] = nil
+                    elseif not job.Busy and now >= job.NextRun then
+                        job.Busy = true
+                        launched = launched + 1
+                        task.spawn(function()
+                            local ok, active = xpcall(function() return job.Callback(owner) end, debug.traceback)
+                            if not ok and owner and owner.Enabled then
+                                owner.LastError = tostring(active)
+                                if type(owner._SetStatus) == "function" then owner:_SetStatus("Error", owner.LastError) end
+                                active = false
+                            end
+                            job.Busy = false
+                            job.NextRun = os.clock() + (active and job.Interval or job.IdleInterval)
+                        end)
+                    end
+                end
+                task.wait(self.Lightweight and 0.035 or 0.02)
+            end
+            self.Running = false
+        end)
+    end
+    Environment.__SquidNoMoScheduler = Scheduler
+end
+Runtime.Scheduler = Scheduler
 
 local function lower(value)
     return string.lower(tostring(value or ""))
@@ -95,8 +153,11 @@ local FeatureMethods = {}
 FeatureMethods.__index = FeatureMethods
 
 function FeatureMethods:_SetStatus(state, detail)
-    self.Status = tostring(state or "Unknown")
-    self.StatusDetail = tostring(detail or "")
+    local nextStatus = tostring(state or "Unknown")
+    local nextDetail = tostring(detail or "")
+    if self.Status == nextStatus and self.StatusDetail == nextDetail then return end
+    self.Status = nextStatus
+    self.StatusDetail = nextDetail
     for id, callback in pairs(self.StatusListeners) do
         local ok = pcall(callback, self.Status, self.StatusDetail, self)
         if not ok then
@@ -156,23 +217,22 @@ function FeatureMethods:_Spawn(callback)
 end
 
 function FeatureMethods:_Loop(interval, callback)
-    self:_Spawn(function()
-        while self.Enabled do
-            local ok, active, detail = pcall(callback, self)
-            if not ok then
-                error(active)
-            end
-            if active then
-                self:_SetStatus("Active", detail or "Working")
-            else
-                self:_SetStatus("Waiting", detail or self.Config.WaitingMessage or "Waiting for the local character")
-            end
-            task.wait(interval or self.Config.Interval or 0.2)
+    interval = tonumber(interval) or tonumber(self.Config.Interval) or 0.2
+    local idleInterval = tonumber(self.Config.IdleInterval) or math.max(interval * 4, 0.8)
+    Scheduler:Add(self, interval, idleInterval, function(owner)
+        local ok, active, detail = pcall(callback, owner)
+        if not ok then error(active) end
+        if active then
+            owner:_SetStatus("Active", detail or "Working")
+        else
+            owner:_SetStatus("Waiting", detail or owner.Config.WaitingMessage or "Waiting for the local character")
         end
+        return active == true
     end)
 end
 
 function FeatureMethods:_Clear()
+    Scheduler:Remove(self)
     for _, connection in ipairs(self.Connections) do
         pcall(function() connection:Disconnect() end)
     end
@@ -272,34 +332,36 @@ end
 
 local function startHumanoidValue(feature)
     feature.OriginalByHumanoid = {}
+    feature.BoundHumanoid = nil
 
     local function apply(self)
         local _, humanoid = getCharacter()
-        if not humanoid then
-            return false, "Waiting for the local humanoid"
-        end
+        if not humanoid then return false, "Waiting for the local humanoid" end
         local property = self.Config.Property
         if self.OriginalByHumanoid[humanoid] == nil then
             local ok, original = pcall(function() return humanoid[property] end)
-            if ok then
-                self.OriginalByHumanoid[humanoid] = original
-            end
+            if ok then self.OriginalByHumanoid[humanoid] = original end
         end
-
         if property == "JumpPower" and humanoid.UseJumpPower == false then
-            if self.OriginalUseJumpPower == nil then
-                self.OriginalUseJumpPower = humanoid.UseJumpPower
-            end
+            if self.OriginalUseJumpPower == nil then self.OriginalUseJumpPower = humanoid.UseJumpPower end
             humanoid.UseJumpPower = true
         end
-
-        local ok, err = pcall(function()
-            humanoid[property] = self.Value
-        end)
-        if not ok then
-            return false, tostring(err)
+        local ok, current = pcall(function() return humanoid[property] end)
+        if ok and math.abs((tonumber(current) or 0) - (tonumber(self.Value) or 0)) <= 0.01 then
+            return true, property .. " already set to " .. tostring(self.Value)
         end
-        return true, property .. " set to " .. tostring(math.floor(self.Value * 10 + 0.5) / 10)
+        local applied, err = pcall(function() humanoid[property] = self.Value end)
+        return applied, applied and (property .. " set to " .. tostring(math.floor(self.Value * 10 + 0.5) / 10)) or tostring(err)
+    end
+
+    local function bind(self)
+        local _, humanoid = getCharacter()
+        if not humanoid or humanoid == self.BoundHumanoid then return end
+        self.BoundHumanoid = humanoid
+        apply(self)
+        self:_TrackConnection(humanoid:GetPropertyChangedSignal(self.Config.Property):Connect(function()
+            if self.Enabled then task.defer(function() if self.Enabled then apply(self) end end) end
+        end))
     end
 
     feature.ApplyNow = apply
@@ -313,8 +375,18 @@ local function startHumanoidValue(feature)
             end
         end
         self.OriginalByHumanoid = {}
+        self.BoundHumanoid = nil
     end
-    feature:_Loop(feature.Config.Interval or 0.1, apply)
+    if LocalPlayer then
+        feature:_TrackConnection(LocalPlayer.CharacterAdded:Connect(function()
+            task.defer(function() if feature.Enabled then bind(feature) end end)
+        end))
+    end
+    bind(feature)
+    feature:_Loop(feature.Config.Interval or 1.25, function(self)
+        bind(self)
+        return apply(self)
+    end)
 end
 
 local function startWorkspaceValue(feature)
@@ -332,7 +404,7 @@ local function startWorkspaceValue(feature)
             pcall(function() Workspace[property] = self.OriginalValue end)
         end
     end
-    feature:_Loop(feature.Config.Interval or 0.2, feature.ApplyNow)
+    feature:_Loop(feature.Config.Interval or 1.0, feature.ApplyNow)
 end
 
 local function startInfiniteJump(feature)
@@ -350,7 +422,7 @@ local function startInfiniteJump(feature)
 end
 
 local function startAutoJump(feature)
-    feature:_Loop(feature.Config.Interval or 0.08, function()
+    feature:_Loop(feature.Config.Interval or 0.12, function()
         local _, humanoid = getCharacter()
         if not humanoid then
             return false, "Waiting for the local humanoid"
@@ -365,35 +437,42 @@ end
 
 local function startNoClip(feature)
     feature.OriginalCollision = {}
+    feature.CollisionParts = setmetatable({}, {__mode = "k"})
+
+    local function addPart(self, instance)
+        if instance:IsA("BasePart") then
+            if self.OriginalCollision[instance] == nil then self.OriginalCollision[instance] = instance.CanCollide end
+            self.CollisionParts[instance] = true
+        end
+    end
+
+    local function bindCharacter(self, character)
+        if not character then return end
+        for _, descendant in ipairs(character:GetDescendants()) do addPart(self, descendant) end
+        self:_TrackConnection(character.DescendantAdded:Connect(function(instance) addPart(self, instance) end))
+    end
+
     feature.Restore = function(self)
         for part, value in pairs(self.OriginalCollision or {}) do
-            if part.Parent then
-                pcall(function() part.CanCollide = value end)
-            end
+            if part.Parent then pcall(function() part.CanCollide = value end) end
         end
         self.OriginalCollision = {}
+        self.CollisionParts = setmetatable({}, {__mode = "k"})
     end
-    feature:_TrackConnection(RunService.Stepped:Connect(function()
-        if not feature.Enabled then return end
-        local character = getCharacter()
-        if not character then
-            feature:_SetStatus("Waiting", "Waiting for the local character")
-            return
+    local character = getCharacter()
+    bindCharacter(feature, character)
+    if LocalPlayer then
+        feature:_TrackConnection(LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+            if feature.Enabled then bindCharacter(feature, newCharacter) end
+        end))
+    end
+    feature:_Loop(feature.Config.Interval or 0.10, function(self)
+        local count = 0
+        for part in pairs(self.CollisionParts) do
+            if part.Parent and part.CanCollide then part.CanCollide = false; count = count + 1 end
         end
-        local changed = 0
-        for _, descendant in ipairs(character:GetDescendants()) do
-            if descendant:IsA("BasePart") then
-                if feature.OriginalCollision[descendant] == nil then
-                    feature.OriginalCollision[descendant] = descendant.CanCollide
-                end
-                if descendant.CanCollide then
-                    descendant.CanCollide = false
-                    changed = changed + 1
-                end
-            end
-        end
-        feature:_SetStatus("Active", "Noclip active on " .. tostring(changed) .. " collidable part(s)")
-    end))
+        return next(self.CollisionParts) ~= nil, "Noclip active; corrected " .. tostring(count) .. " part(s)"
+    end)
 end
 
 local function startForceThirdPerson(feature)
@@ -407,7 +486,7 @@ local function startForceThirdPerson(feature)
             if self.OriginalMaxZoom then LocalPlayer.CameraMaxZoomDistance = self.OriginalMaxZoom end
         end
     end
-    feature:_Loop(0.2, function()
+    feature:_Loop(0.85, function()
         if not LocalPlayer then return false, "Waiting for LocalPlayer" end
         LocalPlayer.CameraMode = Enum.CameraMode.Classic
         LocalPlayer.CameraMinZoomDistance = math.max(0.5, feature.Config.MinZoom or 6)
@@ -423,7 +502,7 @@ local function startUnlockZoom(feature)
             LocalPlayer.CameraMaxZoomDistance = self.OriginalMaxZoom
         end
     end
-    feature:_Loop(0.25, function()
+    feature:_Loop(1.0, function()
         if not LocalPlayer then return false, "Waiting for LocalPlayer" end
         LocalPlayer.CameraMaxZoomDistance = feature.Config.MaxZoom or 1000
         return true, "Camera zoom limit expanded"
@@ -431,7 +510,7 @@ local function startUnlockZoom(feature)
 end
 
 local function startAutoStand(feature)
-    feature:_Loop(0.08, function()
+    feature:_Loop(0.18, function()
         local _, humanoid = getCharacter()
         if not humanoid then return false, "Waiting for the local humanoid" end
         if humanoid.Sit or humanoid.PlatformStand then
@@ -488,7 +567,7 @@ local function startPlayerHighlight(feature)
         end
         return count
     end
-    feature:_Loop(feature.Config.Interval or 0.35, function(self)
+    feature:_Loop(feature.Config.Interval or 0.65, function(self)
         local count = self:RefreshNow()
         return count > 0, count > 0 and ("Tracking " .. count .. " player(s)") or "Waiting for matching players"
     end)
@@ -506,7 +585,9 @@ local function createBillboard(feature, player)
     gui.Adornee = root
     gui.AlwaysOnTop = true
     gui.Size = UDim2.fromOffset(180, 34)
-    gui.StudsOffset = Vector3.new(0, 3.1, 0)
+    local offsetY = feature.Config.Mode == "Health" and 4.5
+        or (feature.Config.Mode == "Distance" and 3.8 or 3.1)
+    gui.StudsOffset = Vector3.new(0, offsetY, 0)
     gui.Parent = root
 
     local label = Instance.new("TextLabel")
@@ -560,7 +641,9 @@ local function startPlayerBillboard(feature)
         end
         return count
     end
-    feature:_Loop(feature.Config.Interval or 0.15, function(self)
+    local updateInterval = feature.Config.Interval
+        or (feature.Config.Mode == "Name" and 0.9 or 0.32)
+    feature:_Loop(updateInterval, function(self)
         local count = self:RefreshNow()
         return count > 0, count > 0 and ("Displaying " .. self.Config.Mode .. " for " .. count .. " player(s)") or "Waiting for players"
     end)
@@ -568,23 +651,56 @@ end
 
 local function startHideCharacters(feature)
     feature.OriginalTransparency = {}
-    feature.CharacterConnections = {}
+    feature.BoundCharacters = setmetatable({}, {__mode = "k"})
 
-    local function applyCharacter(self, character)
-        if not character then return end
-        for _, descendant in ipairs(character:GetDescendants()) do
-            if descendant:IsA("BasePart") then
-                if self.OriginalTransparency[descendant] == nil then
-                    self.OriginalTransparency[descendant] = descendant.LocalTransparencyModifier
-                end
+    local function appliesToPlayer(self, player)
+        if self.Config.Mode == "Self" then
+            return player == LocalPlayer
+        end
+        return player ~= LocalPlayer
+    end
+
+    local function applyInstance(self, descendant)
+        if descendant:IsA("BasePart") then
+            if self.OriginalTransparency[descendant] == nil then
+                self.OriginalTransparency[descendant] = descendant.LocalTransparencyModifier
+            end
+            if descendant.LocalTransparencyModifier ~= 1 then
                 descendant.LocalTransparencyModifier = 1
-            elseif descendant:IsA("Decal") or descendant:IsA("Texture") then
-                if self.OriginalTransparency[descendant] == nil then
-                    self.OriginalTransparency[descendant] = descendant.Transparency
-                end
+            end
+        elseif descendant:IsA("Decal") or descendant:IsA("Texture") then
+            if self.OriginalTransparency[descendant] == nil then
+                self.OriginalTransparency[descendant] = descendant.Transparency
+            end
+            if descendant.Transparency ~= 1 then
                 descendant.Transparency = 1
             end
         end
+    end
+
+    local function bindCharacter(self, player, character)
+        if not character or self.BoundCharacters[character] or not appliesToPlayer(self, player) then
+            return
+        end
+        self.BoundCharacters[character] = true
+        for _, descendant in ipairs(character:GetDescendants()) do
+            applyInstance(self, descendant)
+        end
+        self:_TrackConnection(character.DescendantAdded:Connect(function(instance)
+            if self.Enabled then
+                applyInstance(self, instance)
+            end
+        end))
+    end
+
+    local function bindPlayer(self, player)
+        if not appliesToPlayer(self, player) then return end
+        bindCharacter(self, player, player.Character)
+        self:_TrackConnection(player.CharacterAdded:Connect(function(character)
+            if self.Enabled then
+                bindCharacter(self, player, character)
+            end
+        end))
     end
 
     feature.Restore = function(self)
@@ -598,23 +714,22 @@ local function startHideCharacters(feature)
             end
         end
         self.OriginalTransparency = {}
+        self.BoundCharacters = setmetatable({}, {__mode = "k"})
     end
 
-    feature:_Loop(feature.Config.Interval or 0.35, function(self)
+    for _, player in ipairs(Players:GetPlayers()) do
+        bindPlayer(feature, player)
+    end
+    feature:_TrackConnection(Players.PlayerAdded:Connect(function(player)
+        if feature.Enabled then
+            bindPlayer(feature, player)
+        end
+    end))
+
+    feature:_Loop(feature.Config.Interval or 1.25, function(self)
         local count = 0
-        if self.Config.Mode == "Self" then
-            local character = getCharacter()
-            if character then
-                applyCharacter(self, character)
-                count = 1
-            end
-        else
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character then
-                    applyCharacter(self, player.Character)
-                    count = count + 1
-                end
-            end
+        for character in pairs(self.BoundCharacters) do
+            if character.Parent then count = count + 1 end
         end
         return count > 0, count > 0 and ("Hidden " .. count .. " character(s) locally") or "Waiting for character models"
     end)
@@ -636,6 +751,8 @@ end
 
 local function startToolESP(feature)
     feature.Markers = {}
+    feature.Candidates = setmetatable({}, {__mode = "k"})
+
     local function resolve(instance)
         if instance:IsA("Tool") then return instance end
         local tool = instance:FindFirstAncestorWhichIsA("Tool")
@@ -648,50 +765,111 @@ local function startToolESP(feature)
         end
         return nil
     end
+
+    local function addCandidate(self, instance)
+        local target = resolve(instance)
+        if target then self.Candidates[target] = true end
+    end
+
+    local function removeMarker(self, target)
+        local marker = self.Markers[target]
+        if not marker then return end
+        if marker.Highlight and marker.Highlight.Parent then marker.Highlight:Destroy() end
+        if marker.Billboard and marker.Billboard.Parent then marker.Billboard:Destroy() end
+        self.Markers[target] = nil
+    end
+
+    local function ensureMarker(self, target, adornee)
+        local marker = self.Markers[target]
+        if marker and marker.Highlight and marker.Highlight.Parent and marker.Billboard and marker.Billboard.Parent then
+            return marker
+        end
+        removeMarker(self, target)
+
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "SquidNoMo_" .. self.Id
+        highlight.Adornee = adornee
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.FillTransparency = 0.62
+        highlight.OutlineTransparency = 0.05
+        highlight.Parent = adornee
+
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "SquidNoMo_" .. self.Id .. "_Label"
+        billboard.Adornee = adornee
+        billboard.AlwaysOnTop = true
+        billboard.Size = UDim2.fromOffset(170, 32)
+        billboard.StudsOffset = Vector3.new(0, 1.8, 0)
+        billboard.Parent = adornee
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.fromScale(1, 1)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.GothamBold
+        label.TextSize = 14
+        label.TextStrokeTransparency = 0.25
+        label.Text = target:IsA("ProximityPrompt") and (target.ActionText ~= "" and target.ActionText or (target.Parent and target.Parent.Name or target.Name)) or target.Name
+        label.Parent = billboard
+
+        marker = {Highlight = highlight, Billboard = billboard, Label = label, Adornee = adornee}
+        self.Markers[target] = marker
+        self:_TrackInstance(highlight)
+        self:_TrackInstance(billboard)
+        return marker
+    end
+
+    -- Reuse the shared object index when available so enabling Tool ESP never
+    -- performs its own complete Workspace scan. The fallback walks in batches.
+    local objectIndex = Environment.__SquidNoMoObjectIndex
+    if type(objectIndex) == "table" and type(objectIndex.ForEach) == "function" then
+        objectIndex:ForEach("workspace", {"Tool", "ProximityPrompt"}, function(instance)
+            addCandidate(feature, instance)
+            return true
+        end)
+    else
+        feature:_Spawn(function()
+            local queue = Workspace:GetChildren()
+            local cursor = 1
+            while feature.Enabled and cursor <= #queue do
+                local instance = queue[cursor]
+                cursor = cursor + 1
+                addCandidate(feature, instance)
+                for _, child in ipairs(instance:GetChildren()) do table.insert(queue, child) end
+                if cursor % 220 == 0 then task.wait() end
+            end
+        end)
+    end
+    feature:_TrackConnection(Workspace.DescendantAdded:Connect(function(instance)
+        if feature.Enabled then addCandidate(feature, instance) end
+    end))
+    feature:_TrackConnection(Workspace.DescendantRemoving:Connect(function(instance)
+        if instance:IsA("Tool") or instance:IsA("ProximityPrompt") then
+            feature.Candidates[instance] = nil
+            removeMarker(feature, instance)
+        end
+    end))
+
     feature.RefreshNow = function(self)
         local valid = {}
         local count = 0
         local character = getCharacter()
         local backpack = LocalPlayer and LocalPlayer:FindFirstChildOfClass("Backpack")
-        for _, instance in ipairs(Workspace:GetDescendants()) do
-            local target = resolve(instance)
-            if target and not valid[target]
-                and not (character and target:IsDescendantOf(character))
+        for target in pairs(self.Candidates) do
+            if not target.Parent then
+                self.Candidates[target] = nil
+                removeMarker(self, target)
+            elseif not (character and target:IsDescendantOf(character))
                 and not (backpack and target:IsDescendantOf(backpack))
+                and target:IsDescendantOf(Workspace)
             then
-                valid[target] = true
-                local marker = self.Markers[target]
                 local adornee = targetAdornee(target)
-                if adornee then
-                    if not marker or not marker.Highlight.Parent then
-                        local highlight = Instance.new("Highlight")
-                        highlight.Name = "SquidNoMo_" .. self.Id
-                        highlight.Adornee = adornee
-                        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                        highlight.FillTransparency = 0.62
-                        highlight.OutlineTransparency = 0.05
-                        highlight.Parent = adornee
-
-                        local billboard = Instance.new("BillboardGui")
-                        billboard.Name = "SquidNoMo_" .. self.Id .. "_Label"
-                        billboard.Adornee = adornee
-                        billboard.AlwaysOnTop = true
-                        billboard.Size = UDim2.fromOffset(170, 32)
-                        billboard.StudsOffset = Vector3.new(0, 1.8, 0)
-                        billboard.Parent = adornee
-
-                        local label = Instance.new("TextLabel")
-                        label.Size = UDim2.fromScale(1, 1)
-                        label.BackgroundTransparency = 1
-                        label.Font = Enum.Font.GothamBold
-                        label.TextSize = 14
-                        label.TextStrokeTransparency = 0.25
-                        label.Text = target:IsA("ProximityPrompt") and (target.ActionText ~= "" and target.ActionText or target.Parent.Name) or target.Name
-                        label.Parent = billboard
-                        marker = {Highlight = highlight, Billboard = billboard, Label = label}
-                        self.Markers[target] = marker
-                        self:_TrackInstance(highlight)
-                        self:_TrackInstance(billboard)
+                if adornee and adornee.Parent then
+                    valid[target] = true
+                    local marker = ensureMarker(self, target, adornee)
+                    if marker.Adornee ~= adornee then
+                        marker.Adornee = adornee
+                        marker.Highlight.Adornee = adornee
+                        marker.Billboard.Adornee = adornee
                     end
                     marker.Highlight.FillColor = self.Color
                     marker.Highlight.OutlineColor = Color3.new(1, 1, 1)
@@ -700,16 +878,13 @@ local function startToolESP(feature)
                 end
             end
         end
-        for target, marker in pairs(self.Markers) do
-            if not valid[target] or not target.Parent then
-                if marker.Highlight.Parent then marker.Highlight:Destroy() end
-                if marker.Billboard.Parent then marker.Billboard:Destroy() end
-                self.Markers[target] = nil
-            end
+        for target in pairs(self.Markers) do
+            if not valid[target] then removeMarker(self, target) end
         end
         return count
     end
-    feature:_Loop(feature.Config.Interval or 0.8, function(self)
+
+    feature:_Loop(feature.Config.Interval or 0.95, function(self)
         local count = self:RefreshNow()
         return count > 0, count > 0 and ("Tracking " .. count .. " tool/interactable target(s)") or "Waiting for tools or interactables"
     end)
@@ -738,15 +913,16 @@ end
 
 local function startAntiLag(feature)
     feature.Originals = {}
+    feature.OptimizedCount = 0
     local function optimize(self, instance)
         if instance:IsA("ParticleEmitter") or instance:IsA("Trail") or instance:IsA("Beam")
             or instance:IsA("Smoke") or instance:IsA("Fire") or instance:IsA("Sparkles")
+            or instance:IsA("PostEffect")
         then
-            if self.Originals[instance] == nil then self.Originals[instance] = instance.Enabled end
-            instance.Enabled = false
-            return true
-        elseif instance:IsA("PostEffect") then
-            if self.Originals[instance] == nil then self.Originals[instance] = instance.Enabled end
+            if self.Originals[instance] == nil then
+                self.Originals[instance] = instance.Enabled
+                self.OptimizedCount = self.OptimizedCount + 1
+            end
             instance.Enabled = false
             return true
         end
@@ -757,38 +933,66 @@ local function startAntiLag(feature)
             if instance.Parent then pcall(function() instance.Enabled = value end) end
         end
         self.Originals = {}
+        self.OptimizedCount = 0
     end
-    feature:_Loop(feature.Config.Interval or 1.2, function(self)
-        local count = 0
-        for _, root in ipairs({Workspace, Lighting}) do
-            for _, instance in ipairs(root:GetDescendants()) do
-                if optimize(self, instance) then count = count + 1 end
+    feature.Scanning = true
+    feature.PendingScans = 2
+    for _, root in ipairs({Workspace, Lighting}) do
+        feature:_TrackConnection(root.DescendantAdded:Connect(function(instance)
+            if feature.Enabled then optimize(feature, instance) end
+        end))
+        feature:_Spawn(function()
+            local queue = root:GetChildren()
+            local cursor = 1
+            while feature.Enabled and cursor <= #queue do
+                local instance = queue[cursor]
+                cursor = cursor + 1
+                optimize(feature, instance)
+                for _, child in ipairs(instance:GetChildren()) do table.insert(queue, child) end
+                if cursor % 220 == 0 then task.wait() end
             end
+            feature.PendingScans = math.max(0, (feature.PendingScans or 1) - 1)
+            feature.Scanning = feature.PendingScans > 0
+        end)
+    end
+    feature:_Loop(feature.Config.Interval or 2.0, function(self)
+        if self.Scanning then
+            return true, "Optimizing visual effects in small batches..."
         end
-        return true, "Reduced " .. count .. " expensive visual effect(s)"
+        return true, "Reduced " .. tostring(self.OptimizedCount) .. " expensive visual effect(s)"
     end)
 end
 
 local function startMuteSounds(feature)
     feature.OriginalVolumes = {}
+    local function mute(self, sound)
+        if not sound:IsA("Sound") then return end
+        if self.OriginalVolumes[sound] == nil then self.OriginalVolumes[sound] = sound.Volume end
+        sound.Volume = 0
+    end
+    local function bind(self, character)
+        if not character then return end
+        for _, descendant in ipairs(character:GetDescendants()) do mute(self, descendant) end
+        self:_TrackConnection(character.DescendantAdded:Connect(function(instance)
+            if self.Enabled then mute(self, instance) end
+        end))
+    end
     feature.Restore = function(self)
         for sound, volume in pairs(self.OriginalVolumes or {}) do
             if sound.Parent then sound.Volume = volume end
         end
         self.OriginalVolumes = {}
     end
-    feature:_Loop(feature.Config.Interval or 0.45, function(self)
-        local character = getCharacter()
-        if not character then return false, "Waiting for the local character" end
+    bind(feature, getCharacter())
+    if LocalPlayer then
+        feature:_TrackConnection(LocalPlayer.CharacterAdded:Connect(function(character)
+            if feature.Enabled then bind(feature, character) end
+        end))
+    end
+    feature:_Loop(feature.Config.Interval or 1.5, function(self)
         local count = 0
-        for _, sound in ipairs(character:GetDescendants()) do
-            if sound:IsA("Sound") then
-                if self.OriginalVolumes[sound] == nil then self.OriginalVolumes[sound] = sound.Volume end
-                sound.Volume = 0
-                count = count + 1
-            end
-        end
-        return true, "Muted " .. count .. " character sound(s)"
+        for sound in pairs(self.OriginalVolumes) do if sound.Parent then count = count + 1 end end
+        return true, "Muted " .. tostring(count) .. " character sound(s)"
     end)
 end
 

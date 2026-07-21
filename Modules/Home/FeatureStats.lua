@@ -1,6 +1,6 @@
 --//========================================================--
 --// SquidNoMo
---// v0.5.0 Beta
+--// 1.1 beta 1
 --// Modules/Home/FeatureStats.lua
 --//========================================================--
 
@@ -269,7 +269,7 @@ function FeatureStats:Create(parent, App)
 
     task.spawn(function()
         while root.Parent and App.Gui do
-            task.wait(0.5)
+            task.wait(2.0)
             refresh()
         end
     end)

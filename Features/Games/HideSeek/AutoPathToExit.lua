@@ -7,10 +7,13 @@ if type(getgenv) == "function" then
 end
 
 local Runtime = Environment.__SquidNoMoFeatureRuntime
-if type(Runtime) ~= "table" then
+if type(Runtime) ~= "table" or Runtime.Revision ~= "1.1b1-ultralight-r4" then
     local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_feature_recode_r2")
+    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_ultralight_r4")
     Runtime = loadstring(source)()
+end
+if type(Runtime) ~= "table" or Runtime.Revision ~= "1.1b1-ultralight-r4" then
+    error("SquidNoMo feature runtime revision mismatch; deploy the complete build")
 end
 
 return Runtime:CreateFeature({
@@ -24,5 +27,8 @@ return Runtime:CreateFeature({
     StopDistance = 7,
     Interact = true,
     InteractDistance = 12,
+    RequireToolTokens = {"key", "keycard"},
+    ExcludeLocalRoleTokens = {"hunter", "seeker", "killer"},
+    MovementPriority = 85,
     WaitingMessage = "Waiting for a detected exit",
 })

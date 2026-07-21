@@ -1,14 +1,13 @@
 -- SquidNoMo feature runtime
--- SquidNoMo feature revision: 1.1b1-feature-recode-r2
+-- SquidNoMo feature revision: 1.1b1-ultralight-r4
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local PathfindingService = game:GetService("PathfindingService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Runtime = {
-    Revision = "1.1b1-feature-recode-r2",
+    Revision = "1.1b1-ultralight-r4",
 }
 
 local Environment = _G
@@ -19,6 +18,86 @@ if type(getgenv) == "function" then
     end
 end
 Environment.__SquidNoMoFeatureRuntime = Runtime
+
+
+-- One cooperative scheduler is shared by every game, guard, detective, and player
+-- feature. It prevents dozens of independent while-loops from waking on the same
+-- frame and automatically backs off features that are waiting for a round.
+local Scheduler = Environment.__SquidNoMoScheduler
+if type(Scheduler) ~= "table" or Scheduler.Revision ~= "1.1b1-ultralight-scheduler-r1" then
+    Scheduler = {
+        Revision = "1.1b1-ultralight-scheduler-r1",
+        Tasks = setmetatable({}, {__mode = "k"}),
+        Running = false,
+        Lightweight = true,
+    }
+
+    function Scheduler:SetLightweight(state)
+        self.Lightweight = state ~= false
+    end
+
+    function Scheduler:Add(owner, interval, idleInterval, callback)
+        interval = math.max(tonumber(interval) or 0.25, 0.03)
+        idleInterval = math.max(tonumber(idleInterval) or math.max(interval * 4, 1.0), interval)
+        self.Tasks[owner] = {
+            Interval = interval,
+            IdleInterval = idleInterval,
+            Callback = callback,
+            NextRun = os.clock(),
+            Busy = false,
+        }
+        self:_Ensure()
+    end
+
+    function Scheduler:Remove(owner)
+        self.Tasks[owner] = nil
+    end
+
+    function Scheduler:_Ensure()
+        if self.Running then return end
+        self.Running = true
+        task.spawn(function()
+            while next(self.Tasks) do
+                local now = os.clock()
+                local launched = 0
+                local launchBudget = self.Lightweight and 3 or 8
+                for owner, job in pairs(self.Tasks) do
+                    if launched >= launchBudget then break end
+                    if not owner or owner.Enabled ~= true then
+                        self.Tasks[owner] = nil
+                    elseif not job.Busy and now >= job.NextRun then
+                        job.Busy = true
+                        launched = launched + 1
+                        task.spawn(function()
+                            local ok, active = xpcall(function()
+                                return job.Callback(owner)
+                            end, debug.traceback)
+                            if not ok and owner and owner.Enabled then
+                                owner.LastError = tostring(active)
+                                if type(owner._SetStatus) == "function" then
+                                    owner:_SetStatus("Error", owner.LastError)
+                                end
+                                warn("[SquidNoMo][Scheduler] " .. owner.LastError)
+                                active = false
+                            end
+                            job.Busy = false
+                            job.NextRun = os.clock() + (active and job.Interval or job.IdleInterval)
+                        end)
+                    end
+                end
+                task.wait(self.Lightweight and 0.035 or 0.02)
+            end
+            self.Running = false
+        end)
+    end
+
+    Environment.__SquidNoMoScheduler = Scheduler
+end
+Runtime.Scheduler = Scheduler
+Runtime.LightweightMode = true
+Runtime.QueryCache = {}
+Runtime.MovementLease = {Owner = nil, Priority = -math.huge, ExpiresAt = 0}
+Runtime.ActionLeases = {}
 
 local function lower(value)
     return string.lower(tostring(value or ""))
@@ -46,24 +125,37 @@ local function containsAll(value, tokens)
     return true
 end
 
+local InstanceTextCache = setmetatable({}, {__mode = "k"})
 local function instanceText(instance)
     if not instance then return "" end
-    local parts = {instance.Name, instance.ClassName}
-    local current = instance.Parent
-    local depth = 0
-    while current and depth < 3 do
-        table.insert(parts, current.Name)
-        current = current.Parent
-        depth = depth + 1
+
+    local dynamic = instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox")
+        or instance:IsA("ValueBase") or instance:IsA("ProximityPrompt")
+    local parent = instance.Parent
+    local parentName = parent and parent.Name or ""
+    local grandparent = parent and parent.Parent
+    local grandparentName = grandparent and grandparent.Name or ""
+    local signature = instance.Name .. "|" .. parentName .. "|" .. grandparentName
+    if not dynamic then
+        local cached = InstanceTextCache[instance]
+        if cached and cached.Signature == signature then return cached.Text end
     end
+
+    local parts = {instance.Name, instance.ClassName, parentName, grandparentName}
+    local current = grandparent and grandparent.Parent
+    if current then table.insert(parts, current.Name) end
     if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
         table.insert(parts, instance.Text)
+    elseif instance:IsA("ValueBase") then
+        table.insert(parts, tostring(instance.Value))
     end
     local ok, actionText = pcall(function()
         return instance:IsA("ProximityPrompt") and instance.ActionText or nil
     end)
     if ok and actionText then table.insert(parts, actionText) end
-    return lower(table.concat(parts, " "))
+    local text = lower(table.concat(parts, " "))
+    if not dynamic then InstanceTextCache[instance] = {Signature = signature, Text = text} end
+    return text
 end
 
 local function classAllowed(instance, classes)
@@ -84,6 +176,49 @@ local function getCharacter()
     local humanoid = character and character:FindFirstChildOfClass("Humanoid")
     local root = character and character:FindFirstChild("HumanoidRootPart")
     return player, character, humanoid, root
+end
+
+local function getLocalContextText()
+    local player, character = getCharacter()
+    if not player then return "" end
+    local parts = {player.Name, player.DisplayName, player.Team and player.Team.Name or ""}
+    for _, attributeName in ipairs({"Role", "Class", "Team", "Job", "Rank", "GameRole"}) do
+        local ok, value = pcall(player.GetAttribute, player, attributeName)
+        if ok and value ~= nil then table.insert(parts, tostring(value)) end
+        if character then
+            local characterOk, characterValue = pcall(character.GetAttribute, character, attributeName)
+            if characterOk and characterValue ~= nil then table.insert(parts, tostring(characterValue)) end
+        end
+    end
+    if character then
+        for _, child in ipairs(character:GetChildren()) do
+            if child:IsA("Tool") then table.insert(parts, child.Name) end
+        end
+    end
+    local backpack = player:FindFirstChildOfClass("Backpack")
+    if backpack then
+        for _, child in ipairs(backpack:GetChildren()) do
+            if child:IsA("Tool") then table.insert(parts, child.Name) end
+        end
+    end
+    return lower(table.concat(parts, " "))
+end
+
+function Runtime:ContextAllowed(config)
+    config = config or {}
+    local context = getLocalContextText()
+    if config.ExcludeLocalRoleTokens and containsAny(context, config.ExcludeLocalRoleTokens) then
+        return false, "This option does not match the current local role"
+    end
+    if config.LocalRoleTokens and #config.LocalRoleTokens > 0 and not containsAny(context, config.LocalRoleTokens) then
+        local known = config.KnownLocalRoleTokens or {
+            "hunter", "seeker", "killer", "hider", "runner", "guard", "staff", "detective", "player"
+        }
+        if config.StrictLocalRole or containsAny(context, known) then
+            return false, "Waiting for the matching local role"
+        end
+    end
+    return true
 end
 
 local function getPosition(instance)
@@ -108,36 +243,210 @@ local function getAdornee(instance)
     return instance:FindFirstAncestorWhichIsA("BasePart")
 end
 
-local function getScopeRoots(scope)
-    local roots = {}
-    scope = lower(scope)
-    if scope == "gui" then
-        local player = getLocalPlayer()
-        if player then
-            local gui = player:FindFirstChildOfClass("PlayerGui")
-            if gui then table.insert(roots, gui) end
+-- A live, event-maintained index replaces repeated Workspace/GetDescendants scans.
+-- Each data-model tree is enumerated once and then updated incrementally as objects
+-- are created or removed. Feature queries usually inspect only the requested class
+-- buckets (BasePart, Model, Tool, prompt, and so on).
+local INDEX_REVISION = "1.1b1-object-index-r2"
+local IndexManager = Environment.__SquidNoMoObjectIndex
+if type(IndexManager) ~= "table" or IndexManager.Revision ~= INDEX_REVISION then
+    if type(IndexManager) == "table" and type(IndexManager.Connections) == "table" then
+        for _, connection in ipairs(IndexManager.Connections) do
+            pcall(function() connection:Disconnect() end)
         end
-    elseif scope == "replicatedstorage" or scope == "remotes" then
-        table.insert(roots, ReplicatedStorage)
-    elseif scope == "both" then
-        table.insert(roots, Workspace)
-        local player = getLocalPlayer()
-        if player then
-            local gui = player:FindFirstChildOfClass("PlayerGui")
-            if gui then table.insert(roots, gui) end
-        end
-    else
-        table.insert(roots, Workspace)
     end
-    return roots
+
+    IndexManager = {
+        Revision = INDEX_REVISION,
+        Indices = {},
+        Connections = {},
+        Generation = 0,
+    }
+
+    local broadClasses = {
+        "BasePart", "Model", "Folder", "Tool", "ProximityPrompt", "ClickDetector",
+        "ValueBase", "GuiObject", "GuiButton", "TextLabel", "TextButton", "TextBox",
+        "RemoteEvent", "RemoteFunction", "BindableEvent", "BindableFunction",
+    }
+
+    local function weakSet()
+        return setmetatable({}, {__mode = "k"})
+    end
+
+    function IndexManager:_Bucket(index, className)
+        local bucket = index.Buckets[className]
+        if not bucket then
+            bucket = weakSet()
+            index.Buckets[className] = bucket
+        end
+        return bucket
+    end
+
+    function IndexManager:_Add(index, instance)
+        if not instance or index.All[instance] then return end
+        index.All[instance] = true
+        self:_Bucket(index, instance.ClassName)[instance] = true
+        for _, className in ipairs(broadClasses) do
+            if instance.ClassName ~= className and instance:IsA(className) then
+                self:_Bucket(index, className)[instance] = true
+            end
+        end
+        index.Generation = index.Generation + 1
+        self.Generation = self.Generation + 1
+    end
+
+    function IndexManager:_Remove(index, instance)
+        if not instance or not index.All[instance] then return end
+        index.All[instance] = nil
+        for _, bucket in pairs(index.Buckets) do
+            bucket[instance] = nil
+        end
+        index.Generation = index.Generation + 1
+        self.Generation = self.Generation + 1
+    end
+
+    function IndexManager:_Build(key, root)
+        local previous = self.Indices[key]
+        if previous and previous.Root == root and root and root.Parent then
+            return previous
+        end
+        if previous then
+            previous.Alive = false
+            for _, connection in ipairs(previous.Connections or {}) do
+                pcall(function() connection:Disconnect() end)
+            end
+        end
+        if not root then
+            self.Indices[key] = nil
+            return nil
+        end
+
+        local index = {
+            Root = root,
+            All = weakSet(),
+            Buckets = {},
+            Connections = {},
+            Generation = 0,
+            Alive = true,
+            Ready = false,
+        }
+        self.Indices[key] = index
+        self:_Add(index, root)
+
+        -- Subscribe first, then build the initial index cooperatively. Walking the
+        -- tree in small batches avoids one large frame spike on map-heavy servers.
+        local added = root.DescendantAdded:Connect(function(instance)
+            if index.Alive then self:_Add(index, instance) end
+        end)
+        local removing = root.DescendantRemoving:Connect(function(instance)
+            if index.Alive then self:_Remove(index, instance) end
+        end)
+        table.insert(index.Connections, added)
+        table.insert(index.Connections, removing)
+        table.insert(self.Connections, added)
+        table.insert(self.Connections, removing)
+
+        task.spawn(function()
+            local queue = root:GetChildren()
+            local cursor, processed = 1, 0
+            while index.Alive and cursor <= #queue do
+                local instance = queue[cursor]
+                cursor = cursor + 1
+                if instance and instance.Parent then
+                    self:_Add(index, instance)
+                    local children = instance:GetChildren()
+                    for _, child in ipairs(children) do
+                        table.insert(queue, child)
+                    end
+                end
+                processed = processed + 1
+                if processed % 240 == 0 then task.wait() end
+            end
+            if index.Alive then index.Ready = true end
+        end)
+        return index
+    end
+
+    function IndexManager:GetIndices(scope)
+        scope = lower(scope)
+        local indices = {}
+        if scope == "gui" then
+            local player = getLocalPlayer()
+            local gui = player and player:FindFirstChildOfClass("PlayerGui")
+            local index = self:_Build("PlayerGui", gui)
+            if index then table.insert(indices, index) end
+        elseif scope == "replicatedstorage" or scope == "remotes" then
+            table.insert(indices, self:_Build("ReplicatedStorage", ReplicatedStorage))
+        elseif scope == "both" then
+            table.insert(indices, self:_Build("Workspace", Workspace))
+            local player = getLocalPlayer()
+            local gui = player and player:FindFirstChildOfClass("PlayerGui")
+            local guiIndex = self:_Build("PlayerGui", gui)
+            if guiIndex then table.insert(indices, guiIndex) end
+        else
+            table.insert(indices, self:_Build("Workspace", Workspace))
+        end
+        return indices
+    end
+
+    function IndexManager:ForEach(scope, classes, callback)
+        local candidateSeen = weakSet()
+        for _, index in ipairs(self:GetIndices(scope)) do
+            local pools = {}
+            if type(classes) == "table" and #classes > 0 then
+                for _, className in ipairs(classes) do
+                    local bucket = index.Buckets[className]
+                    if bucket then table.insert(pools, bucket) end
+                end
+            else
+                table.insert(pools, index.All)
+            end
+            for _, pool in ipairs(pools) do
+                for instance in pairs(pool) do
+                    if instance and instance.Parent and not candidateSeen[instance] then
+                        candidateSeen[instance] = true
+                        if callback(instance) == false then return false end
+                    end
+                end
+            end
+        end
+        return true
+    end
+
+    Environment.__SquidNoMoObjectIndex = IndexManager
+end
+Runtime.IndexManager = IndexManager
+
+function Runtime:WarmIndices()
+    -- Starts the cooperative tree walk while the app is still on its loader.
+    -- Calls are idempotent and return immediately with partially built indices.
+    IndexManager:GetIndices("workspace")
+    IndexManager:GetIndices("replicatedstorage")
+    IndexManager:GetIndices("gui")
+end
+
+local function forEachIndexed(scope, classes, callback)
+    return IndexManager:ForEach(scope, classes, callback)
 end
 
 local function isVisibleGui(instance)
-    if not instance:IsA("GuiObject") then return false end
-    if not instance.Visible then return false end
+    if not instance:IsA("GuiObject") or not instance.Visible then return false end
+    local size = instance.AbsoluteSize
+    if size.X < 2 or size.Y < 2 then return false end
+    if (instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox"))
+        and instance.TextTransparency >= 0.96
+    then
+        return false
+    end
+    if instance:IsA("ImageLabel") or instance:IsA("ImageButton") then
+        if instance.ImageTransparency >= 0.98 and instance.BackgroundTransparency >= 0.98 then
+            return false
+        end
+    end
     local current = instance.Parent
     while current do
         if current:IsA("GuiObject") and not current.Visible then return false end
+        if current:IsA("CanvasGroup") and current.GroupTransparency >= 0.96 then return false end
         if current:IsA("LayerCollector") and not current.Enabled then return false end
         current = current.Parent
     end
@@ -169,24 +478,73 @@ function Runtime:Matches(instance, config)
     return true
 end
 
+local function stableList(values)
+    local result = {}
+    for _, value in ipairs(values or {}) do
+        table.insert(result, lower(value))
+    end
+    table.sort(result)
+    return table.concat(result, ",")
+end
+
+local function querySignature(config)
+    if type(config.Predicate) == "function" or config.NoCache then return nil end
+    return table.concat({
+        lower(config.Scope or "workspace"),
+        stableList(config.TargetNames),
+        stableList(config.TargetTokens),
+        stableList(config.RequiredTokens),
+        stableList(config.ExcludeTokens),
+        stableList(config.TargetClasses),
+        tostring(config.ReturnAdornee == true),
+        tostring(config.VisibleOnly == true),
+        tostring(config.MaxTargets or 0),
+    }, "|")
+end
+
+function Runtime:SetLightweightMode(state)
+    self.LightweightMode = state ~= false
+    Scheduler:SetLightweight(self.LightweightMode)
+    self.QueryCache = {}
+end
+
 function Runtime:FindTargets(config)
+    config = config or {}
+    local signature = querySignature(config)
+    local now = os.clock()
+    local cache = signature and self.QueryCache[signature] or nil
+    local defaultTTL = lower(config.Scope) == "gui" and 0.30 or (self.LightweightMode and 1.35 or 0.65)
+    local ttl = tonumber(config.CacheTTL) or defaultTTL
+
+    if cache and now - cache.Time <= ttl then
+        local results = {}
+        for _, target in ipairs(cache.Results) do
+            if target and target.Parent then
+                table.insert(results, target)
+                if config.MaxTargets and #results >= config.MaxTargets then break end
+            end
+        end
+        return results
+    end
+
     local results = {}
-    local seen = {}
-    for _, root in ipairs(getScopeRoots(config.Scope)) do
-        local candidates = root:GetDescendants()
-        if self:Matches(root, config) then table.insert(candidates, 1, root) end
-        for _, instance in ipairs(candidates) do
-            if self:Matches(instance, config) then
-                local target = config.ReturnAdornee and getAdornee(instance) or instance
-                if target and not seen[target] then
-                    seen[target] = true
-                    table.insert(results, target)
-                    if config.MaxTargets and #results >= config.MaxTargets then
-                        return results
-                    end
+    local seen = setmetatable({}, {__mode = "k"})
+    forEachIndexed(config.Scope, config.TargetClasses, function(instance)
+        if self:Matches(instance, config) then
+            local target = config.ReturnAdornee and getAdornee(instance) or instance
+            if target and not seen[target] then
+                seen[target] = true
+                table.insert(results, target)
+                if config.MaxTargets and #results >= config.MaxTargets then
+                    return false
                 end
             end
         end
+        return true
+    end)
+
+    if signature then
+        self.QueryCache[signature] = {Time = now, Results = results}
     end
     return results
 end
@@ -231,19 +589,54 @@ function Runtime:EquipTool(tool)
     return true
 end
 
-function Runtime:ActivateTool(tokens)
+function Runtime:ActivateTool(tokens, feature, options)
+    options = options or {}
+    -- Do not reserve the shared tool channel until a usable tool actually exists.
+    -- This prevents a waiting feature from starving another enabled tool feature.
     local tool = self:FindTool(tokens or {})
     if not tool then return false, "matching tool not found" end
-    self:EquipTool(tool)
+    if not self:EquipTool(tool) then return false, "matching tool could not be equipped" end
+    local claimed, ownerName = self:ClaimAction(
+        feature,
+        options.Resource or "ToolAction",
+        options.Priority,
+        options.Duration or options.Cooldown or 0.35
+    )
+    if not claimed then return false, "action is currently controlled by " .. tostring(ownerName) end
     local ok, err = pcall(tool.Activate, tool)
     return ok, ok and nil or tostring(err)
 end
 
-function Runtime:Interact(target)
+function Runtime:Interact(target, feature, options)
     if not target then return false, "target not found" end
+    options = options or {}
+
+    -- Resolve a supported interaction before reserving the shared interaction
+    -- channel. A decorative object must not block a valid collector feature.
     local prompt = target:IsA("ProximityPrompt") and target
         or target:FindFirstChildWhichIsA("ProximityPrompt", true)
-    if prompt and prompt.Enabled then
+    local detector = target:IsA("ClickDetector") and target
+        or target:FindFirstChildWhichIsA("ClickDetector", true)
+    local touchPart = target:IsA("BasePart") and target
+        or target:FindFirstChildWhichIsA("BasePart", true)
+    local _, _, _, root = getCharacter()
+
+    local supportedPrompt = prompt and prompt.Enabled
+    local supportedDetector = detector and type(fireclickdetector) == "function"
+    local supportedTouch = touchPart and root and type(firetouchinterest) == "function"
+    if not supportedPrompt and not supportedDetector and not supportedTouch then
+        return false, "no supported prompt, click detector, or touch target"
+    end
+
+    local claimed, ownerName = self:ClaimAction(
+        feature,
+        options.Resource or "Interaction",
+        options.Priority,
+        options.Duration or 0.4
+    )
+    if not claimed then return false, "interaction is currently controlled by " .. tostring(ownerName) end
+
+    if supportedPrompt then
         if type(fireproximityprompt) == "function" then
             local ok, err = pcall(fireproximityprompt, prompt)
             return ok, ok and nil or tostring(err)
@@ -256,24 +649,93 @@ function Runtime:Interact(target)
         return ok, ok and nil or "executor cannot trigger ProximityPrompt"
     end
 
-    local detector = target:IsA("ClickDetector") and target
-        or target:FindFirstChildWhichIsA("ClickDetector", true)
-    if detector and type(fireclickdetector) == "function" then
+    if supportedDetector then
         local ok, err = pcall(fireclickdetector, detector)
         return ok, ok and nil or tostring(err)
     end
 
-    local touchPart = target:IsA("BasePart") and target or target:FindFirstChildWhichIsA("BasePart", true)
-    local _, _, _, root = getCharacter()
-    if touchPart and root and type(firetouchinterest) == "function" then
-        local ok, err = pcall(function()
-            firetouchinterest(root, touchPart, 0)
-            task.wait()
-            firetouchinterest(root, touchPart, 1)
-        end)
-        return ok, ok and nil or tostring(err)
+    local ok, err = pcall(function()
+        firetouchinterest(root, touchPart, 0)
+        task.wait()
+        firetouchinterest(root, touchPart, 1)
+    end)
+    return ok, ok and nil or tostring(err)
+end
+
+function Runtime:ClaimAction(feature, resource, priority, duration)
+    if not feature then return true end
+    resource = tostring(resource or "General")
+    local lease = self.ActionLeases[resource]
+    if not lease then
+        lease = {Owner = nil, Priority = -math.huge, ExpiresAt = 0}
+        self.ActionLeases[resource] = lease
     end
-    return false, "no supported prompt, click detector, or touch target"
+    local now = os.clock()
+    priority = tonumber(priority) or tonumber(feature.Config and feature.Config.ActionPriority) or 50
+    duration = tonumber(duration) or 0.35
+    local owner = lease.Owner
+    if owner == feature or owner == nil or owner.Enabled ~= true or now >= lease.ExpiresAt or priority > lease.Priority then
+        lease.Owner = feature
+        lease.Priority = priority
+        lease.ExpiresAt = now + duration
+        return true
+    end
+    return false, owner and owner.Name or "another feature"
+end
+
+function Runtime:ReleaseActions(feature)
+    for _, lease in pairs(self.ActionLeases) do
+        if not feature or lease.Owner == feature then
+            lease.Owner = nil
+            lease.Priority = -math.huge
+            lease.ExpiresAt = 0
+        end
+    end
+end
+
+function Runtime:CanUseMovement(feature, priority)
+    local lease = self.MovementLease
+    local now = os.clock()
+    priority = tonumber(priority) or tonumber(feature and feature.Config and feature.Config.MovementPriority) or 50
+    local owner = lease.Owner
+    if owner == feature or owner == nil or owner.Enabled ~= true or now >= lease.ExpiresAt or priority > lease.Priority then
+        return true
+    end
+    return false, owner and owner.Name or "another movement feature"
+end
+
+function Runtime:ClaimMovement(feature, priority, duration)
+    if not feature then return true end
+    local lease = self.MovementLease
+    local now = os.clock()
+    priority = tonumber(priority) or tonumber(feature.Config and feature.Config.MovementPriority) or 50
+    duration = tonumber(duration) or 0.9
+    local owner = lease.Owner
+    if owner == feature or owner == nil or owner.Enabled ~= true or now >= lease.ExpiresAt or priority > lease.Priority then
+        lease.Owner = feature
+        lease.Priority = priority
+        lease.ExpiresAt = now + duration
+        return true
+    end
+    return false, owner and owner.Name or "another movement feature"
+end
+
+function Runtime:StopMovement(feature, force)
+    local lease = self.MovementLease
+    if not force and feature and lease.Owner and lease.Owner ~= feature then return false end
+    local _, _, humanoid, root = getCharacter()
+    if humanoid and root then
+        pcall(humanoid.MoveTo, humanoid, root.Position)
+        pcall(humanoid.Move, humanoid, Vector3.zero, false)
+    end
+    if force or lease.Owner == feature or not feature then
+        if lease.Owner and type(lease.Owner) == "table" then lease.Owner._MoveState = nil end
+        lease.Owner = nil
+        lease.Priority = -math.huge
+        lease.ExpiresAt = 0
+    end
+    if feature then feature._MoveState = nil end
+    return true
 end
 
 function Runtime:MoveTo(position, feature, options)
@@ -283,46 +745,88 @@ function Runtime:MoveTo(position, feature, options)
     if not position then return false, "target has no position" end
 
     local stopDistance = tonumber(options.StopDistance) or 5
-    if (root.Position - position).Magnitude <= stopDistance then return true end
-
-    local path = PathfindingService:CreatePath({
-        AgentRadius = tonumber(options.AgentRadius) or 2,
-        AgentHeight = tonumber(options.AgentHeight) or 5,
-        AgentCanJump = true,
-        WaypointSpacing = tonumber(options.WaypointSpacing) or 5,
-    })
-    local ok = pcall(path.ComputeAsync, path, root.Position, position)
-    if ok and path.Status == Enum.PathStatus.Success then
-        local waypoints = path:GetWaypoints()
-        local limit = math.min(#waypoints, tonumber(options.MaxWaypoints) or 5)
-        for index = 2, limit do
-            if feature and not feature.Enabled then return false, "disabled" end
-            local waypoint = waypoints[index]
-            if waypoint.Action == Enum.PathWaypointAction.Jump then humanoid.Jump = true end
-            humanoid:MoveTo(waypoint.Position)
-            local reached = false
-            local connection
-            connection = humanoid.MoveToFinished:Connect(function(value)
-                reached = value
-            end)
-            local started = os.clock()
-            while feature and feature.Enabled and os.clock() - started < (options.WaypointTimeout or 1.6) do
-                if reached then break end
-                task.wait(0.05)
-            end
-            if connection then connection:Disconnect() end
-            if (root.Position - position).Magnitude <= stopDistance then return true end
+    local distance = (root.Position - position).Magnitude
+    if distance <= stopDistance then
+        if feature then
+            local claimed, ownerName = self:ClaimMovement(
+                feature,
+                options.MovementPriority,
+                options.HoldLeaseAtTarget or 0.9
+            )
+            if not claimed then return false, "movement is currently controlled by " .. tostring(ownerName) end
+            pcall(humanoid.MoveTo, humanoid, root.Position)
+            pcall(humanoid.Move, humanoid, Vector3.zero, false)
+            if feature._MoveState then feature._MoveState.ReachedAt = os.clock() end
         end
-        return (root.Position - position).Magnitude <= stopDistance * 2
+        return true, "target reached"
     end
 
-    humanoid:MoveTo(position)
-    task.wait(tonumber(options.FallbackWait) or 0.35)
-    return (root.Position - position).Magnitude <= stopDistance * 2, "path unavailable; used MoveTo fallback"
+    local claimed, ownerName = self:ClaimMovement(feature, options.MovementPriority, options.LeaseDuration)
+    if not claimed then return false, "movement is currently controlled by " .. tostring(ownerName) end
+
+    local state = feature and feature._MoveState or self._AnonymousMoveState
+    if type(state) ~= "table" then state = {} end
+    if feature then feature._MoveState = state else self._AnonymousMoveState = state end
+
+    local now = os.clock()
+    local targetChanged = not state.Target or (state.Target - position).Magnitude > (tonumber(options.TargetChangeDistance) or 7)
+    local direct = options.Direct == true or options.UsePathfinding == false
+    local repathInterval = tonumber(options.RepathInterval) or (self.LightweightMode and 1.65 or 1.0)
+
+    if direct then
+        state.Waypoints = nil
+        state.Index = nil
+    elseif targetChanged or not state.Waypoints or now - (state.ComputedAt or 0) >= repathInterval then
+        state.Target = position
+        state.ComputedAt = now
+        state.Waypoints = nil
+        state.Index = 2
+        local path = PathfindingService:CreatePath({
+            AgentRadius = tonumber(options.AgentRadius) or 2,
+            AgentHeight = tonumber(options.AgentHeight) or 5,
+            AgentCanJump = true,
+            WaypointSpacing = tonumber(options.WaypointSpacing) or 6,
+        })
+        local ok = pcall(path.ComputeAsync, path, root.Position, position)
+        if ok and path.Status == Enum.PathStatus.Success then
+            state.Waypoints = path:GetWaypoints()
+        end
+    end
+
+    local destination = position
+    local waypoint
+    if state.Waypoints and #state.Waypoints >= 2 then
+        local index = math.clamp(state.Index or 2, 2, #state.Waypoints)
+        waypoint = state.Waypoints[index]
+        if (root.Position - waypoint.Position).Magnitude <= (tonumber(options.WaypointReachDistance) or 4) and index < #state.Waypoints then
+            index = index + 1
+            state.Index = index
+            waypoint = state.Waypoints[index]
+        end
+        destination = waypoint.Position
+        if waypoint.Action == Enum.PathWaypointAction.Jump then humanoid.Jump = true end
+    end
+
+    local commandInterval = tonumber(options.CommandInterval) or 0.45
+    if targetChanged or now - (state.LastCommandAt or 0) >= commandInterval then
+        state.Target = position
+        state.LastCommandAt = now
+        pcall(humanoid.MoveTo, humanoid, destination)
+    end
+
+    return true, waypoint and "following cached path" or "moving directly to target"
 end
 
-function Runtime:ClickGui(target)
+function Runtime:ClickGui(target, feature, options)
     if not target then return false, "GUI target not found" end
+    options = options or {}
+    local claimed, ownerName = self:ClaimAction(
+        feature,
+        options.Resource or "GuiAction",
+        options.Priority,
+        options.Duration or 0.25
+    )
+    if not claimed then return false, "GUI action is currently controlled by " .. tostring(ownerName) end
     local button = target:IsA("GuiButton") and target or target:FindFirstChildWhichIsA("GuiButton", true)
     if button and type(firesignal) == "function" then
         local ok = pcall(function()
@@ -349,8 +853,11 @@ local FeatureMethods = {}
 FeatureMethods.__index = FeatureMethods
 
 function FeatureMethods:_SetStatus(state, detail)
-    self.Status = tostring(state or "Unknown")
-    self.StatusDetail = tostring(detail or "")
+    local nextStatus = tostring(state or "Unknown")
+    local nextDetail = tostring(detail or "")
+    if self.Status == nextStatus and self.StatusDetail == nextDetail then return end
+    self.Status = nextStatus
+    self.StatusDetail = nextDetail
     for id, callback in pairs(self.StatusListeners) do
         local ok = pcall(callback, self.Status, self.StatusDetail, self)
         if not ok then self.StatusListeners[id] = nil end
@@ -403,22 +910,24 @@ function FeatureMethods:_Spawn(callback)
 end
 
 function FeatureMethods:_Loop(interval, callback)
-    self:_Spawn(function()
-        while self.Enabled do
-            local ok, active, detail = pcall(callback, self)
-            if not ok then
-                error(active)
-            elseif active then
-                self:_SetStatus("Active", detail or "Working")
-            else
-                self:_SetStatus("Waiting", detail or self.Config.WaitingMessage or "Waiting for the matching game objects")
-            end
-            task.wait(interval or self.Config.Interval or 0.5)
+    interval = tonumber(interval) or tonumber(self.Config.Interval) or 0.5
+    local idleInterval = tonumber(self.Config.IdleInterval) or math.max(interval * 4, 1.0)
+    Scheduler:Add(self, interval, idleInterval, function(owner)
+        local ok, active, detail = pcall(callback, owner)
+        if not ok then error(active) end
+        if active then
+            owner:_SetStatus("Active", detail or "Working")
+        else
+            owner:_SetStatus("Waiting", detail or owner.Config.WaitingMessage or "Waiting for the matching game objects")
         end
+        return active == true
     end)
 end
 
 function FeatureMethods:_Clear()
+    Scheduler:Remove(self)
+    Runtime:StopMovement(self)
+    Runtime:ReleaseActions(self)
     for _, connection in ipairs(self.Connections) do
         pcall(function() connection:Disconnect() end)
     end
@@ -494,9 +1003,16 @@ local function startWalkTo(feature)
     feature:_Loop(feature.Config.Interval or 0.7, function(self)
         local _, _, _, root = getCharacter()
         if not root then return false, "Waiting for the local character" end
+        local contextAllowed, contextDetail = Runtime:ContextAllowed(self.Config)
+        if not contextAllowed then return false, contextDetail end
+        if self.Config.SkipIfToolTokens and Runtime:FindTool(self.Config.SkipIfToolTokens) then
+            return false, self.Config.CompletedMessage or "Required item is already in the inventory"
+        end
         if self.Config.RequireToolTokens and not Runtime:FindTool(self.Config.RequireToolTokens) then
             return false, "Waiting for " .. table.concat(self.Config.RequireToolTokens, "/") .. " tool"
         end
+        local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority)
+        if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
         local target, distance = Runtime:FindNearest({
             Scope = self.Config.Scope or "Workspace",
             TargetNames = self.Config.TargetNames,
@@ -513,9 +1029,13 @@ local function startWalkTo(feature)
         if self.Enabled and self.Config.Interact and position then
             local _, _, _, currentRoot = getCharacter()
             if currentRoot and (currentRoot.Position - position).Magnitude <= (self.Config.InteractDistance or 12) then
-                local interacted, interactDetail = Runtime:Interact(target)
+                local cooldown = self.Config.ActionCooldown or 0.8
+                if os.clock() - (self.LastAction or 0) < cooldown then
+                    return true, "Reached " .. target.Name .. " — interaction cooling down"
+                end
+                local interacted, interactDetail = Runtime:Interact(target, self, {Priority = self.Config.ActionPriority or 55, Duration = self.Config.ActionCooldown or 0.8})
                 if interacted then
-                    task.wait(self.Config.ActionCooldown or 0.8)
+                    self.LastAction = os.clock()
                     return true, "Reached and interacted with " .. target.Name
                 end
                 return moved, interactDetail or moveDetail
@@ -529,8 +1049,17 @@ local function startInteract(feature)
     feature:_Loop(feature.Config.Interval or 0.55, function(self)
         local _, _, _, root = getCharacter()
         if not root then return false, "Waiting for the local character" end
+        local contextAllowed, contextDetail = Runtime:ContextAllowed(self.Config)
+        if not contextAllowed then return false, contextDetail end
+        if self.Config.SkipIfToolTokens and Runtime:FindTool(self.Config.SkipIfToolTokens) then
+            return false, self.Config.CompletedMessage or "Required item is already in the inventory"
+        end
         if self.Config.ToolTokens and not Runtime:FindTool(self.Config.ToolTokens) then
             return false, "Waiting for " .. table.concat(self.Config.ToolTokens, "/") .. " tool"
+        end
+        if self.Config.Walk then
+            local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority)
+            if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
         end
         local target, distance = Runtime:FindNearest({
             Scope = self.Config.Scope or "Workspace",
@@ -550,8 +1079,12 @@ local function startInteract(feature)
             return false, "Nearest target is " .. math.floor(distance) .. " studs away"
         end
         if self.Config.ToolTokens then Runtime:EquipTool(Runtime:FindTool(self.Config.ToolTokens)) end
-        local ok, detail = Runtime:Interact(target)
-        if ok then task.wait(self.Config.ActionCooldown or 0.45) end
+        local cooldown = self.Config.ActionCooldown or 0.45
+        if os.clock() - (self.LastAction or 0) < cooldown then
+            return true, "Target detected — interaction cooling down"
+        end
+        local ok, detail = Runtime:Interact(target, self, {Priority = self.Config.ActionPriority or 55, Duration = self.Config.ActionCooldown or 0.45})
+        if ok then self.LastAction = os.clock() end
         return ok, ok and ("Interacted with " .. target.Name) or detail
     end)
 end
@@ -573,8 +1106,23 @@ getOtherCharacterTargets = function(config)
         end
     end
     if config.IncludeNPCs then
-        for _, instance in ipairs(Workspace:GetDescendants()) do
-            if instance:IsA("Model") and not Players:GetPlayerFromCharacter(instance) then
+        local now = os.clock()
+        local cache = Runtime._NPCCharacterCache
+        if not cache or now - cache.Time > 1.0 then
+            local models = {}
+            forEachIndexed("Workspace", {"Model"}, function(instance)
+                if not Players:GetPlayerFromCharacter(instance) then
+                    local humanoid = instance:FindFirstChildOfClass("Humanoid")
+                    local root = instance:FindFirstChild("HumanoidRootPart")
+                    if humanoid and root then table.insert(models, instance) end
+                end
+                return true
+            end)
+            cache = {Time = now, Models = models}
+            Runtime._NPCCharacterCache = cache
+        end
+        for _, instance in ipairs(cache.Models) do
+            if instance.Parent then
                 local humanoid = instance:FindFirstChildOfClass("Humanoid")
                 local root = instance:FindFirstChild("HumanoidRootPart")
                 if humanoid and root and humanoid.Health > 0
@@ -602,6 +1150,8 @@ end
 
 local function startToolAura(feature)
     feature:_Loop(feature.Config.Interval or 0.18, function(self)
+        local contextAllowed, contextDetail = Runtime:ContextAllowed(self.Config)
+        if not contextAllowed then return false, contextDetail end
         local _, character, _, root = getCharacter()
         if not character or not root then return false, "Waiting for the local character" end
         local target, distance = nearestCharacter(self.Config, root.Position)
@@ -614,7 +1164,11 @@ local function startToolAura(feature)
                 root.CFrame = CFrame.lookAt(root.Position, Vector3.new(targetRoot.Position.X, root.Position.Y, targetRoot.Position.Z))
             end)
         end
-        local ok, detail = Runtime:ActivateTool(self.Config.ToolTokens or {})
+        local ok, detail = Runtime:ActivateTool(self.Config.ToolTokens or {}, self, {
+            Resource = "CombatAction",
+            Priority = self.Config.ActionPriority or 60,
+            Duration = math.max(self.Config.Interval or 0.18, 0.22),
+        })
         return ok, ok and ("Activated tool near " .. target.Name) or detail
     end)
 end
@@ -630,33 +1184,68 @@ local function findVisibleGui(tokens, classes)
     local player = getLocalPlayer()
     local gui = player and player:FindFirstChildOfClass("PlayerGui")
     if not gui then return nil end
-    for _, instance in ipairs(gui:GetDescendants()) do
+    local key = stableList(tokens) .. "|" .. stableList(classes or {"GuiObject"})
+    Runtime._GuiQueryCache = Runtime._GuiQueryCache or {}
+    local cached = Runtime._GuiQueryCache[key]
+    local now = os.clock()
+    if cached and now - cached.Time < 0.18 then
+        if cached.Instance and cached.Instance.Parent and isVisibleGui(cached.Instance) then
+            return cached.Instance
+        elseif cached.Instance == nil then
+            return nil
+        end
+    end
+    local found
+    forEachIndexed("Gui", classes or {"GuiObject"}, function(instance)
         if classAllowed(instance, classes or {"GuiObject"}) and isVisibleGui(instance)
             and containsAny(instanceText(instance), tokens)
         then
-            return instance
+            found = instance
+            return false
         end
-    end
-    return nil
+        return true
+    end)
+    Runtime._GuiQueryCache[key] = {Time = now, Instance = found}
+    return found
 end
 
 local function startTiming(feature)
     feature:_Loop(feature.Config.Interval or 0.03, function(self)
         local indicator = findVisibleGui(self.Config.IndicatorTokens or {"indicator", "pointer", "cursor", "needle"})
         local zone = findVisibleGui(self.Config.ZoneTokens or {"sweetspot", "sweet spot", "safezone", "safe zone", "bluezone", "greenzone", "target"})
-        if indicator and zone and rectsOverlap(indicator, zone) then
-            if os.clock() - self.LastAction >= (self.Config.ActionCooldown or 0.35) then
-                self.LastAction = os.clock()
-                local action = findVisibleGui(self.Config.ActionTokens or {"pull", "throw", "hit", "play", "tap", "button"}, {"GuiButton"})
-                local ok, detail = Runtime:ClickGui(action or indicator)
-                return ok, ok and "Pressed at the target timing zone" or detail
+        if indicator and zone then
+            local claimed, ownerName = Runtime:ClaimAction(
+                self,
+                "GuiAction",
+                self.Config.ActionPriority or 80,
+                math.max(self.Config.Interval or 0.05, 0.22)
+            )
+            if not claimed then
+                return false, "Timing input is currently controlled by " .. tostring(ownerName)
             end
-            return true, "Timing zone detected"
+            if rectsOverlap(indicator, zone) then
+                if os.clock() - self.LastAction >= (self.Config.ActionCooldown or 0.35) then
+                    local action = findVisibleGui(self.Config.ActionTokens or {"pull", "throw", "hit", "play", "tap", "button"}, {"GuiButton"})
+                    local ok, detail = Runtime:ClickGui(action or indicator, self, {
+                        Resource = "GuiAction",
+                        Priority = self.Config.ActionPriority or 80,
+                        Duration = self.Config.ActionCooldown or 0.35,
+                    })
+                    if ok then self.LastAction = os.clock() end
+                    return ok, ok and "Pressed at the target timing zone" or detail
+                end
+                return true, "Timing zone detected"
+            end
+            return true, "Timing meter detected — waiting for the target zone"
         end
         local action = findVisibleGui(self.Config.ActionTokens or {}, {"GuiButton"})
         if self.Config.ClickActionWhenVisible and action and os.clock() - self.LastAction >= (self.Config.ActionCooldown or 0.5) then
-            self.LastAction = os.clock()
-            local ok, detail = Runtime:ClickGui(action)
+            local ok, detail = Runtime:ClickGui(action, self, {
+                Resource = "GuiAction",
+                Priority = self.Config.ActionPriority or 80,
+                Duration = self.Config.ActionCooldown or 0.5,
+            })
+            if ok then self.LastAction = os.clock() end
             return ok, ok and ("Pressed " .. action.Name) or detail
         end
         return false, self.Config.WaitingMessage or "Waiting for the minigame timing interface"
@@ -668,87 +1257,256 @@ local function startGuiAction(feature)
         local action = findVisibleGui(self.Config.ActionTokens or self.Config.TargetTokens or {}, {"GuiButton"})
         if not action then return false, self.Config.WaitingMessage or "Waiting for the matching game button" end
         if os.clock() - self.LastAction < (self.Config.ActionCooldown or 0.5) then return true, "Action control detected" end
-        self.LastAction = os.clock()
-        local ok, detail = Runtime:ClickGui(action)
+        local ok, detail = Runtime:ClickGui(action, self, {
+            Resource = "GuiAction",
+            Priority = self.Config.ActionPriority or 50,
+            Duration = self.Config.ActionCooldown or 0.5,
+        })
+        if ok then self.LastAction = os.clock() end
         return ok, ok and ("Pressed " .. action.Name) or detail
     end)
 end
 
+local SharedGroundSample = {Time = 0, Character = nil, Root = nil, Hit = nil, CFrame = nil}
+local SharedGroundRayParams = RaycastParams.new()
+SharedGroundRayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+local function sampleGround(character, humanoid, root)
+    local now = os.clock()
+    if SharedGroundSample.Character == character and SharedGroundSample.Root == root
+        and now - SharedGroundSample.Time < 0.075
+    then
+        return SharedGroundSample.Hit, SharedGroundSample.CFrame
+    end
+    SharedGroundRayParams.FilterDescendantsInstances = character and {character} or {}
+    local hit = Workspace:Raycast(root.Position, Vector3.new(0, -8, 0), SharedGroundRayParams)
+    local safeCFrame = hit and humanoid.FloorMaterial ~= Enum.Material.Air and root.CFrame or nil
+    SharedGroundSample = {
+        Time = now,
+        Character = character,
+        Root = root,
+        Hit = hit,
+        CFrame = safeCFrame,
+    }
+    return hit, safeCFrame
+end
+
 local function startAntiFall(feature)
     feature.SafeCFrame = nil
-    feature:_TrackConnection(RunService.Heartbeat:Connect(function()
-        if not feature.Enabled then return end
-        local _, _, humanoid, root = getCharacter()
-        if not humanoid or not root then
-            feature:_SetStatus("Waiting", "Waiting for the local character")
-            return
+    feature:_Loop(feature.Config.Interval or 0.12, function(self)
+        local _, character, humanoid, root = getCharacter()
+        if not humanoid or not root then return false, "Waiting for the local character" end
+        local _, safeCFrame = sampleGround(character, humanoid, root)
+        if safeCFrame then
+            self.SafeCFrame = safeCFrame
+            return true, "Safe position tracked"
         end
-        local rayParams = RaycastParams.new()
-        rayParams.FilterType = Enum.RaycastFilterType.Exclude
-        local _, character = getCharacter()
-        rayParams.FilterDescendantsInstances = character and {character} or {}
-        local hit = Workspace:Raycast(root.Position, Vector3.new(0, -8, 0), rayParams)
-        if hit and humanoid.FloorMaterial ~= Enum.Material.Air then
-            feature.SafeCFrame = root.CFrame
-            feature:_SetStatus("Active", "Safe position tracked")
-        elseif feature.SafeCFrame and (root.Position.Y < feature.SafeCFrame.Position.Y - (feature.Config.DropDistance or 18)
-            or root.AssemblyLinearVelocity.Y < -(feature.Config.FallVelocity or 75)) then
+        if self.SafeCFrame and (root.Position.Y < self.SafeCFrame.Position.Y - (self.Config.DropDistance or 18)
+            or root.AssemblyLinearVelocity.Y < -(self.Config.FallVelocity or 75))
+        then
+            local claimed, ownerName = Runtime:ClaimAction(
+                self,
+                "Recovery",
+                self.Config.RecoveryPriority or 70,
+                0.8
+            )
+            if not claimed then
+                return true, "Fall recovery is currently controlled by " .. tostring(ownerName)
+            end
             root.AssemblyLinearVelocity = Vector3.zero
-            root.CFrame = feature.SafeCFrame + Vector3.new(0, 2.5, 0)
-            feature:_SetStatus("Active", "Recovered from a fall")
-        else
-            feature:_SetStatus("Active", "Monitoring fall state")
+            root.CFrame = self.SafeCFrame + Vector3.new(0, 2.5, 0)
+            return true, "Recovered from a fall"
         end
-    end))
+        return true, "Monitoring fall state"
+    end)
+end
+
+local function statusWord(value)
+    local text = lower(value)
+    if text == "red" or text == "redlight" or text == "red light" then return "Red" end
+    if text == "green" or text == "greenlight" or text == "green light" then return "Green" end
+    if string.find(text, "red light", 1, true) or string.find(text, "stop moving", 1, true)
+        or string.find(text, "movement forbidden", 1, true)
+    then
+        return "Red"
+    end
+    if string.find(text, "green light", 1, true) or string.find(text, "you may move", 1, true)
+        or string.find(text, "movement allowed", 1, true)
+    then
+        return "Green"
+    end
+    return nil
+end
+
+local function contextualStatusWord(value, context)
+    local state = statusWord(value)
+    if state then return state end
+    if not containsAny(context, {"light", "rlgl", "doll", "younghee", "mugunghwa", "signal", "phase", "round state"}) then
+        return nil
+    end
+    local text = lower(value)
+    if text == "stop" or text == "freeze" or text == "false" or text == "0" then return "Red" end
+    if text == "go" or text == "move" or text == "true" or text == "1" then return "Green" end
+    return nil
+end
+
+local function discoverRLGLSignals()
+    local candidates = {}
+    local likelyNames = {"light", "status", "state", "phase", "signal", "current", "red", "green"}
+    for _, scope in ipairs({"Workspace", "ReplicatedStorage"}) do
+        forEachIndexed(scope, {"ValueBase"}, function(instance)
+            if containsAny(instance.Name, likelyNames) then
+                table.insert(candidates, instance)
+            end
+            return true
+        end)
+    end
+    local player = getLocalPlayer()
+    local gui = player and player:FindFirstChildOfClass("PlayerGui")
+    if gui then
+        forEachIndexed("Gui", {"TextLabel", "TextButton"}, function(instance)
+            local context = instanceText(instance)
+            if containsAny(context, likelyNames) or statusWord(instance.Text) then
+                table.insert(candidates, instance)
+            end
+            return true
+        end)
+    end
+    Runtime._RLGLSignalCandidates = candidates
+    Runtime._RLGLSignalsScannedAt = os.clock()
+    return candidates
 end
 
 local function findStatusText(tokens)
-    for _, root in ipairs({Workspace, ReplicatedStorage}) do
-        for _, instance in ipairs(root:GetDescendants()) do
-            if containsAny(instanceText(instance), tokens or {"status", "state", "light"}) then
-                if instance:IsA("StringValue") or instance:IsA("BoolValue") or instance:IsA("IntValue") or instance:IsA("NumberValue") then
-                    return tostring(instance.Value), instance
+    local now = os.clock()
+    local cached = Runtime._StatusTextCache
+    if cached and now - cached.Time < 0.08 then return cached.Value, cached.Instance end
+
+    local candidates = Runtime._RLGLSignalCandidates
+    if not candidates or now - (Runtime._RLGLSignalsScannedAt or 0) > 2.0 then
+        candidates = discoverRLGLSignals()
+    end
+
+    -- Vote across every live signal instead of trusting whichever object happens
+    -- to be returned first. When old red/green labels are both still present, a
+    -- tie becomes Unknown, which is safer than moving or applying recovery input.
+    local scores = {Red = 0, Green = 0}
+    local bestInstance = {Red = nil, Green = nil}
+    local bestWeight = {Red = 0, Green = 0}
+    local liveCount = 0
+    for _, instance in ipairs(candidates) do
+        if instance and instance.Parent then
+            liveCount = liveCount + 1
+            local state, weight
+            if instance:IsA("ValueBase") then
+                local context = instanceText(instance)
+                state = statusWord(instance.Value)
+                weight = state and 7 or 0
+                if not state then
+                    state = contextualStatusWord(instance.Value, context)
+                    weight = state and 4 or 0
+                end
+                if instance:IsA("BoolValue") then
+                    local name = lower(instance.Name)
+                    if string.find(name, "red", 1, true) then
+                        state, weight = instance.Value and "Red" or "Green", 8
+                    elseif string.find(name, "green", 1, true) then
+                        state, weight = instance.Value and "Green" or "Red", 8
+                    end
+                end
+            elseif isVisibleGui(instance) then
+                state = statusWord(instance.Text)
+                weight = state and 6 or 0
+                if not state then
+                    state = contextualStatusWord(instance.Text, instanceText(instance))
+                    weight = state and 3 or 0
+                end
+            end
+            if state and weight and weight > 0 then
+                scores[state] = scores[state] + weight
+                if weight > bestWeight[state] then
+                    bestWeight[state] = weight
+                    bestInstance[state] = instance
                 end
             end
         end
     end
-    local guiValue = findVisibleGui(tokens or {"red light", "green light", "stop", "go"}, {"TextLabel", "TextButton"})
-    if guiValue then return guiValue.Text, guiValue end
-    return nil, nil
+
+    if liveCount == 0 or now - (Runtime._RLGLSignalsScannedAt or 0) > 0.75 then
+        Runtime._RLGLSignalCandidates = nil
+    end
+
+    local value, instance
+    local margin = math.abs(scores.Red - scores.Green)
+    if scores.Red >= 4 and scores.Red > scores.Green and margin >= 2 then
+        value, instance = "Red", bestInstance.Red
+    elseif scores.Green >= 4 and scores.Green > scores.Red and margin >= 2 then
+        value, instance = "Green", bestInstance.Green
+    end
+    Runtime._StatusTextCache = {Time = now, Value = value, Instance = instance}
+    return value, instance
 end
 
-local function isRedLight()
-    local text = lower((findStatusText({"status", "light", "red", "green"})))
-    return containsAny(text, {"red", "stop", "freeze"}) and not containsAny(text, {"green", "go"})
+function Runtime:GetRLGLState()
+    local candidate = findStatusText({"light", "status", "state"})
+    local now = os.clock()
+    if candidate ~= self._RLGLCandidate then
+        self._RLGLCandidate = candidate
+        self._RLGLCandidateAt = now
+    end
+    if candidate and now - (self._RLGLCandidateAt or now) >= 0.10 then
+        self._RLGLStableState = candidate
+    elseif not candidate and now - (self._RLGLCandidateAt or now) >= 0.35 then
+        self._RLGLStableState = nil
+    end
+    return self._RLGLStableState
 end
 
 local function startRLGLAutoMove(feature)
-    feature:_Loop(feature.Config.Interval or 0.16, function(self)
+    feature.Config.MovementPriority = feature.Config.MovementPriority or 95
+    feature:_Loop(feature.Config.Interval or 0.10, function(self)
         local _, _, humanoid, root = getCharacter()
         if not humanoid or not root then return false, "Waiting for the local character" end
-        if isRedLight() then
-            humanoid:MoveTo(root.Position)
-            return true, "Red light detected — stopped"
+        local state = Runtime:GetRLGLState()
+        if state ~= "Green" then
+            Runtime:StopMovement(self, state == "Red")
+            if state == "Red" then return false, "Red light detected — fully stopped" end
+            return false, "Waiting for an unambiguous red/green signal"
         end
+
         local target = Runtime:FindNearest({
             Scope = "Workspace",
             TargetTokens = self.Config.TargetTokens or {"finish", "end zone", "safe zone", "goal"},
-            ExcludeTokens = {"start"},
+            ExcludeTokens = {"start", "spawn"},
             TargetClasses = {"BasePart", "Model"},
             ReturnAdornee = true,
+            MaxTargets = 40,
+            CacheTTL = 2.0,
         }, root.Position)
         if not target then
             target = Runtime:FindNearest({
                 Scope = "Workspace",
-                TargetTokens = {"doll", "mugunghwa", "killer"},
+                TargetTokens = {"doll", "younghee", "young hee", "mugunghwa"},
                 TargetClasses = {"Model", "BasePart"},
                 ReturnAdornee = true,
+                MaxTargets = 20,
+                CacheTTL = 2.0,
             }, root.Position)
         end
         local position = getPosition(target)
-        if not position then return false, "Waiting for the RLGL finish area or doll" end
-        local moved, detail = Runtime:MoveTo(position, self, {StopDistance = 8, MaxWaypoints = 3, WaypointTimeout = 0.7})
-        return moved, moved and "Green light detected — advancing" or detail
+        if not position then
+            Runtime:StopMovement(self)
+            return false, "Green light detected; waiting for the finish area"
+        end
+
+        local moved, detail = Runtime:MoveTo(position, self, {
+            StopDistance = 8,
+            Direct = true,
+            MovementPriority = 95,
+            CommandInterval = 0.65,
+            LeaseDuration = 0.9,
+        })
+        return moved, moved and "Green light detected — moving at normal character speed" or detail
     end)
 end
 
@@ -798,14 +1556,20 @@ local function startEvasion(feature)
     feature:_Loop(feature.Config.Interval or 0.2, function(self)
         local _, _, humanoid, root = getCharacter()
         if not humanoid or not root then return false, "Waiting for the local character" end
+        local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority or 70)
+        if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
         local target, distance = nearestCharacter(self.Config, root.Position)
         if not target or distance > (self.Config.Range or 20) then return false, "No nearby threat detected" end
         local targetRoot = target:FindFirstChild("HumanoidRootPart")
         if not targetRoot then return false, "Threat has no root part" end
         local direction = root.Position - targetRoot.Position
         if direction.Magnitude < 0.1 then direction = root.CFrame.RightVector end
-        humanoid:MoveTo(root.Position + direction.Unit * (self.Config.EvadeDistance or 18))
-        return true, "Moving away from " .. target.Name
+        local moved, detail = Runtime:MoveTo(
+            root.Position + direction.Unit * (self.Config.EvadeDistance or 18),
+            self,
+            {Direct = true, StopDistance = 3, MovementPriority = self.Config.MovementPriority or 70, CommandInterval = 0.35}
+        )
+        return moved, moved and ("Moving away from " .. target.Name) or detail
     end)
 end
 
@@ -813,6 +1577,8 @@ local function startBoundary(feature)
     feature:_Loop(feature.Config.Interval or 0.35, function(self)
         local _, _, humanoid, root = getCharacter()
         if not humanoid or not root then return false, "Waiting for the local character" end
+        local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority or 65)
+        if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
         local zone = Runtime:FindNearest({
             Scope = "Workspace",
             TargetNames = self.Config.TargetNames,
@@ -825,8 +1591,13 @@ local function startBoundary(feature)
         local radius = self.Config.Radius or 60
         if zone:IsA("BasePart") then radius = math.max(zone.Size.X, zone.Size.Z) * 0.45 end
         if (root.Position - position).Magnitude > radius then
-            humanoid:MoveTo(position)
-            return true, "Returning to the active play area"
+            local moved, detail = Runtime:MoveTo(position, self, {
+                Direct = true,
+                StopDistance = math.max(6, radius * 0.35),
+                MovementPriority = self.Config.MovementPriority or 65,
+                CommandInterval = 0.5,
+            })
+            return moved, moved and "Returning to the active play area" or detail
         end
         return true, "Inside the active play area"
     end)
@@ -836,16 +1607,21 @@ local function parseRequiredCount()
     local player = getLocalPlayer()
     local gui = player and player:FindFirstChildOfClass("PlayerGui")
     if not gui then return nil end
-    for _, instance in ipairs(gui:GetDescendants()) do
-        if (instance:IsA("TextLabel") or instance:IsA("TextButton")) and isVisibleGui(instance) then
+    local required
+    forEachIndexed("Gui", {"TextLabel", "TextButton"}, function(instance)
+        if isVisibleGui(instance) then
             local context = instanceText(instance)
             if containsAny(context, {"required", "players", "group", "room", "mingle", "number"}) then
                 local number = tonumber(string.match(instance.Text or "", "%d+"))
-                if number and number >= 1 and number <= 20 then return number end
+                if number and number >= 1 and number <= 20 then
+                    required = number
+                    return false
+                end
             end
         end
-    end
-    return nil
+        return true
+    end)
+    return required
 end
 
 local function startRoomAssist(feature)
@@ -854,6 +1630,8 @@ local function startRoomAssist(feature)
         if not count then return false, "Waiting for the required Mingle room count" end
         local _, _, _, root = getCharacter()
         if not root then return false, "Waiting for the local character" end
+        local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority or 60)
+        if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
         local candidates = Runtime:FindTargets({
             Scope = "Workspace",
             TargetTokens = {"room", "door", "mingle"},
@@ -874,9 +1652,17 @@ local function startRoomAssist(feature)
         end
         if not best then return false, "No room matching capacity " .. count .. " was detected" end
         local position = getPosition(best)
-        local moved = Runtime:MoveTo(position, self, {StopDistance = 7, MaxWaypoints = 4})
-        if self.Config.Interact and moved then Runtime:Interact(best) end
-        return true, "Heading to a room for " .. count .. " player(s)"
+        local moved, detail = Runtime:MoveTo(position, self, {
+            StopDistance = 7,
+            MaxWaypoints = 4,
+            MovementPriority = self.Config.MovementPriority or 60,
+            HoldLeaseAtTarget = 0.75,
+        })
+        local _, _, _, currentRoot = getCharacter()
+        if self.Config.Interact and currentRoot and (currentRoot.Position - position).Magnitude <= 10 then
+            Runtime:Interact(best, self, {Priority = self.Config.ActionPriority or 60, Duration = self.Config.ActionCooldown or 0.6})
+        end
+        return moved, moved and ("Heading to a room for " .. count .. " player(s)") or detail
     end)
 end
 
@@ -896,7 +1682,11 @@ local function startAimActivate(feature)
         if not position or distance > (self.Config.Range or 100) then return false, self.Config.WaitingMessage end
         local camera = Workspace.CurrentCamera
         if camera then camera.CFrame = CFrame.lookAt(camera.CFrame.Position, position) end
-        local ok, detail = Runtime:ActivateTool(self.Config.ToolTokens or {})
+        local ok, detail = Runtime:ActivateTool(self.Config.ToolTokens or {}, self, {
+            Resource = "AimAction",
+            Priority = self.Config.ActionPriority or 65,
+            Duration = math.max(self.Config.Interval or 0.12, 0.25),
+        })
         return ok, ok and ("Aimed at " .. target.Name .. " and activated the tool") or detail
     end)
 end
@@ -922,6 +1712,8 @@ local function startDisguise(feature)
         local tool = Runtime:FindTool(self.Config.ToolTokens or {"disguise", "uniform", "mask"})
         if not tool then return false, "Disguise tool not found" end
         Runtime:EquipTool(tool)
+        local claimed = Runtime:ClaimAction(self, "ToolAction", self.Config.ActionPriority or 55, 0.6)
+        if not claimed then return false, "Another tool action is active" end
         pcall(tool.Activate, tool)
         return true, "Disguise equipped because a guard is nearby"
     end)
@@ -930,7 +1722,11 @@ end
 
 local function startToolActivate(feature)
     feature:_Loop(feature.Config.Interval or 0.45, function(self)
-        local ok, detail = Runtime:ActivateTool(self.Config.ToolTokens or {})
+        local ok, detail = Runtime:ActivateTool(self.Config.ToolTokens or {}, self, {
+            Resource = "ToolAction",
+            Priority = self.Config.ActionPriority or 45,
+            Duration = math.max(self.Config.Interval or 0.45, 0.3),
+        })
         return ok, ok and "Activated the matching tool" or detail
     end)
 end
@@ -942,8 +1738,8 @@ local function startGuiHighlight(feature)
         local gui = player and player:FindFirstChildOfClass("PlayerGui")
         if not gui then return false, "Waiting for PlayerGui" end
         local count = 0
-        for _, instance in ipairs(gui:GetDescendants()) do
-            if instance:IsA("GuiObject") and isVisibleGui(instance)
+        forEachIndexed("Gui", {"GuiObject"}, function(instance)
+            if isVisibleGui(instance)
                 and containsAny(instanceText(instance), self.Config.TargetTokens or {"shape", "cookie", "trace", "path"})
             then
                 local stroke = self.GuiStrokes[instance]
@@ -958,9 +1754,10 @@ local function startGuiHighlight(feature)
                     self:_TrackInstance(stroke)
                 end
                 count = count + 1
-                if count >= (self.Config.MaxTargets or 12) then break end
+                if count >= (self.Config.MaxTargets or 12) then return false end
             end
-        end
+            return true
+        end)
         return count > 0, count > 0 and ("Highlighted " .. count .. " interface element(s)") or self.Config.WaitingMessage
     end)
 end
@@ -996,52 +1793,58 @@ local function startStateHUD(feature)
     corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = label
 
-    feature:_Loop(feature.Config.Interval or 0.15, function(self)
-        local value = findStatusText(self.Config.TargetTokens or {"status", "light", "state"})
+    feature:_Loop(feature.Config.Interval or 0.12, function(self)
+        local value = Runtime:GetRLGLState()
         if not value then
-            label.Text = "WAITING FOR GAME STATE"
+            label.Text = "WAITING FOR CLEAR LIGHT SIGNAL"
             label.TextColor3 = Color3.fromRGB(210, 215, 220)
-            return false, "Waiting for a game state value"
+            return false, "Waiting for an unambiguous red/green signal"
         end
-        local text = string.upper(tostring(value))
-        label.Text = text
-        if containsAny(text, {"red", "stop", "freeze"}) then
-            label.TextColor3 = Color3.fromRGB(255, 94, 94)
-        elseif containsAny(text, {"green", "go", "move"}) then
-            label.TextColor3 = Color3.fromRGB(65, 255, 126)
-        else
-            label.TextColor3 = Color3.fromRGB(255, 225, 110)
-        end
-        return true, "Displaying current game state"
+        label.Text = string.upper(value) .. " LIGHT"
+        label.TextColor3 = value == "Red"
+            and Color3.fromRGB(255, 94, 94)
+            or Color3.fromRGB(65, 255, 126)
+        return true, "Displaying verified " .. string.lower(value) .. " light state"
     end)
 end
 
 local function startAntiStuck(feature)
     feature.LastPosition = nil
     feature.StuckSince = os.clock()
-    feature:_Loop(feature.Config.Interval or 0.25, function(self)
+    feature:_Loop(feature.Config.Interval or 0.35, function(self)
         local _, _, humanoid, root = getCharacter()
         if not humanoid or not root then return false, "Waiting for the local character" end
+        local state = Runtime:GetRLGLState()
+        if state ~= "Green" then
+            Runtime:StopMovement(self)
+            self.LastPosition = root.Position
+            self.StuckSince = os.clock()
+            return false, state == "Red" and "Paused during red light" or "Waiting for a verified green light"
+        end
+
         local moving = humanoid.MoveDirection.Magnitude > 0.05
         if not self.LastPosition then
             self.LastPosition = root.Position
             self.StuckSince = os.clock()
-            return true, "Monitoring movement"
+            return true, "Monitoring green-light movement"
         end
         local moved = (root.Position - self.LastPosition).Magnitude
-        if moving and moved < (self.Config.MinimumMovement or 0.35) then
-            if os.clock() - self.StuckSince >= (self.Config.StuckSeconds or 1.5) then
-                humanoid.Jump = true
-                humanoid:MoveTo(root.Position + root.CFrame.LookVector * (self.Config.RecoveryDistance or 6))
+        if moving and moved < (self.Config.MinimumMovement or 0.25) then
+            if os.clock() - self.StuckSince >= (self.Config.StuckSeconds or 2.2) then
+                local claimed = Runtime:ClaimMovement(self, 80, 0.35)
+                if claimed then
+                    humanoid.Jump = true
+                    pcall(humanoid.MoveTo, humanoid, root.Position + root.CFrame.LookVector * (self.Config.RecoveryDistance or 5))
+                end
                 self.StuckSince = os.clock()
                 self.LastPosition = root.Position
-                return true, "Recovery movement applied"
+                return true, claimed and "Applied one green-light recovery step" or "Auto Move currently owns movement"
             end
         else
             self.StuckSince = os.clock()
             self.LastPosition = root.Position
         end
-        return true, "Monitoring movement"
+        return true, "Monitoring green-light movement"
     end)
 end
 
@@ -1063,9 +1866,11 @@ local function startJumpBoost(feature)
         local _, _, current = getCharacter()
         if not current then return false, "Waiting for the local character" end
         if current.UseJumpPower then
-            current.JumpPower = self.Config.JumpPower or 72
+            local wanted = self.Config.JumpPower or 72
+            if math.abs(current.JumpPower - wanted) > 0.01 then current.JumpPower = wanted end
         else
-            current.JumpHeight = self.Config.JumpHeight or 12
+            local wanted = self.Config.JumpHeight or 12
+            if math.abs(current.JumpHeight - wanted) > 0.01 then current.JumpHeight = wanted end
         end
         return true, "Jump strength increased"
     end)
@@ -1164,13 +1969,9 @@ local function startRadar(feature)
         return dot
     end
 
-    feature:_TrackConnection(RunService.RenderStepped:Connect(function()
-        if not feature.Enabled then return end
+    feature:_Loop(feature.Config.Interval or 0.16, function(self)
         local _, _, _, root = getCharacter()
-        if not root then
-            feature:_SetStatus("Waiting", "Waiting for the local character")
-            return
-        end
+        if not root then return false, "Waiting for the local character" end
 
         local range = feature.Config.Range or 150
         local seen = {}
@@ -1220,14 +2021,16 @@ local function startRadar(feature)
                 dot.Visible = false
             end
         end
-        feature:_SetStatus(count > 0 and "Active" or "Waiting", count > 0 and ("Radar tracking " .. count .. " target(s)") or "Waiting for radar targets")
-    end))
+        return count > 0, count > 0 and ("Radar tracking " .. count .. " target(s)") or "Waiting for radar targets"
+    end)
 end
 
 local function startCourseAssist(feature)
     feature:_Loop(feature.Config.Interval or 0.18, function(self)
         local _, _, humanoid, root = getCharacter()
         if not humanoid or not root then return false, "Waiting for the local character" end
+        local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority or 65)
+        if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
 
         local rope, ropeDistance = Runtime:FindNearest({
             Scope = "Workspace",
@@ -1260,6 +2063,7 @@ local function startCourseAssist(feature)
             StopDistance = self.Config.StopDistance or 7,
             MaxWaypoints = self.Config.MaxWaypoints or 3,
             WaypointTimeout = self.Config.WaypointTimeout or 0.8,
+            MovementPriority = self.Config.MovementPriority or 65,
         })
         return moved, moved and "Advancing toward the course finish" or detail
     end)
@@ -1277,8 +2081,13 @@ local function startPositionKeeper(feature)
         end
         local distance = (root.Position - self.AnchorPosition).Magnitude
         if distance > (self.Config.MaxDistance or 8) then
-            humanoid:MoveTo(self.AnchorPosition)
-            return true, "Returning to the preferred position"
+            local moved, detail = Runtime:MoveTo(self.AnchorPosition, self, {
+                Direct = true,
+                StopDistance = self.Config.MaxDistance or 8,
+                MovementPriority = 25,
+                CommandInterval = 0.5,
+            })
+            return moved, moved and "Returning to the preferred position" or detail
         end
         return true, "Holding the preferred position"
     end)
@@ -1306,12 +2115,23 @@ local function glassSafety(part)
 end
 
 local function glassParts()
-    local results = {}
-    for _, instance in ipairs(Workspace:GetDescendants()) do
-        if instance:IsA("BasePart") and containsAny(instanceText(instance), {"glass", "panel", "tile", "bridge"}) then
-            table.insert(results, instance)
+    local now = os.clock()
+    local cache = Runtime._GlassPartsCache
+    if cache and now - cache.Time < 2.0 then
+        local alive = {}
+        for _, part in ipairs(cache.Results) do
+            if part and part.Parent then table.insert(alive, part) end
         end
+        return alive
     end
+    local results = Runtime:FindTargets({
+        Scope = "Workspace",
+        TargetTokens = {"glass", "panel", "tile", "bridge"},
+        TargetClasses = {"BasePart"},
+        MaxTargets = 240,
+        CacheTTL = 2.0,
+    })
+    Runtime._GlassPartsCache = {Time = now, Results = results}
     return results
 end
 
@@ -1319,6 +2139,8 @@ local function startSafeTileWalk(feature)
     feature:_Loop(feature.Config.Interval or 0.35, function(self)
         local _, _, _, root = getCharacter()
         if not root then return false, "Waiting for the local character" end
+        local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority or 70)
+        if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
         local best, bestDistance = nil, math.huge
         local fallback, fallbackDistance = nil, math.huge
         for _, part in ipairs(glassParts()) do
@@ -1338,6 +2160,7 @@ local function startSafeTileWalk(feature)
             StopDistance = 4,
             MaxWaypoints = 2,
             WaypointTimeout = 0.75,
+            MovementPriority = self.Config.MovementPriority or 70,
         })
         local confidence = best and "verified safe" or "best available"
         return moved, moved and ("Walking to " .. confidence .. " panel") or detail
@@ -1382,6 +2205,8 @@ local function startTaskChain(feature)
     feature:_Loop(feature.Config.Interval or 0.55, function(self)
         local _, _, _, root = getCharacter()
         if not root then return false, "Waiting for the local character" end
+        local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority or 60)
+        if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
 
         local heldTool = Runtime:FindTool(self.Config.RequireToolTokens or {})
         local targetConfig
@@ -1422,15 +2247,22 @@ local function startTaskChain(feature)
                 StopDistance = self.Config.InteractDistance or 10,
                 MaxWaypoints = 4,
                 WaypointTimeout = 1.0,
+                MovementPriority = self.Config.MovementPriority or 60,
             })
             return moved, moved and ("Walking to " .. stageName) or detail
         end
 
-        local ok, detail = Runtime:Interact(target)
-        if heldTool and type(heldTool.Activate) == "function" then
+        local cooldown = self.Config.ActionCooldown or 0.8
+        if os.clock() - (self.LastAction or 0) < cooldown then
+            return true, stageName .. " interaction cooling down"
+        end
+        local ok, detail = Runtime:Interact(target, self, {Priority = self.Config.ActionPriority or 55, Duration = cooldown})
+        if heldTool and type(heldTool.Activate) == "function"
+            and Runtime:ClaimAction(self, "Interaction", self.Config.ActionPriority or 55, cooldown)
+        then
             pcall(heldTool.Activate, heldTool)
         end
-        if ok then task.wait(self.Config.ActionCooldown or 0.8) end
+        if ok then self.LastAction = os.clock() end
         return ok, ok and ("Completed " .. stageName .. " interaction") or detail
     end)
 end
@@ -1444,7 +2276,7 @@ local function startRPSAutoPlay(feature)
 
         local visibleText = ""
         local buttons = {}
-        for _, instance in ipairs(gui:GetDescendants()) do
+        forEachIndexed("Gui", {"GuiObject"}, function(instance)
             if isVisibleGui(instance) then
                 if instance:IsA("TextLabel") or instance:IsA("TextButton") then
                     visibleText = visibleText .. " " .. lower(instance.Text)
@@ -1453,7 +2285,8 @@ local function startRPSAutoPlay(feature)
                     table.insert(buttons, instance)
                 end
             end
-        end
+            return true
+        end)
         if #buttons == 0 then return false, "Waiting for Rock/Paper/Scissors choice buttons" end
 
         local wanted
@@ -1477,14 +2310,147 @@ local function startRPSAutoPlay(feature)
             end
         end
         selected = selected or buttons[1]
-        local ok, detail = Runtime:ClickGui(selected)
+        local ok, detail = Runtime:ClickGui(selected, self, {
+            Resource = "GuiAction",
+            Priority = self.Config.ActionPriority or 75,
+            Duration = 0.3,
+        })
         if not ok then return false, detail end
 
         task.wait(0.08)
         local submit = findVisibleGui({"submit", "confirm", "play", "lock", "choose"}, {"GuiButton"})
-        if submit then Runtime:ClickGui(submit) end
+        if submit then
+            Runtime:ClickGui(submit, self, {
+                Resource = "GuiAction",
+                Priority = self.Config.ActionPriority or 75,
+                Duration = 0.3,
+            })
+        end
         return true, "Selected " .. string.upper(wanted)
     end)
+end
+
+local GameProfiles = {
+    ["Red Light, Green Light"] = {"red light", "green light", "younghee", "mugunghwa", "rlgl"},
+    ["Dalgona"] = {"dalgona", "honeycomb", "trace shape"},
+    ["Pentathlon"] = {"pentathlon", "ddakji", "gonggi", "jegichagi", "paengi", "biseokchigi"},
+    ["Hide & Seek"] = {"hide and seek", "hide & seek", "key room"},
+    ["Jump Rope"] = {"jump rope", "jumprope", "swinging rope"},
+    ["Marbles"] = {"marbles", "marble game", "ring shooter"},
+    ["Mingle"] = {"mingle", "players per room", "find a room"},
+    ["Fight Nights"] = {"night brawl", "fight night", "lights out"},
+    ["Glass Bridge"] = {"glass bridge", "glass stepping", "bridge panels"},
+    ["Rebellion"] = {"rebellion", "armory", "uprising"},
+    ["Rock, Paper, Scissors Minus One"] = {"rock paper scissors", "minus one", "rps"},
+    ["Sky Squid"] = {"sky squid", "sky game", "floating platform"},
+    ["Squid Game"] = {"squid game court", "squid court", "final squid game"},
+    ["Tug of War"] = {"tug of war", "tugofwar", "pull meter"},
+    ["Escape"] = {"escape island", "escape route", "island escape", "extraction boat"},
+}
+
+function Runtime:DetectGameCategory()
+    local now = os.clock()
+    if self._GameDetectionCache and now - self._GameDetectionCache.Time < 1.5 then
+        return self._GameDetectionCache.Name, self._GameDetectionCache.Score
+    end
+
+    local evidence = {}
+    local function addEvidence(value, weight)
+        local text = lower(value)
+        if text ~= "" then
+            table.insert(evidence, {Text = text, Weight = tonumber(weight) or 1})
+        end
+    end
+
+    addEvidence(Workspace.Name, 1)
+    addEvidence(ReplicatedStorage.Name, 1)
+
+    for _, root in ipairs({Workspace, ReplicatedStorage}) do
+        for attributeName, attributeValue in pairs(root:GetAttributes()) do
+            if containsAny(attributeName, {"game", "round", "mode", "phase", "state", "current"}) then
+                addEvidence(attributeName .. " " .. tostring(attributeValue), 7)
+            end
+        end
+
+        local scanned = 0
+        local scope = root == Workspace and "Workspace" or "ReplicatedStorage"
+        forEachIndexed(scope, {"Folder", "Model", "ValueBase"}, function(instance)
+            if scanned >= 240 then return false end
+            if instance:IsA("ValueBase") then
+                local context = instanceText(instance)
+                local weight = containsAny(context, {"current game", "current round", "game mode", "round name", "phase", "round state"}) and 7 or 2
+                addEvidence(context .. " " .. tostring(instance.Value), weight)
+            else
+                -- Static map folders are weak evidence because many experiences keep
+                -- every minigame map loaded at the same time.
+                addEvidence(instanceText(instance), 1)
+            end
+            for attributeName, attributeValue in pairs(instance:GetAttributes()) do
+                if containsAny(attributeName, {"game", "round", "mode", "phase", "state", "current"}) then
+                    addEvidence(attributeName .. " " .. tostring(attributeValue), 6)
+                end
+            end
+            scanned = scanned + 1
+            return true
+        end)
+    end
+
+    local player = getLocalPlayer()
+    local gui = player and player:FindFirstChildOfClass("PlayerGui")
+    if gui then
+        local added = 0
+        forEachIndexed("Gui", {"TextLabel", "TextButton"}, function(instance)
+            if added >= 100 then return false end
+            if isVisibleGui(instance) then
+                local text = lower(instance.Text)
+                if text ~= "" then
+                    addEvidence(text .. " " .. instanceText(instance), 5)
+                    added = added + 1
+                end
+            end
+            return true
+        end)
+    end
+
+    local ranked = {}
+    for name, tokens in pairs(GameProfiles) do
+        local score, strong, hits = 0, false, 0
+        for _, token in ipairs(tokens) do
+            local best = 0
+            local specificity = string.find(token, " ", 1, true) and 2 or 1
+            for _, item in ipairs(evidence) do
+                if string.find(item.Text, token, 1, true) then
+                    best = math.max(best, item.Weight * specificity)
+                end
+            end
+            if best > 0 then
+                score = score + best
+                hits = hits + 1
+                if best >= 5 then strong = true end
+            end
+        end
+        table.insert(ranked, {Name = name, Score = score, Strong = strong, Hits = hits})
+    end
+    table.sort(ranked, function(a, b)
+        if a.Score == b.Score then return a.Name < b.Name end
+        return a.Score > b.Score
+    end)
+
+    local best, second = ranked[1], ranked[2]
+    local bestName, bestScore = nil, best and best.Score or 0
+    if best and bestScore >= 5 and (best.Strong or best.Hits >= 3)
+        and (not second or bestScore - second.Score >= 2)
+    then
+        bestName = best.Name
+    end
+
+    self._GameDetectionCache = {
+        Time = now,
+        Name = bestName,
+        Score = bestScore,
+        RunnerUp = second and second.Name or nil,
+    }
+    return bestName, bestScore
 end
 
 local starters = {

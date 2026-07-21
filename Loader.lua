@@ -1,7 +1,7 @@
 --// SquidNoMo loader 1.1 beta 1
 
 local BUILD_VERSION = "1.1 beta 1"
-local BUILD_REVISION = "feature-recode-r2"
+local BUILD_REVISION = "ultralight-stable-r4"
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -215,6 +215,8 @@ local function GetOrCreateSession()
             ReducedMotionEnabled = false,
             RememberLastPageEnabled = true,
             AutoCenterOnResizeEnabled = true,
+            AutoApplyPerGameEnabled = false,
+            LightweightModeEnabled = true,
             UserScale = 1.0,
             BubbleSize = nil,
             WindowOpacity = 0,
@@ -283,6 +285,20 @@ end)
 
 if featuresLoaded then
     Loader.Features = featuresOrError
+
+    local shared = Loader.Features and Loader.Features.Shared
+    local featureRuntime = shared and shared.Runtime
+    local playerRuntime = shared and shared.PlayerRuntime
+    if type(featureRuntime) ~= "table"
+        or featureRuntime.Revision ~= Loader.Manifest.FeatureRuntimeRevision
+        or type(playerRuntime) ~= "table"
+        or playerRuntime.Revision ~= Loader.Manifest.PlayerRuntimeRevision
+    then
+        error(
+            "[Loader] Shared runtime revision mismatch. Upload Runtime.lua, "
+            .. "PlayerRuntime.lua, every feature wrapper, and BuildManifest.lua together."
+        )
+    end
 
     if Loader.SavedSettings
         and type(Loader.SavedSettings.Features) == "table"

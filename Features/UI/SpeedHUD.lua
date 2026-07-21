@@ -6,8 +6,8 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local Enabled = false
 local Gui = nil
-local Connection = nil
-local Elapsed = 0
+local Thread = nil
+local Generation = 0
 
 local function getParent()
     if type(gethui) == "function" then
@@ -58,25 +58,25 @@ end
 function SpeedHUD:Enable()
     if Enabled then return end
     Enabled = true
+    Generation = Generation + 1
+    local generation = Generation
     local label = build()
     Gui.Enabled = true
-    Elapsed = 0
-    Connection = RunService.Heartbeat:Connect(function(deltaTime)
-        Elapsed = Elapsed + deltaTime
-        if Elapsed < 0.12 then return end
-        Elapsed = 0
-        local character = LocalPlayer and LocalPlayer.Character
-        local root = character and character:FindFirstChild("HumanoidRootPart")
-        local speed = root and Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude or 0
-        if label and label.Parent then
-            label.Text = string.format("SPEED %.0f", speed)
+    Thread = task.spawn(function()
+        while Enabled and generation == Generation and Gui and Gui.Parent do
+            local character = LocalPlayer and LocalPlayer.Character
+            local root = character and character:FindFirstChild("HumanoidRootPart")
+            local speed = root and Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude or 0
+            if label and label.Parent then label.Text = string.format("SPEED %.0f", speed) end
+            task.wait(0.15)
         end
     end)
 end
 
 function SpeedHUD:Disable()
     Enabled = false
-    if Connection then Connection:Disconnect() Connection = nil end
+    Generation = Generation + 1
+    Thread = nil
     if Gui then Gui.Enabled = false end
 end
 

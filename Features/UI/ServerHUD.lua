@@ -5,6 +5,7 @@ local CoreGui = game:GetService("CoreGui")
 local Enabled = false
 local Gui = nil
 local Thread = nil
+local Generation = 0
 
 local function getParent()
     if type(gethui) == "function" then
@@ -56,10 +57,12 @@ end
 function ServerHUD:Enable()
     if Enabled then return end
     Enabled = true
+    Generation = Generation + 1
+    local generation = Generation
     local label = build()
     Gui.Enabled = true
     Thread = task.spawn(function()
-        while Enabled and Gui and Gui.Parent do
+        while Enabled and generation == Generation and Gui and Gui.Parent do
             local job = tostring(game.JobId or "")
             local shortJob = #job > 8 and string.sub(job, 1, 8) or job
             if shortJob == "" then shortJob = "STUDIO" end
@@ -73,6 +76,7 @@ end
 
 function ServerHUD:Disable()
     Enabled = false
+    Generation = Generation + 1
     Thread = nil
     if Gui then Gui.Enabled = false end
 end

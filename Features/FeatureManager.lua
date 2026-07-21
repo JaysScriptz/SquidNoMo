@@ -6,6 +6,10 @@ FeatureManager.Features = {}
 FeatureManager.Registry = {}
 FeatureManager.Listeners = {}
 FeatureManager._nextListenerId = 0
+FeatureManager.AutoApplyPerGameEnabled = false
+FeatureManager.LightweightModeEnabled = true
+FeatureManager.DetectedGameCategory = nil
+FeatureManager._gameWatcherOwner = {Enabled = false, Name = "Auto Apply per Game"}
 
 local validCategories = {
     Safe = true,
@@ -108,6 +112,7 @@ local function setFeatureEnabled(feature, enabled)
 end
 
 function FeatureManager:Initialize(Loader)
+    self.Loader = Loader
     -- The module can be re-used after a character rebuild, so clear stale entries
     -- before registering the current build's live and catalog features.
     self.Registry = {}
@@ -116,6 +121,12 @@ function FeatureManager:Initialize(Loader)
 
     Features.Shared = {}
     Features.Shared.Runtime = Load(Loader, "Features/Shared/Runtime.lua")
+    if type(Features.Shared.Runtime.SetLightweightMode) == "function" then
+        Features.Shared.Runtime:SetLightweightMode(self.LightweightModeEnabled)
+    end
+    if type(Features.Shared.Runtime.WarmIndices) == "function" then
+        Features.Shared.Runtime:WarmIndices()
+    end
     Features.Shared.PlayerRuntime = Load(Loader, "Features/Shared/PlayerRuntime.lua")
     Features.Shared.RoleService = Load(Loader, "Features/Shared/RoleService.lua")
     Loader.Features = Features
@@ -150,6 +161,131 @@ function FeatureManager:GetFeature(id)
     return entry and entry.Feature or nil
 end
 
+
+function FeatureManager:SetLightweightModeEnabled(state)
+    self.LightweightModeEnabled = state ~= false
+    local runtime = self.Features and self.Features.Shared and self.Features.Shared.Runtime
+    if runtime and type(runtime.SetLightweightMode) == "function" then
+        runtime:SetLightweightMode(self.LightweightModeEnabled)
+    end
+    self:Notify()
+    return true
+end
+
+function FeatureManager:GetDetectedGameCategory()
+    return self.DetectedGameCategory
+end
+
+function FeatureManager:LoadCatalogFeature(id)
+    local entry = self.Registry[id]
+    if not entry then return nil, "feature is not registered" end
+    if type(entry.Feature) == "table" then return entry.Feature end
+    if not entry.Path or not self.Loader then return nil, "feature path is unavailable" end
+    local ok, feature = pcall(Load, self.Loader, entry.Path)
+    if not ok or type(feature) ~= "table" then
+        return nil, tostring(feature or "module did not return a feature table")
+    end
+    self:AttachCatalogFeature(id, feature)
+    return feature
+end
+
+function FeatureManager:_ApplyDetectedGame(force)
+    if not self.AutoApplyPerGameEnabled then return 0 end
+    local runtime = self.Features and self.Features.Shared and self.Features.Shared.Runtime
+    if not runtime or type(runtime.DetectGameCategory) ~= "function" then return 0 end
+
+    local detected = runtime:DetectGameCategory()
+    local now = os.clock()
+    if detected then
+        self._lastDetectedAt = now
+    elseif self.DetectedGameCategory and now - (self._lastDetectedAt or 0) < 4 then
+        detected = self.DetectedGameCategory
+    end
+
+    if not detected then
+        if not self.DetectedGameCategory then return 0 end
+        self.DetectedGameCategory = nil
+        self.SuppressPersistence = true
+        local disabled = 0
+        for _, entry in pairs(self.Registry) do
+            if entry.PageName == "Games" and type(entry.Feature) == "table" then
+                if safeFeatureState(entry) ~= "off" and setFeatureEnabled(entry.Feature, false) then
+                    disabled = disabled + 1
+                end
+                entry.State = "off"
+            end
+        end
+        self.SuppressPersistence = false
+        self:Notify()
+        return disabled
+    end
+
+    if not force and detected == self.DetectedGameCategory then return 0 end
+    self.DetectedGameCategory = detected
+
+    self.SuppressPersistence = true
+    local changed = 0
+    for id, entry in pairs(self.Registry) do
+        if entry.PageName == "Games" then
+            local shouldEnable = entry.CategoryName == detected and entry.DesiredEnabled == true
+            local feature = entry.Feature
+            if shouldEnable and type(feature) ~= "table" then
+                feature = self:LoadCatalogFeature(id)
+            end
+            if type(feature) == "table" then
+                local currentlyEnabled = safeFeatureState(entry) ~= "off"
+                if currentlyEnabled ~= shouldEnable and setFeatureEnabled(feature, shouldEnable) then
+                    changed = changed + 1
+                end
+                entry.State = shouldEnable and "on" or "off"
+            else
+                entry.State = "off"
+            end
+        end
+    end
+    self.SuppressPersistence = false
+    self:Notify()
+    return changed
+end
+
+function FeatureManager:SetAutoApplyPerGameEnabled(state)
+    self.AutoApplyPerGameEnabled = state == true
+    local runtime = self.Features and self.Features.Shared and self.Features.Shared.Runtime
+    local scheduler = runtime and runtime.Scheduler
+    local owner = self._gameWatcherOwner
+    owner.Enabled = self.AutoApplyPerGameEnabled
+
+    if scheduler and type(scheduler.Remove) == "function" then scheduler:Remove(owner) end
+    if self.AutoApplyPerGameEnabled and scheduler and type(scheduler.Add) == "function" then
+        scheduler:Add(owner, 1.5, 1.5, function()
+            self:_ApplyDetectedGame(false)
+            return true
+        end)
+        self:_ApplyDetectedGame(true)
+    elseif not self.AutoApplyPerGameEnabled then
+        self.DetectedGameCategory = nil
+    end
+    self:Notify()
+    return true
+end
+
+function FeatureManager:ClearGameProfiles()
+    self.SuppressPersistence = true
+    local count = 0
+    for _, entry in pairs(self.Registry) do
+        if entry.PageName == "Games" then
+            entry.DesiredEnabled = false
+            entry.PendingEnabled = nil
+            if type(entry.Feature) == "table" then setFeatureEnabled(entry.Feature, false) end
+            entry.State = "off"
+            count = count + 1
+        end
+    end
+    self.SuppressPersistence = false
+    self:Notify()
+    return count
+end
+
 function FeatureManager:RegisterFeature(id, feature, options)
     assert(type(id) == "string" and id ~= "", "Feature id is required")
     assert(type(feature) == "table", "Feature table is required")
@@ -170,6 +306,9 @@ function FeatureManager:RegisterFeature(id, feature, options)
         Path = previous and previous.Path or options.Path,
         Description = options.Description or (previous and previous.Description),
         PendingEnabled = previous and previous.PendingEnabled or nil,
+        PageName = options.PageName or (previous and previous.PageName),
+        CategoryName = options.CategoryName or (previous and previous.CategoryName),
+        DesiredEnabled = previous and previous.DesiredEnabled or options.DesiredEnabled or false,
     }
 
     if self.Registry[id].PendingEnabled ~= nil then
@@ -199,6 +338,8 @@ function FeatureManager:RegisterCatalogFeature(definition)
         existing.Name = tostring(definition.Name or existing.Name or id)
         existing.Path = definition.Path or existing.Path
         existing.Description = definition.Description or existing.Description
+        existing.PageName = definition.PageName or existing.PageName
+        existing.CategoryName = definition.CategoryName or existing.CategoryName
         existing.IsCatalog = true
         return existing
     end
@@ -219,6 +360,9 @@ function FeatureManager:RegisterCatalogFeature(definition)
         IsCatalog = true,
         Path = definition.Path,
         Description = definition.Description,
+        PageName = definition.PageName,
+        CategoryName = definition.CategoryName,
+        DesiredEnabled = false,
     }
 
     self.Registry[id] = entry
@@ -262,7 +406,11 @@ function FeatureManager:AttachCatalogFeature(id, feature)
     entry.Feature = feature
 
     if entry.PendingEnabled ~= nil then
-        local enabled = entry.PendingEnabled == true
+        entry.DesiredEnabled = entry.PendingEnabled == true
+        local enabled = entry.DesiredEnabled
+        if self.AutoApplyPerGameEnabled and entry.PageName == "Games" then
+            enabled = entry.CategoryName == self.DetectedGameCategory and entry.DesiredEnabled
+        end
         if setFeatureEnabled(feature, enabled) then
             entry.State = enabled and "on" or "off"
             entry.PendingEnabled = nil
@@ -282,11 +430,25 @@ end
 
 function FeatureManager:SetFeatureState(id, state)
     local entry = self.Registry[id]
-    if not entry then
-        return false
+    if not entry then return false end
+    local enabled = tostring(state or "off"):lower() ~= "off"
+    entry.State = enabled and "on" or "off"
+    if entry.PageName == "Games" then
+        entry.DesiredEnabled = enabled
+        if self.AutoApplyPerGameEnabled then
+            local shouldRun = entry.CategoryName == self.DetectedGameCategory and enabled
+            local feature = entry.Feature
+            if shouldRun and type(feature) ~= "table" then
+                feature = self:LoadCatalogFeature(id)
+            end
+            if type(feature) == "table" and safeFeatureState(entry) ~= (shouldRun and "on" or "off") then
+                setFeatureEnabled(feature, shouldRun)
+                entry.State = shouldRun and "on" or "off"
+            elseif not shouldRun then
+                entry.State = "off"
+            end
+        end
     end
-
-    entry.State = state
     self:Notify()
     return true
 end
@@ -436,6 +598,7 @@ function FeatureManager:ExportSettings()
         local feature = entry.Feature
         local data = {
             Enabled = safeFeatureState(entry) ~= "off",
+            DesiredEnabled = entry.DesiredEnabled == true,
         }
 
         if type(feature) == "table" and type(feature.Get) == "function" then
@@ -474,7 +637,13 @@ function FeatureManager:ApplySettings(saved)
         local entry = self.Registry[id]
         if entry and type(data) == "table" then
             local feature = entry.Feature
+            local desired = data.DesiredEnabled
+            if desired == nil then desired = data.Enabled end
+            entry.DesiredEnabled = desired == true
             local enabled = data.Enabled == true
+            if self.AutoApplyPerGameEnabled and entry.PageName == "Games" then
+                enabled = entry.DesiredEnabled and entry.CategoryName == self.DetectedGameCategory
+            end
 
             if type(feature) == "table" then
                 if data.Value ~= nil and type(feature.Set) == "function" then
@@ -493,7 +662,7 @@ function FeatureManager:ApplySettings(saved)
             elseif entry.IsCatalog then
                 -- Catalog features are loaded only when their page button is used.
                 -- Preserve the requested state and apply it when the module attaches.
-                entry.PendingEnabled = enabled
+                entry.PendingEnabled = entry.PageName == "Games" and entry.DesiredEnabled or enabled
                 entry.State = "off"
             end
         end
@@ -527,6 +696,7 @@ function FeatureManager:ResetAll()
         end
 
         entry.PendingEnabled = nil
+        entry.DesiredEnabled = false
         entry.State = "off"
         count = count + 1
     end

@@ -265,6 +265,8 @@ App.CloseConfirmationEnabled = true
 App.ReducedMotionEnabled = false
 App.RememberLastPageEnabled = true
 App.AutoCenterOnResizeEnabled = true
+App.AutoApplyPerGameEnabled = false
+App.LightweightModeEnabled = true
 App.UserScale = 1.0
 App.BubbleSize = nil
 App.WindowOpacity = 0
@@ -651,6 +653,8 @@ function App:GetOrCreateSession()
             ReducedMotionEnabled = false,
             RememberLastPageEnabled = true,
             AutoCenterOnResizeEnabled = true,
+            AutoApplyPerGameEnabled = false,
+            LightweightModeEnabled = true,
             UserScale = 1.0,
             BubbleSize = nil,
             WindowOpacity = 0,
@@ -871,6 +875,19 @@ function App:Init(loader)
         self.Session.RememberLastPageEnabled ~= false
     self.AutoCenterOnResizeEnabled =
         self.Session.AutoCenterOnResizeEnabled ~= false
+    self.AutoApplyPerGameEnabled =
+        self.Session.AutoApplyPerGameEnabled == true
+    self.LightweightModeEnabled =
+        self.Session.LightweightModeEnabled ~= false
+
+    if self.FeatureManager then
+        if type(self.FeatureManager.SetLightweightModeEnabled) == "function" then
+            self.FeatureManager:SetLightweightModeEnabled(self.LightweightModeEnabled)
+        end
+        if type(self.FeatureManager.SetAutoApplyPerGameEnabled) == "function" then
+            self.FeatureManager:SetAutoApplyPerGameEnabled(self.AutoApplyPerGameEnabled)
+        end
+    end
 
     local styleScale = 1.0
     if self.UIStyleManager and self.UIStyleProfile then
@@ -3340,6 +3357,10 @@ function App:GetPersistentSettingsSnapshot()
                 self.RememberLastPageEnabled == true,
             AutoCenterOnResizeEnabled =
                 self.AutoCenterOnResizeEnabled == true,
+            AutoApplyPerGameEnabled =
+                self.AutoApplyPerGameEnabled == true,
+            LightweightModeEnabled =
+                self.LightweightModeEnabled ~= false,
             UserScale = self.UserScale,
             BubbleSize = self.BubbleSize,
             WindowOpacity = self.WindowOpacity,
@@ -3477,6 +3498,12 @@ function App:ApplyPersistentSettingsSnapshot(saved)
                 values.AutoCenterOnResizeEnabled
             )
         end
+        if values.LightweightModeEnabled ~= nil then
+            self:SetLightweightModeEnabled(values.LightweightModeEnabled)
+        end
+        if values.AutoApplyPerGameEnabled ~= nil then
+            self:SetAutoApplyPerGameEnabled(values.AutoApplyPerGameEnabled)
+        end
         if values.UserScale ~= nil then
             self:SetUserScale(values.UserScale)
         end
@@ -3598,6 +3625,8 @@ function App:ResetAllSettingsToOff()
     self:SetReducedMotionEnabled(false)
     self:SetRememberLastPageEnabled(false)
     self:SetAutoCenterOnResizeEnabled(false)
+    self:SetAutoApplyPerGameEnabled(false)
+    self:SetLightweightModeEnabled(true)
     self:SetUserScale(1.0)
     self:SetBubbleSize(self:IsMobile() and 66 or 60)
     self:SetWindowOpacity(0)
@@ -3687,6 +3716,36 @@ function App:SetAutoCenterOnResizeEnabled(state)
     self:RefreshWindowSettings()
 end
 
+
+function App:SetAutoApplyPerGameEnabled(state)
+    self.AutoApplyPerGameEnabled = state == true
+    if self.Session then self.Session.AutoApplyPerGameEnabled = self.AutoApplyPerGameEnabled end
+    if self.FeatureManager and type(self.FeatureManager.SetAutoApplyPerGameEnabled) == "function" then
+        self.FeatureManager:SetAutoApplyPerGameEnabled(self.AutoApplyPerGameEnabled)
+    end
+    self:RefreshWindowSettings()
+end
+
+function App:SetLightweightModeEnabled(state)
+    self.LightweightModeEnabled = state ~= false
+    if self.Session then self.Session.LightweightModeEnabled = self.LightweightModeEnabled end
+    if self.FeatureManager and type(self.FeatureManager.SetLightweightModeEnabled) == "function" then
+        self.FeatureManager:SetLightweightModeEnabled(self.LightweightModeEnabled)
+    end
+    self:RefreshWindowSettings()
+end
+
+function App:ClearGameAutoApplyProfiles()
+    local count = 0
+    if self.FeatureManager and type(self.FeatureManager.ClearGameProfiles) == "function" then
+        count = self.FeatureManager:ClearGameProfiles()
+    end
+    if self.Notifications then
+        self.Notifications:Success("Game profiles", "Cleared " .. tostring(count) .. " saved game feature choices.", 3)
+    end
+    self:RefreshWindowSettings()
+end
+
 function App:SetUserScale(value)
     self.UserScale = math.clamp(tonumber(value) or 1.0, 0.75, 1.15)
     if self.Session then
@@ -3749,6 +3808,8 @@ function App:ResetApplicationPreferences()
     self:SetReducedMotionEnabled(false)
     self:SetRememberLastPageEnabled(true)
     self:SetAutoCenterOnResizeEnabled(true)
+    self:SetAutoApplyPerGameEnabled(false)
+    self:SetLightweightModeEnabled(true)
     self:SetUserScale(1.0)
     self:SetBubbleSize(self:IsMobile() and 66 or 60)
     self:SetWindowOpacity(0)
@@ -3788,6 +3849,8 @@ function App:RefreshWindowSettings()
     refreshToggle(widgets.ReducedMotion, self.ReducedMotionEnabled)
     refreshToggle(widgets.RememberLastPage, self.RememberLastPageEnabled)
     refreshToggle(widgets.AutoCenter, self.AutoCenterOnResizeEnabled)
+    refreshToggle(widgets.AutoApplyPerGame, self.AutoApplyPerGameEnabled)
+    refreshToggle(widgets.LightweightMode, self.LightweightModeEnabled)
 
     refreshSlider(widgets.UserScale, self.UserScale)
     refreshSlider(widgets.BubbleSize, self.BubbleSize or (self:IsMobile() and 66 or 60))
@@ -3802,7 +3865,7 @@ function App:BuildSettingsPage(page)
     local padding = self.Profile.ContentPadding
     local phone = self.DeviceClass == "Phone"
     local settingsLayout = phone and {
-        RootHeight = 1060,
+        RootHeight = 1260,
         WindowRowY = 58,
         WindowRowHeight = 146,
         InterfaceHeaderY = 218,
@@ -3813,17 +3876,21 @@ function App:BuildSettingsPage(page)
         AccessibilityDescriptionY = 434,
         AccessibilityRowY = 458,
         AccessibilityRowHeight = 126,
-        SizeHeaderY = 610,
-        SizeDescriptionY = 636,
-        SizeRowY = 662,
+        GameHeaderY = 610,
+        GameDescriptionY = 636,
+        GameRowY = 662,
+        GameRowHeight = 126,
+        SizeHeaderY = 810,
+        SizeDescriptionY = 836,
+        SizeRowY = 862,
         SizeRowHeight = 146,
-        SavedHeaderY = 830,
-        SavedDescriptionY = 856,
-        SavedRowY = 898,
+        SavedHeaderY = 1030,
+        SavedDescriptionY = 1056,
+        SavedRowY = 1098,
         SavedRowHeight = 132,
-        CanvasHeight = 1080,
+        CanvasHeight = 1280,
     } or {
-        RootHeight = 1135,
+        RootHeight = 1370,
         WindowRowY = 62,
         WindowRowHeight = 154,
         InterfaceHeaderY = 232,
@@ -3834,15 +3901,19 @@ function App:BuildSettingsPage(page)
         AccessibilityDescriptionY = 483,
         AccessibilityRowY = 514,
         AccessibilityRowHeight = 140,
-        SizeHeaderY = 680,
-        SizeDescriptionY = 707,
-        SizeRowY = 738,
+        GameHeaderY = 680,
+        GameDescriptionY = 707,
+        GameRowY = 738,
+        GameRowHeight = 140,
+        SizeHeaderY = 904,
+        SizeDescriptionY = 931,
+        SizeRowY = 962,
         SizeRowHeight = 154,
-        SavedHeaderY = 914,
-        SavedDescriptionY = 941,
-        SavedRowY = 982,
+        SavedHeaderY = 1138,
+        SavedDescriptionY = 1165,
+        SavedRowY = 1206,
         SavedRowHeight = 140,
-        CanvasHeight = 1180,
+        CanvasHeight = 1410,
     }
 
     local root = Instance.new("Frame")
@@ -3988,6 +4059,53 @@ function App:BuildSettingsPage(page)
         3,
         function() return self.AutoCenterOnResizeEnabled end,
         function(value) self:SetAutoCenterOnResizeEnabled(value) end
+    )
+
+    self:CreateText(root, "GAME AUTOMATION & PERFORMANCE", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, settingsLayout.GameHeaderY), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = self.DeviceClass == "Phone" and 15 or 18,
+        Color = self:GetPageAccent("Games"),
+        ZIndex = 1012,
+    })
+
+    self:CreateText(root, "Restore chosen features only when their matching game is detected, while keeping inactive modules asleep.", UDim2.new(1, 0, 0, 20), UDim2.fromOffset(0, settingsLayout.GameDescriptionY), {
+        Font = Enum.Font.GothamMedium,
+        TextSize = self.DeviceClass == "Phone" and 9 or 10,
+        Color = self.Colors.Muted,
+        Wrapped = true,
+        ZIndex = 1012,
+    })
+
+    local gameAutomationRow = self:CreateEqualThreeColumnRow(root, settingsLayout.GameRowY, settingsLayout.GameRowHeight, "GameAutomationSettingsRow")
+
+    local autoApplyPerGame = self:CreateWindowToggleCard(
+        gameAutomationRow,
+        "AUTO APPLY PER GAME",
+        "Remember the game features you choose, enable them when that game is detected, and pause other game categories.",
+        self:GetPageAccent("Games"),
+        1,
+        function() return self.AutoApplyPerGameEnabled end,
+        function(value) self:SetAutoApplyPerGameEnabled(value) end
+    )
+
+    local lightweightMode = self:CreateWindowToggleCard(
+        gameAutomationRow,
+        "LIGHTWEIGHT RUNTIME",
+        "Use shared scheduling, cached searches, idle backoff, and movement coordination to reduce frame spikes.",
+        self.Colors.Success,
+        2,
+        function() return self.LightweightModeEnabled end,
+        function(value) self:SetLightweightModeEnabled(value) end
+    )
+
+    local clearGameProfiles = self:CreateWindowActionCard(
+        gameAutomationRow,
+        "CLEAR GAME PROFILES",
+        "Turn off and forget all remembered game-category feature choices without changing Player or UI features.",
+        self.Colors.Error,
+        3,
+        "CLEAR PROFILES",
+        function() self:ClearGameAutoApplyProfiles() end
     )
 
     self:CreateText(root, "SIZE & TRANSPARENCY", UDim2.new(1, 0, 0, 28), UDim2.fromOffset(0, settingsLayout.SizeHeaderY), {
@@ -4140,6 +4258,9 @@ local resetAll = self:CreateWindowActionCard(
         ReducedMotion = reducedMotion,
         RememberLastPage = rememberLastPage,
         AutoCenter = autoCenter,
+        AutoApplyPerGame = autoApplyPerGame,
+        LightweightMode = lightweightMode,
+        ClearGameProfiles = clearGameProfiles,
         UserScale = userScale,
         BubbleSize = bubbleSize,
         WindowOpacity = windowOpacity,
@@ -4809,7 +4930,7 @@ function App:StartFeatureTracking()
 
     task.spawn(function()
         while self.Gui and self.Gui.Parent do
-            task.wait(0.5)
+            task.wait(2.0)
             self:RefreshFeatureDashboard()
         end
     end)

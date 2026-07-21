@@ -68,6 +68,25 @@ local function enabledState(feature)
     return feature.Enabled == true or feature.Active == true
 end
 
+local function desiredState(manager, info, feature)
+    if manager and manager.AutoApplyPerGameEnabled
+        and type(manager.GetEntry) == "function"
+        and info and info.Id
+    then
+        local entry = manager:GetEntry(info.Id)
+        if entry and entry.PageName == "Games" then
+            return entry.DesiredEnabled == true
+        end
+    end
+    return enabledState(feature)
+end
+
+local function isAutoManagedGame(manager, info)
+    if not manager or not manager.AutoApplyPerGameEnabled or not info or not info.Id then return false end
+    local entry = type(manager.GetEntry) == "function" and manager:GetEntry(info.Id) or nil
+    return entry and entry.PageName == "Games"
+end
+
 local function setEnabled(feature, state)
     if type(feature) ~= "table" then
         return false, "module did not return a feature table"
@@ -236,13 +255,21 @@ function FeatureFolder:Render(Page, App, options)
         local statusConnection = nil
 
         local function renderStatus()
+            local armed = desiredState(manager, info, feature)
+            local running = enabledState(feature)
+            if isAutoManagedGame(manager, info) and armed and not running then
+                local entry = manager:GetEntry(info.Id)
+                statusLabel.Text = "ARMED • Waiting for " .. tostring(entry and entry.CategoryName or "matching game")
+                statusLabel.TextColor3 = Color3.fromRGB(255, 210, 80)
+                return
+            end
             if type(feature) ~= "table" then
-                statusLabel.Text = "READY • Tap to load"
-                statusLabel.TextColor3 = App.Colors.Muted
+                statusLabel.Text = armed and "ARMED • Loads when detected" or "READY • Tap to load"
+                statusLabel.TextColor3 = armed and Color3.fromRGB(255, 210, 80) or App.Colors.Muted
                 return
             end
 
-            local state = enabledState(feature) and "ACTIVE" or "OFF"
+            local state = running and "ACTIVE" or "OFF"
             local detail = enabledState(feature) and "Enabled" or "Disabled"
             if type(feature.GetStatus) == "function" then
                 local ok, nextState, nextDetail = pcall(
@@ -288,7 +315,7 @@ function FeatureFolder:Render(Page, App, options)
         end
 
         local function render()
-            local on = enabledState(feature)
+            local on = desiredState(manager, info, feature)
             button.BackgroundColor3 = on and accent or Color3.fromRGB(70, 66, 80)
             local travel = toggleWidth - knobSize - 3
             knob.Position = UDim2.fromOffset(on and travel or 3, 3)
@@ -301,9 +328,9 @@ function FeatureFolder:Render(Page, App, options)
 
             -- Capture the user's intended state before a lazy module is loaded.
             -- This prevents a restored pending state from flipping the first click.
-            local nextState = not enabledState(feature)
+            local nextState = not desiredState(manager, info, feature)
 
-            if not feature then
+            if not feature and not isAutoManagedGame(manager, info) then
                 local ok, result = pcall(loadFeature, App, info)
                 if not ok then
                     local message = tostring(result)
@@ -326,24 +353,25 @@ function FeatureFolder:Render(Page, App, options)
                 subscribeStatus()
             end
 
-            local ok, err = setEnabled(feature, nextState)
+            local ok, err = true, nil
+            if isAutoManagedGame(manager, info) then
+                ok = manager:SetFeatureState(info.Id, nextState and "on" or "off")
+                if not ok then err = "auto-apply profile could not be updated" end
+            else
+                ok, err = setEnabled(feature, nextState)
+                if ok and manager then
+                    if type(manager.SetFeatureState) == "function" and info.Id then
+                        manager:SetFeatureState(info.Id, nextState and "on" or "off")
+                    elseif type(manager.Notify) == "function" then
+                        manager:Notify()
+                    end
+                end
+            end
             if not ok then
                 local message = tostring(err)
                 warn("[SquidNoMo] Toggle failed for " .. tostring(info.Name) .. ": " .. message)
-                if App.Notifications
-                    and type(App.Notifications.Error) == "function"
-                then
-                    App.Notifications:Error(
-                        tostring(info.Name),
-                        message,
-                        5
-                    )
-                end
-            elseif manager then
-                if type(manager.SetFeatureState) == "function" and info.Id then
-                    manager:SetFeatureState(info.Id, nextState and "on" or "off")
-                elseif type(manager.Notify) == "function" then
-                    manager:Notify()
+                if App.Notifications and type(App.Notifications.Error) == "function" then
+                    App.Notifications:Error(tostring(info.Name), message, 5)
                 end
             end
 
