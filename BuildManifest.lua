@@ -3,7 +3,7 @@
 
 return {
     Version = "1.1 beta 1",
-    Revision = "ultralight-stable-r4",
+    Revision = "ultralight-touch-persist-r5",
     FeatureRuntimeRevision = "1.1b1-ultralight-r4",
     PlayerRuntimeRevision = "1.1b1-player-ultralight-r3",
     CatalogFeatureCount = 65,
