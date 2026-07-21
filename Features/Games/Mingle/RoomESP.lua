@@ -1,39 +1,25 @@
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-
-local RoomESP = { Enabled = false, Highlights = {} }
-
-function RoomESP:Toggle(state)
-    self.Enabled = state
-    if state then
-        self.Connection = RunService.RenderStepped:Connect(function()
-            if not self.Enabled then return end
-            local doorsFolder = Workspace:FindFirstChild("MingleRooms") or Workspace:FindFirstChild("Doors")
-            if not doorsFolder then return end
-            
-            for _, door in ipairs(doorsFolder:GetChildren()) do
-                if door:IsA("BasePart") or door:IsA("Model") then
-                    local primary = door:IsA("Model") and door.PrimaryPart or door
-                    if primary and not primary:FindFirstChild("RoomHighlight") then
-                        local hl = Instance.new("Highlight")
-                        hl.Name = "RoomHighlight"
-                        hl.Adornee = door
-                        hl.FillColor = Color3.fromRGB(0, 255, 100)
-                        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                        hl.Parent = primary
-                        table.insert(self.Highlights, hl)
-                    end
-                end
-            end
-        end)
-        print("[SquidNoMo]: Mingle RoomESP Enabled.")
-    else
-        if self.Connection then self.Connection:Disconnect() end
-        for _, hl in ipairs(self.Highlights) do if hl then hl:Destroy() end end
-        self.Highlights = {}
-        print("[SquidNoMo]: Mingle RoomESP Disabled.")
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-return RoomESP
+local Runtime = Environment.__SquidNoMoFeatureRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_feature_recode_r2")
+    Runtime = loadstring(source)()
+end
+
+return Runtime:CreateFeature({
+    Id = "mapped.games.mingle.roomesp",
+    Name = "Room ESP",
+    Description = "Highlights available rooms and displays useful room information.",
+    Kind = "Highlight",
+    TargetTokens = {"room", "door", "mingle"},
+    TargetClasses = {"Model", "BasePart"},
+    Color = Color3.fromRGB(60, 220, 255),
+    WaitingMessage = "Waiting for Mingle rooms",
+})

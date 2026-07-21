@@ -1,34 +1,25 @@
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-
-local FrontmanNavigator = { Enabled = false }
-
-function FrontmanNavigator:Toggle(state)
-    self.Enabled = state
-    
-    if state then
-        self.Connection = RunService.RenderStepped:Connect(function()
-            if not self.Enabled then return end
-            
-            local character = Players.LocalPlayer.Character
-            if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-            
-            -- Locate objective endpoint (Frontman room / door / console)
-            local objective = Workspace:FindFirstChild("FrontmanRoom") or Workspace:FindFirstChild("ObjectiveDoor") or Workspace:FindFirstChild("ControlRoom")
-            if objective then
-                local targetPos = objective.Position or (objective:IsA("Model") and objective.WorldPivot.Position)
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if humanoid and targetPos then
-                    humanoid:MoveTo(targetPos)
-                end
-            end
-        end)
-        print("[SquidNoMo]: Rebellion FrontmanNavigator Enabled.")
-    else
-        if self.Connection then self.Connection:Disconnect() end
-        print("[SquidNoMo]: Rebellion FrontmanNavigator Disabled.")
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-return FrontmanNavigator
+local Runtime = Environment.__SquidNoMoFeatureRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_feature_recode_r2")
+    Runtime = loadstring(source)()
+end
+
+return Runtime:CreateFeature({
+    Id = "mapped.games.rebellion.frontmannavigator",
+    Name = "Frontman Navigator",
+    Description = "Guides the character toward the detected Frontman objective.",
+    Kind = "WalkTo",
+    TargetTokens = {"frontman", "front man", "command", "control room", "host"},
+    TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
+    StopDistance = 10,
+    WaitingMessage = "Waiting for the Frontman objective",
+})

@@ -8,7 +8,8 @@ local function makeCorner(parent, radius)
     corner.Parent = parent
 end
 
-local function loadFeature(App, path)
+local function loadFeature(App, info)
+    local path = info.Path
     if cache[path] then
         return cache[path]
     end
@@ -21,7 +22,31 @@ local function loadFeature(App, path)
         feature = loadstring(game:HttpGet(App.Config.Repository .. path))()
     end
 
+    if type(feature) ~= "table" then
+        error(
+            "module did not return a feature table: "
+            .. tostring(path)
+        )
+    end
+    if type(feature.Toggle) ~= "function"
+        and not (
+            type(feature.Enable) == "function"
+            and type(feature.Disable) == "function"
+        )
+    then
+        error(
+            "module has no Toggle or Enable/Disable API: "
+            .. tostring(path)
+        )
+    end
+
     cache[path] = feature
+
+    local manager = App.FeatureManager
+    if manager and type(manager.AttachCatalogFeature) == "function" and info.Id then
+        manager:AttachCatalogFeature(info.Id, feature)
+    end
+
     return feature
 end
 
@@ -33,7 +58,77 @@ local function enabledState(feature)
         local ok, value = pcall(feature.IsEnabled, feature)
         if ok then return value == true end
     end
+    if type(feature.GetState) == "function" then
+        local ok, value = pcall(feature.GetState, feature)
+        if ok then
+            value = tostring(value or ""):lower()
+            return value == "on" or value == "enabled" or value == "full"
+        end
+    end
     return feature.Enabled == true or feature.Active == true
+end
+
+local function setEnabled(feature, state)
+    if type(feature) ~= "table" then
+        return false, "module did not return a feature table"
+    end
+
+    local function invoke(method)
+        local ok, result, detail = pcall(
+            method,
+            feature,
+            state
+        )
+        if not ok then
+            return false, tostring(result)
+        end
+        if result == false then
+            return false, tostring(
+                detail
+                or "feature rejected the requested state"
+            )
+        end
+        return true, result
+    end
+
+    if type(feature.Toggle) == "function" then
+        return invoke(feature.Toggle)
+    end
+
+    local method = state
+        and feature.Enable
+        or feature.Disable
+    if type(method) == "function" then
+        local ok, result, detail = pcall(
+            method,
+            feature
+        )
+        if not ok then
+            return false, tostring(result)
+        end
+        if result == false then
+            return false, tostring(
+                detail
+                or "feature rejected the requested state"
+            )
+        end
+        return true, result
+    end
+
+    return false, "module does not expose Toggle(state) or Enable/Disable"
+end
+
+local function descriptionFor(App, info)
+    if type(info.Description) == "string" and info.Description ~= "" then
+        return info.Description
+    end
+
+    local catalog = App.Loader and App.Loader.FeatureCatalog
+    if catalog and type(catalog.Describe) == "function" then
+        return catalog:Describe(info)
+    end
+
+    return "Provides focused assistance for " .. tostring(info.Name or "this feature") .. "."
 end
 
 function FeatureFolder:Render(Page, App, options)
@@ -58,10 +153,8 @@ function FeatureFolder:Render(Page, App, options)
 
     local grid = Instance.new("UIGridLayout")
     grid.SortOrder = Enum.SortOrder.LayoutOrder
-    -- Feature subpages always use two columns, including phones. This keeps
-    -- controls compact instead of stretching every button across the page.
     local cellGap = App:IsMobile() and 8 or 12
-    local cardHeight = App:IsMobile() and 158 or 142
+    local cardHeight = App:IsMobile() and 184 or 166
     grid.CellPadding = UDim2.fromOffset(cellGap, cellGap)
     grid.CellSize = UDim2.new(0.5, -(cellGap / 2), 0, cardHeight)
     grid.Parent = content
@@ -85,18 +178,34 @@ function FeatureFolder:Render(Page, App, options)
             ZIndex = 1014,
         })
 
-        App:CreateText(card, info.Description or ("Loads " .. info.Path), UDim2.new(1, -28, 0, App:IsMobile() and 58 or 48), UDim2.fromOffset(14, 58), {
+        App:CreateText(card, descriptionFor(App, info), UDim2.new(1, -28, 0, App:IsMobile() and 66 or 56), UDim2.fromOffset(14, 56), {
             Font = Enum.Font.GothamMedium,
-            TextSize = App:IsMobile() and 12 or 12,
+            TextSize = App:IsMobile() and 13 or 12,
             Color = App.Colors.Muted,
             Wrapped = true,
             YAlignment = Enum.TextYAlignment.Top,
             ZIndex = 1014,
         })
 
+        local statusLabel = App:CreateText(
+            card,
+            "READY • Tap to load",
+            UDim2.new(1, -104, 0, 28),
+            UDim2.new(0, 14, 1, -42),
+            {
+                Font = Enum.Font.GothamBold,
+                TextSize = App:IsMobile() and 12 or 11,
+                Color = App.Colors.Muted,
+                Wrapped = false,
+                XAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 1014,
+            }
+        )
+        statusLabel.TextTruncate = Enum.TextTruncate.AtEnd
+
         local button = Instance.new("TextButton")
-        button.AnchorPoint = Vector2.new(0.5, 1)
-        button.Position = UDim2.new(0.5, 0, 1, -12)
+        button.AnchorPoint = Vector2.new(1, 1)
+        button.Position = UDim2.new(1, -14, 1, -12)
         local toggleWidth = App:IsMobile() and 68 or 62
         local toggleHeight = App:IsMobile() and 38 or 34
         button.Size = UDim2.fromOffset(toggleWidth, toggleHeight)
@@ -118,38 +227,141 @@ function FeatureFolder:Render(Page, App, options)
         knob.Parent = button
         makeCorner(knob, 999)
 
-        local feature
+        local manager = App.FeatureManager
+        local feature = manager
+            and type(manager.GetFeature) == "function"
+            and manager:GetFeature(info.Id)
+            or cache[info.Path]
+        local busy = false
+        local statusConnection = nil
+
+        local function renderStatus()
+            if type(feature) ~= "table" then
+                statusLabel.Text = "READY • Tap to load"
+                statusLabel.TextColor3 = App.Colors.Muted
+                return
+            end
+
+            local state = enabledState(feature) and "ACTIVE" or "OFF"
+            local detail = enabledState(feature) and "Enabled" or "Disabled"
+            if type(feature.GetStatus) == "function" then
+                local ok, nextState, nextDetail = pcall(
+                    feature.GetStatus,
+                    feature
+                )
+                if ok then
+                    state = string.upper(tostring(nextState or state))
+                    detail = tostring(nextDetail or detail)
+                end
+            end
+
+            statusLabel.Text = state .. " • " .. detail
+            if state == "ERROR" then
+                statusLabel.TextColor3 = Color3.fromRGB(255, 105, 115)
+            elseif state == "WAITING" or state == "STARTING" then
+                statusLabel.TextColor3 = Color3.fromRGB(255, 210, 80)
+            elseif state == "ACTIVE" or state == "COMPLETE" then
+                statusLabel.TextColor3 = Color3.fromRGB(80, 255, 145)
+            else
+                statusLabel.TextColor3 = App.Colors.Muted
+            end
+        end
+
+        local function subscribeStatus()
+            if statusConnection then
+                pcall(function() statusConnection:Disconnect() end)
+                statusConnection = nil
+            end
+            if type(feature) == "table"
+                and type(feature.SubscribeStatus) == "function"
+            then
+                local ok, connection = pcall(
+                    feature.SubscribeStatus,
+                    feature,
+                    function()
+                        renderStatus()
+                    end
+                )
+                if ok then statusConnection = connection end
+            end
+            renderStatus()
+        end
+
         local function render()
             local on = enabledState(feature)
             button.BackgroundColor3 = on and accent or Color3.fromRGB(70, 66, 80)
             local travel = toggleWidth - knobSize - 3
             knob.Position = UDim2.fromOffset(on and travel or 3, 3)
+            renderStatus()
         end
 
         button.Activated:Connect(function()
+            if busy then return end
+            busy = true
+
+            -- Capture the user's intended state before a lazy module is loaded.
+            -- This prevents a restored pending state from flipping the first click.
+            local nextState = not enabledState(feature)
+
             if not feature then
-                local ok, result = pcall(loadFeature, App, info.Path)
+                local ok, result = pcall(loadFeature, App, info)
                 if not ok then
-                    warn("[SquidNoMo] Failed to load " .. info.Path .. ": " .. tostring(result))
+                    local message = tostring(result)
+                    warn("[SquidNoMo] Failed to load " .. tostring(info.Name) .. ": " .. message)
+                    statusLabel.Text = "ERROR • " .. message
+                    statusLabel.TextColor3 = Color3.fromRGB(255, 105, 115)
+                    if App.Notifications
+                        and type(App.Notifications.Error) == "function"
+                    then
+                        App.Notifications:Error(
+                            tostring(info.Name),
+                            message,
+                            5
+                        )
+                    end
+                    busy = false
                     return
                 end
                 feature = result
+                subscribeStatus()
             end
 
-            if type(feature) ~= "table" or type(feature.Toggle) ~= "function" then
-                warn("[SquidNoMo] " .. info.Path .. " does not expose Toggle(state)")
-                return
-            end
-
-            local nextState = not enabledState(feature)
-            local ok, err = pcall(feature.Toggle, feature, nextState)
+            local ok, err = setEnabled(feature, nextState)
             if not ok then
-                warn("[SquidNoMo] Toggle failed for " .. info.Path .. ": " .. tostring(err))
+                local message = tostring(err)
+                warn("[SquidNoMo] Toggle failed for " .. tostring(info.Name) .. ": " .. message)
+                if App.Notifications
+                    and type(App.Notifications.Error) == "function"
+                then
+                    App.Notifications:Error(
+                        tostring(info.Name),
+                        message,
+                        5
+                    )
+                end
+            elseif manager then
+                if type(manager.SetFeatureState) == "function" and info.Id then
+                    manager:SetFeatureState(info.Id, nextState and "on" or "off")
+                elseif type(manager.Notify) == "function" then
+                    manager:Notify()
+                end
             end
+
             render()
+            busy = false
+        end)
+
+        card.Destroying:Connect(function()
+            if statusConnection then
+                pcall(function()
+                    statusConnection:Disconnect()
+                end)
+                statusConnection = nil
+            end
         end)
 
         App:BindButtonFeedback(button, accent)
+        subscribeStatus()
         render()
     end
 

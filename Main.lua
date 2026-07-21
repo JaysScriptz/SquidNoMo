@@ -1,7 +1,8 @@
 --// SquidNoMo entry point
 
 local BUILD_VERSION = "1.1 beta 1"
-local BUILD_TOKEN = string.gsub(BUILD_VERSION, "[^%w_%-]", "_")
+local BUILD_REVISION = "feature-recode-r2"
+local BUILD_TOKEN = string.gsub(BUILD_VERSION .. "-" .. BUILD_REVISION, "[^%w_%-]", "_")
 local REPOSITORY = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
 local BANNER_PATH = "Images/BannerGuards.png"
 
@@ -29,6 +30,7 @@ end
 local bootstrap = {
     Loading = true,
     Version = BUILD_VERSION,
+    Revision = BUILD_REVISION,
     StartedAt = os.clock(),
     Progress = 0.02,
 }
@@ -498,7 +500,7 @@ function bootstrap:Fail(message)
 end
 
 bootstrap:SetStatus("Connecting to the SquidNoMo repository...", 0.05)
-print("[SquidNoMo] Starting " .. BUILD_VERSION)
+print("[SquidNoMo] Starting " .. BUILD_VERSION .. " (" .. BUILD_REVISION .. ")")
 
 local success, result = pcall(function()
     bootstrap:SetStatus("Downloading the main loader...", 0.14)

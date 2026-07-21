@@ -1,66 +1,23 @@
-local HideSelf = {}
-local Players = game:GetService("Players")
-
-local LocalPlayer = Players.LocalPlayer
-local Enabled = false
-local Original = {}
-local Connections = {}
-
-local function disconnectAll()
-    for _, connection in ipairs(Connections) do
-        pcall(function() connection:Disconnect() end)
-    end
-    table.clear(Connections)
-end
-
-local function hideObject(object)
-    if object:IsA("BasePart") then
-        if Original[object] == nil then
-            Original[object] = object.LocalTransparencyModifier
-        end
-        object.LocalTransparencyModifier = 1
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-local function hideCharacter(character)
-    for _, object in ipairs(character:GetDescendants()) do
-        hideObject(object)
-    end
-    table.insert(Connections, character.DescendantAdded:Connect(function(object)
-        if Enabled then hideObject(object) end
-    end))
+local Runtime = Environment.__SquidNoMoPlayerRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_revision=1_1b1_player_recode_r1")
+    Runtime = loadstring(source)()
 end
 
-function HideSelf:Enable()
-    if Enabled then return end
-    Enabled = true
-    if LocalPlayer and LocalPlayer.Character then
-        hideCharacter(LocalPlayer.Character)
-    end
-    if LocalPlayer then
-        table.insert(Connections, LocalPlayer.CharacterAdded:Connect(function(character)
-            if Enabled then task.defer(hideCharacter, character) end
-        end))
-    end
-end
-
-function HideSelf:Disable()
-    Enabled = false
-    disconnectAll()
-    for object, value in pairs(Original) do
-        if object and object.Parent then
-            object.LocalTransparencyModifier = value
-        end
-    end
-    table.clear(Original)
-end
-
-function HideSelf:IsEnabled()
-    return Enabled
-end
-
-function HideSelf:GetState()
-    return Enabled and "on" or "off"
-end
-
-return HideSelf
+return Runtime:CreateFeature({
+    Id = "player.hide_self",
+    Name = "Hide Local Character",
+    Description = "Hides the local character only on this client and restores every original transparency value when disabled.",
+    Kind = "HideCharacters",
+    Mode = "Self",
+    Interval = 0.25,
+})

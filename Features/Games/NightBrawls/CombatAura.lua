@@ -1,53 +1,25 @@
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-
-local BrawlCombatAura = { Enabled = false, LastAttack = 0 }
-
-function BrawlCombatAura:Toggle(state)
-    self.Enabled = state
-    
-    if state then
-        self.Connection = RunService.RenderStepped:Connect(function()
-            if not self.Enabled then return end
-            if tick() - self.LastAttack < 0.25 then return end
-            
-            local character = Players.LocalPlayer.Character
-            if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-            local hrp = character.HumanoidRootPart
-            
-            -- Find the nearest hostile player within engagement range
-            local nearestTarget = nil
-            local shortestDist = 20
-            
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= Players.LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local targetHrp = player.Character.HumanoidRootPart
-                    local dist = (targetHrp.Position - hrp.Position).Magnitude
-                    if dist < shortestDist then
-                        shortestDist = dist
-                        nearestTarget = targetHrp
-                    end
-                end
-            end
-            
-            if nearestTarget then
-                self.LastAttack = tick()
-                hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(nearestTarget.Position.X, hrp.Position.Y, nearestTarget.Position.Z))
-                
-                local tool = character:FindFirstChildOfClass("Tool") or Players.LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
-                if tool then
-                    if tool.Parent == Players.LocalPlayer.Backpack then
-                        tool.Parent = character
-                    end
-                    pcall(function() tool:Activate() end)
-                end
-            end
-        end)
-        print("[SquidNoMo]: BrawlCombatAura Enabled.")
-    else
-        if self.Connection then self.Connection:Disconnect() end
-        print("[SquidNoMo]: BrawlCombatAura Disabled.")
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-return BrawlCombatAura
+local Runtime = Environment.__SquidNoMoFeatureRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_feature_recode_r2")
+    Runtime = loadstring(source)()
+end
+
+return Runtime:CreateFeature({
+    Id = "mapped.games.fight_nights.combataura",
+    Name = "Combat Aura",
+    Description = "Automatically uses the equipped combat tool on nearby valid targets.",
+    Kind = "ToolAura",
+    ToolTokens = {"bat", "bottle", "knife", "weapon", "fist"},
+    Range = 10,
+    FaceTarget = true,
+    Interval = 0.16,
+})

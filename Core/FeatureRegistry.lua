@@ -168,6 +168,31 @@ function FeatureRegistry:GetState(definition)
 end
 
 function FeatureRegistry:GetSummary()
+    local manager = self.Loader and self.Loader.FeatureManager
+    if manager and type(manager.GetSnapshot) == "function" then
+        local ok, snapshot = pcall(manager.GetSnapshot, manager)
+        if ok and type(snapshot) == "table" then
+            local total = tonumber(snapshot.Total) or 0
+            local full = tonumber(snapshot.FullyOn) or 0
+            local partial = tonumber(snapshot.Partial) or 0
+            local off = tonumber(snapshot.Off) or math.max(0, total - full - partial)
+            local loaded = type(manager.GetLoadedCount) == "function"
+                and manager:GetLoadedCount()
+                or 0
+            return {
+                full = full,
+                partial = partial,
+                off = off,
+                total = total,
+                loaded = loaded,
+                states = {},
+                fullPercent = total > 0 and math.floor((full / total) * 100 + 0.5) or 0,
+                partialPercent = total > 0 and math.floor((partial / total) * 100 + 0.5) or 0,
+                offPercent = total > 0 and math.floor((off / total) * 100 + 0.5) or 0,
+            }
+        end
+    end
+
     local summary = {
         full = 0,
         partial = 0,

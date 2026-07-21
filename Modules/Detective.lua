@@ -1,50 +1,16 @@
 local DetectivePage = {}
 
--- Detective subpages are grouped around the actual investigation workflow.
-local CATEGORIES = {
-    {
-        Name = "Island Navigation",
-        Short = "WALK",
-        Features = {
-            {
-                Name = "Island Navigator",
-                Description = "Auto-walks from the boat/start area to the nearest evidence using pathfinding. No teleports.",
-                Path = "Features/Detective/IslandNavigator.lua",
-            },
-        },
-    },
-    {
-        Name = "Evidence",
-        Short = "EVIDENCE",
-        Features = {
-            {Name = "Evidence Collector", Path = "Features/Detective/EvidenceCollector.lua"},
-            {Name = "Evidence ESP", Path = "Features/Detective/EvidenceESP.lua"},
-        },
-    },
-    {
-        Name = "Boat Operations",
-        Short = "BOAT",
-        Features = {
-            {Name = "Boat Depositor", Path = "Features/Detective/BoatDepositor.lua"},
-        },
-    },
-    {
-        Name = "Disguise",
-        Short = "DISGUISE",
-        Features = {
-            {Name = "Disguise Manager", Path = "Features/Detective/DisguiseManager.lua"},
-        },
-    },
-}
-
 function DetectivePage:Create(Page, App)
+    local catalog = App.Loader.FeatureCatalog
+    local categories = catalog and catalog:GetCategories("Detective") or {}
+
     App.Loader.CategoryStrip:Create(Page, App, {
         PageName = "Detective",
         SessionKey = "SelectedDetectiveCategory",
-        DefaultName = CATEGORIES[1].Name,
+        DefaultName = categories[1] and categories[1].Name or "Island Navigation",
         ScrollerName = "DetectiveCategoryScroller",
         ButtonWidth = 240,
-        Items = CATEGORIES,
+        Items = categories,
         OnSelected = function(item)
             App.Loader.FeatureFolder:Render(Page, App, {
                 PageName = "Detective",

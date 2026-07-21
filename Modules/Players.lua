@@ -63,7 +63,7 @@ local function createRoot(
         1,
         -(padding * 2),
         0,
-        760
+        10
     )
     root.BackgroundTransparency = 1
     root.BorderSizePixel = 0
@@ -75,8 +75,8 @@ local function createRoot(
     grid.CellPadding =
         UDim2.fromOffset(12, 12)
     grid.CellSize = UDim2.new(
-        0.333333,
-        -8,
+        0.5,
+        -6,
         0,
         cardHeight
     )
@@ -84,10 +84,28 @@ local function createRoot(
 
     Page.AutomaticCanvasSize =
         Enum.AutomaticSize.None
-    Page.CanvasSize = UDim2.fromOffset(
-        0,
-        topY + root.Size.Y.Offset + 36
-    )
+
+    local function updateCanvas()
+        local height = math.max(
+            cardHeight,
+            grid.AbsoluteContentSize.Y
+        )
+        root.Size = UDim2.new(
+            1,
+            -(padding * 2),
+            0,
+            height
+        )
+        Page.CanvasSize = UDim2.fromOffset(
+            0,
+            topY + height + 36
+        )
+    end
+
+    grid:GetPropertyChangedSignal(
+        "AbsoluteContentSize"
+    ):Connect(updateCanvas)
+    task.defer(updateCanvas)
 
     return root
 end
@@ -212,7 +230,33 @@ local function createToggle(
             or feature.Enable
 
         if type(method) == "function" then
-            pcall(method, feature)
+            local ok, result, detail =
+                pcall(method, feature)
+            if not ok or result == false then
+                local message = not ok
+                    and tostring(result)
+                    or tostring(
+                        detail
+                        or "The feature rejected the toggle."
+                    )
+                warn(
+                    "[SquidNoMo] "
+                    .. title
+                    .. " failed: "
+                    .. message
+                )
+                if App.Notifications
+                    and type(
+                        App.Notifications.Error
+                    ) == "function"
+                then
+                    App.Notifications:Error(
+                        title,
+                        message,
+                        5
+                    )
+                end
+            end
             notify(App)
             render()
         end
@@ -512,6 +556,33 @@ local function buildMovement(
         "player.noclip",
         6
     )
+    createToggle(
+        App,
+        root,
+        "Force Third Person",
+        "Keeps the camera in a readable third-person range.",
+        Color3.fromRGB(58, 210, 255),
+        "player.force_third_person",
+        7
+    )
+    createToggle(
+        App,
+        root,
+        "Unlock Camera Zoom",
+        "Raises the local maximum camera zoom distance.",
+        Color3.fromRGB(255, 180, 70),
+        "player.unlock_zoom",
+        8
+    )
+    createToggle(
+        App,
+        root,
+        "Auto Stand",
+        "Recovers from sitting and platform-stand states.",
+        Color3.fromRGB(80, 255, 150),
+        "player.auto_stand",
+        9
+    )
 end
 
 local function buildESP(Page, App, topY)
@@ -649,6 +720,28 @@ local function buildESP(Page, App, topY)
                 ),
             },
         },
+        {
+            "Name ESP",
+            "Displays player names above characters.",
+            Color3.fromRGB(245, 245, 255),
+            "player.name_esp",
+            {
+                Color3.fromRGB(245, 245, 255),
+                Color3.fromRGB(80, 220, 255),
+                Color3.fromRGB(255, 210, 70),
+            },
+        },
+        {
+            "Box ESP",
+            "Draws an always-visible player outline.",
+            Color3.fromRGB(255, 210, 70),
+            "player.box_esp",
+            {
+                Color3.fromRGB(255, 210, 70),
+                Color3.fromRGB(255, 82, 110),
+                Color3.fromRGB(80, 255, 150),
+            },
+        },
     }
 
     for index, definition in ipairs(
@@ -719,7 +812,7 @@ local function buildUtilities(
                 159,
                 67
             ),
-            "player.hide_local_character",
+            "player.hide_self",
         },
         {
             "Tool ESP",
@@ -740,6 +833,18 @@ local function buildUtilities(
                 255
             ),
             "player.mute_character_sounds",
+        },
+        {
+            "Reset Character",
+            "Requests one local character reset.",
+            Color3.fromRGB(255, 105, 105),
+            "player.reset",
+        },
+        {
+            "Rejoin Server",
+            "Requests a rejoin to the current server.",
+            Color3.fromRGB(90, 205, 255),
+            "player.rejoin",
         },
     }
 

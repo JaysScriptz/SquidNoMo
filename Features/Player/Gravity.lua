@@ -1,41 +1,27 @@
-local Gravity = {}
-local Workspace = game:GetService("Workspace")
-
-local DefaultGravity = Workspace.Gravity
-local CurrentGravity = DefaultGravity
-local PreferredGravity = math.clamp(math.floor(DefaultGravity * 0.62), 30, 300)
-
-local function apply()
-    Workspace.Gravity = CurrentGravity
-end
-
-function Gravity:Set(value)
-    CurrentGravity = math.clamp(tonumber(value) or DefaultGravity, 20, 300)
-    if math.abs(CurrentGravity - DefaultGravity) > 0.1 then
-        PreferredGravity = CurrentGravity
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
-    apply()
 end
 
-function Gravity:Get()
-    return CurrentGravity
+local Runtime = Environment.__SquidNoMoPlayerRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_revision=1_1b1_player_recode_r1")
+    Runtime = loadstring(source)()
 end
 
-function Gravity:Enable()
-    self:Set(PreferredGravity)
-end
-
-function Gravity:Disable()
-    CurrentGravity = DefaultGravity
-    apply()
-end
-
-function Gravity:IsEnabled()
-    return math.abs(CurrentGravity - DefaultGravity) > 0.1
-end
-
-function Gravity:GetState()
-    return self:IsEnabled() and "on" or "off"
-end
-
-return Gravity
+return Runtime:CreateFeature({
+    Id = "player.gravity",
+    Name = "Gravity",
+    Description = "Applies the selected local Workspace gravity value while enabled and restores the previous value when disabled.",
+    Kind = "WorkspaceValue",
+    Property = "Gravity",
+    EnabledValue = 120,
+    DefaultValue = 196.2,
+    Min = 20,
+    Max = 300,
+    Interval = 0.2,
+})

@@ -1,88 +1,22 @@
-local AntiLag = {}
-
-local Workspace = game:GetService("Workspace")
-local Terrain = Workspace.Terrain
-
-local Enabled = false
-local TerrainDefaults = nil
-local ExplosionStates = {}
-local Connection = nil
-
-local function applyExplosion(object)
-    if not object:IsA("Explosion") then return end
-    local ok, visible = pcall(function()
-        return object.Visible
-    end)
-    if not ok then return end
-    if ExplosionStates[object] == nil then
-        ExplosionStates[object] = visible
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
-    pcall(function()
-        object.Visible = false
-    end)
 end
 
-function AntiLag:Enable()
-    if Enabled then return end
-    Enabled = true
-
-    TerrainDefaults = {
-        WaterWaveSize = Terrain.WaterWaveSize,
-        WaterWaveSpeed = Terrain.WaterWaveSpeed,
-        WaterReflectance = Terrain.WaterReflectance,
-        WaterTransparency = Terrain.WaterTransparency,
-    }
-
-    pcall(function()
-        Terrain.WaterWaveSize = 0
-        Terrain.WaterWaveSpeed = 0
-        Terrain.WaterReflectance = 0
-        Terrain.WaterTransparency = 1
-    end)
-
-    for _, object in ipairs(Workspace:GetDescendants()) do
-        applyExplosion(object)
-    end
-
-    Connection = Workspace.DescendantAdded:Connect(function(object)
-        if Enabled then applyExplosion(object) end
-    end)
+local Runtime = Environment.__SquidNoMoPlayerRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_revision=1_1b1_player_recode_r1")
+    Runtime = loadstring(source)()
 end
 
-function AntiLag:Disable()
-    Enabled = false
-
-    if Connection then
-        Connection:Disconnect()
-        Connection = nil
-    end
-
-    if TerrainDefaults then
-        pcall(function()
-            Terrain.WaterWaveSize = TerrainDefaults.WaterWaveSize
-            Terrain.WaterWaveSpeed = TerrainDefaults.WaterWaveSpeed
-            Terrain.WaterReflectance = TerrainDefaults.WaterReflectance
-            Terrain.WaterTransparency = TerrainDefaults.WaterTransparency
-        end)
-    end
-    TerrainDefaults = nil
-
-    for object, visible in pairs(ExplosionStates) do
-        if object and object.Parent then
-            pcall(function()
-                object.Visible = visible
-            end)
-        end
-    end
-    table.clear(ExplosionStates)
-end
-
-function AntiLag:IsEnabled()
-    return Enabled
-end
-
-function AntiLag:GetState()
-    return Enabled and "on" or "off"
-end
-
-return AntiLag
+return Runtime:CreateFeature({
+    Id = "player.anti_lag",
+    Name = "Anti Lag",
+    Description = "Temporarily disables expensive particles, beams, trails, and post-processing effects, then restores them when disabled.",
+    Kind = "AntiLag",
+    Interval = 1.2,
+})

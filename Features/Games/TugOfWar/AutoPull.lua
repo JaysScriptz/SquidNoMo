@@ -1,55 +1,25 @@
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-
-local AutoPull = { Enabled = false, LastAction = 0 }
-
-local function getTugType()
-    local playerGui = Players.LocalPlayer:FindFirstChild("PlayerGui")
-    if not playerGui then return nil end
-    
-    local gui = playerGui:FindFirstChild("TugGui", true) or playerGui:FindFirstChild("TugOfWarGui", true) or playerGui:FindFirstChild("PullGui", true)
-    if not gui or not gui.Enabled then return nil end
-    
-    -- Check if it's a meter/timing game versus a click-mashing game
-    local hasMeter = gui:FindFirstChild("Bar", true) or gui:FindFirstChild("Meter", true) or gui:FindFirstChild("SweetSpot", true)
-    if hasMeter then
-        return "Timing" -- It's a timing game, AutoPull should stay inactive
-    else
-        return "ClickMash" -- It's a continuous pulling/clicking game, valid for AutoPull
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-function AutoPull:Toggle(state)
-    self.Enabled = state
-    
-    if state then
-        self.Connection = RunService.RenderStepped:Connect(function()
-            if not self.Enabled then return end
-            
-            -- Detect type; abort if it's a timing-based variant
-            if getTugType() ~= "ClickMash" then return end
-            
-            -- Throttle automated clicks to match server-side tick limits (approx 10 times per second)
-            if tick() - self.LastAction < 0.1 then return end
-            self.LastAction = tick()
-            
-            local eventsFolder = ReplicatedStorage:FindFirstChild("Events") or ReplicatedStorage:FindFirstChild("Remotes")
-            if eventsFolder then
-                for _, remote in ipairs(eventsFolder:GetChildren()) do
-                    if remote:IsA("RemoteEvent") and (remote.Name:lower():match("tug") or remote.Name:lower():match("pull") or remote.Name:lower():match("click")) then
-                        pcall(function()
-                            remote:FireServer()
-                        end)
-                    end
-                end
-            end
-        end)
-        print("[SquidNoMo]: TugOfWar AutoPull Enabled.")
-    else
-        if self.Connection then self.Connection:Disconnect() end
-        print("[SquidNoMo]: TugOfWar AutoPull Disabled.")
-    end
+local Runtime = Environment.__SquidNoMoFeatureRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_feature_recode_r2")
+    Runtime = loadstring(source)()
 end
 
-return AutoPull
+return Runtime:CreateFeature({
+    Id = "mapped.games.tug_of_war.autopull",
+    Name = "Auto Pull",
+    Description = "Repeats the pull input automatically throughout Tug of War.",
+    Kind = "GuiAction",
+    ActionTokens = {"pull", "tug", "tap", "rope"},
+    ActionCooldown = 0.08,
+    Interval = 0.05,
+    WaitingMessage = "Waiting for the Tug of War pull control",
+})

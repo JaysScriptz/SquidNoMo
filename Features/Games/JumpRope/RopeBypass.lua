@@ -1,33 +1,23 @@
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-
-local RopeBypass = { Enabled = false }
-
-function RopeBypass:Toggle(state)
-    self.Enabled = state
-    
-    if state then
-        self.Connection = RunService.RenderStepped:Connect(function()
-            if not self.Enabled then return end
-            
-            local rope = Workspace:FindFirstChild("JumpRope") or Workspace:FindFirstChild("Rope")
-            if rope then
-                if rope:IsA("BasePart") then
-                    rope.CanCollide = false
-                elseif rope:IsA("Model") then
-                    for _, part in ipairs(rope:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
-                        end
-                    end
-                end
-            end
-        end)
-        print("[SquidNoMo]: JumpRope RopeBypass Enabled.")
-    else
-        if self.Connection then self.Connection:Disconnect() end
-        print("[SquidNoMo]: JumpRope RopeBypass Disabled.")
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-return RopeBypass
+local Runtime = Environment.__SquidNoMoFeatureRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_feature_recode_r2")
+    Runtime = loadstring(source)()
+end
+
+return Runtime:CreateFeature({
+    Id = "mapped.games.jump_rope.ropebypass",
+    Name = "Rope Bypass",
+    Description = "Reduces local rope interference to make crossing more forgiving.",
+    Kind = "RopeBypass",
+    TargetTokens = {"rope", "swing", "bar"},
+    Interval = 0.8,
+})

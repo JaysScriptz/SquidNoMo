@@ -1,43 +1,21 @@
-local AutoStand = {}
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
-local LocalPlayer = Players.LocalPlayer
-local Enabled = false
-local Connection = nil
-
-local function getHumanoid()
-    local character = LocalPlayer and LocalPlayer.Character
-    return character and character:FindFirstChildOfClass("Humanoid")
-end
-
-function AutoStand:Enable()
-    if Enabled then return end
-    Enabled = true
-    Connection = RunService.Heartbeat:Connect(function()
-        local humanoid = getHumanoid()
-        if not humanoid or humanoid.Health <= 0 then return end
-        if humanoid.Sit or humanoid:GetState() == Enum.HumanoidStateType.Seated then
-            humanoid.Sit = false
-            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-        end
-    end)
-end
-
-function AutoStand:Disable()
-    Enabled = false
-    if Connection then
-        Connection:Disconnect()
-        Connection = nil
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-function AutoStand:IsEnabled()
-    return Enabled
+local Runtime = Environment.__SquidNoMoPlayerRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_revision=1_1b1_player_recode_r1")
+    Runtime = loadstring(source)()
 end
 
-function AutoStand:GetState()
-    return Enabled and "on" or "off"
-end
-
-return AutoStand
+return Runtime:CreateFeature({
+    Id = "player.auto_stand",
+    Name = "Auto Stand",
+    Description = "Automatically clears sitting and platform-stand states so the local character can recover movement.",
+    Kind = "AutoStand",
+})

@@ -1,20 +1,23 @@
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-
-local SafeLanding = { Enabled = false }
-
-function SafeLanding:Toggle(state)
-    self.Enabled = state
-    self.Connection = RunService.RenderStepped:Connect(function()
-        if not self.Enabled then return end
-        local char = Players.LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        
-        -- If Y-level is below the bridge (e.g., -50), snap to start
-        if hrp and hrp.Position.Y < -20 then
-            hrp.CFrame = CFrame.new(0, 50, 0) -- Set to your map's start coordinates
-        end
-    end)
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
+    end
 end
 
-return SafeLanding
+local Runtime = Environment.__SquidNoMoFeatureRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_feature_recode_r2")
+    Runtime = loadstring(source)()
+end
+
+return Runtime:CreateFeature({
+    Id = "mapped.games.glass_bridge.autoreset",
+    Name = "Auto Reset",
+    Description = "Returns the character to a recovery point after falling below the bridge.",
+    Kind = "AntiFall",
+    DropDistance = 8,
+    FallVelocity = 45,
+})

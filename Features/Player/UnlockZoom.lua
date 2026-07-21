@@ -1,47 +1,22 @@
-local UnlockZoom = {}
-local Players = game:GetService("Players")
-
-local LocalPlayer = Players.LocalPlayer
-local Enabled = false
-local DefaultMaxZoom = nil
-local Connection = nil
-
-local function apply()
-    if LocalPlayer and Enabled then
-        LocalPlayer.CameraMaxZoomDistance = 1000
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-function UnlockZoom:Enable()
-    if Enabled or not LocalPlayer then return end
-    Enabled = true
-    DefaultMaxZoom = LocalPlayer.CameraMaxZoomDistance
-    apply()
-    Connection = LocalPlayer:GetPropertyChangedSignal("CameraMaxZoomDistance"):Connect(function()
-        if Enabled and LocalPlayer.CameraMaxZoomDistance < 1000 then
-            LocalPlayer.CameraMaxZoomDistance = 1000
-        end
-    end)
+local Runtime = Environment.__SquidNoMoPlayerRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_revision=1_1b1_player_recode_r1")
+    Runtime = loadstring(source)()
 end
 
-function UnlockZoom:Disable()
-    Enabled = false
-    if Connection then
-        Connection:Disconnect()
-        Connection = nil
-    end
-    if LocalPlayer and DefaultMaxZoom ~= nil then
-        LocalPlayer.CameraMaxZoomDistance = DefaultMaxZoom
-    end
-    DefaultMaxZoom = nil
-end
-
-function UnlockZoom:IsEnabled()
-    return Enabled
-end
-
-function UnlockZoom:GetState()
-    return Enabled and "on" or "off"
-end
-
-return UnlockZoom
+return Runtime:CreateFeature({
+    Id = "player.unlock_zoom",
+    Name = "Unlock Camera Zoom",
+    Description = "Raises the local maximum camera zoom distance while preserving the original value for restoration.",
+    Kind = "UnlockZoom",
+    MaxZoom = 1000,
+})

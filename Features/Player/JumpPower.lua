@@ -1,58 +1,27 @@
-local JumpPower = {}
-
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local DefaultJumpPower = 50
-local CurrentJumpPower = DefaultJumpPower
-local PreferredJumpPower = 80
-
-local function Apply()
-    local character = LocalPlayer and LocalPlayer.Character
-    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid.UseJumpPower = true
-        humanoid.JumpPower = CurrentJumpPower
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-function JumpPower:Set(value)
-    CurrentJumpPower = math.clamp(tonumber(value) or DefaultJumpPower, 25, 200)
-    if CurrentJumpPower ~= DefaultJumpPower then
-        PreferredJumpPower = CurrentJumpPower
-    end
-    Apply()
+local Runtime = Environment.__SquidNoMoPlayerRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_revision=1_1b1_player_recode_r1")
+    Runtime = loadstring(source)()
 end
 
-function JumpPower:Enable()
-    self:Set(PreferredJumpPower)
-end
-
-function JumpPower:Disable()
-    self:Reset()
-end
-
-function JumpPower:Get()
-    return CurrentJumpPower
-end
-
-function JumpPower:Reset()
-    CurrentJumpPower = DefaultJumpPower
-    Apply()
-end
-
-function JumpPower:IsEnabled()
-    return CurrentJumpPower ~= DefaultJumpPower
-end
-
-function JumpPower:GetState()
-    return self:IsEnabled() and "on" or "off"
-end
-
-if LocalPlayer then
-    LocalPlayer.CharacterAdded:Connect(function()
-        task.wait(0.25)
-        Apply()
-    end)
-end
-
-return JumpPower
+return Runtime:CreateFeature({
+    Id = "player.jump_power",
+    Name = "Jump Power",
+    Description = "Continuously applies the selected jump power and switches the humanoid to JumpPower mode when required.",
+    Kind = "HumanoidValue",
+    Property = "JumpPower",
+    EnabledValue = 80,
+    DefaultValue = 50,
+    Min = 20,
+    Max = 220,
+    Interval = 0.1,
+})

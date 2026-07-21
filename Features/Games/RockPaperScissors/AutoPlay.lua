@@ -1,46 +1,22 @@
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local RPSMinusOne = { Enabled = false, HasSelected = false }
-
-local function isRPSActive()
-    local playerGui = Players.LocalPlayer:FindFirstChild("PlayerGui")
-    if not playerGui then return false end
-    
-    local gui = playerGui:FindFirstChild("MinusOneGui", true) or playerGui:FindFirstChild("RPSGui", true) or playerGui:FindFirstChild("RockPaperScissorsGui", true)
-    return gui and gui.Enabled
-end
-
-function RPSMinusOne:Toggle(state)
-    self.Enabled = state
-    
-    if state then
-        self.HasSelected = false
-        self.Connection = RunService.RenderStepped:Connect(function()
-            if not self.Enabled or self.HasSelected then return end
-            if not isRPSActive() then return end
-            
-            self.HasSelected = true
-            local choices = {"Rock", "Paper", "Scissors"}
-            local chosenMove = choices[math.random(1, #choices)]
-            
-            local eventsFolder = ReplicatedStorage:FindFirstChild("Events") or ReplicatedStorage:FindFirstChild("Remotes")
-            if eventsFolder then
-                for _, remote in ipairs(eventsFolder:GetChildren()) do
-                    if remote:IsA("RemoteEvent") and (remote.Name:lower():match("rps") or remote.Name:lower():match("minus") or remote.Name:lower():match("choice") or remote.Name:lower():match("hand")) then
-                        pcall(function()
-                            remote:FireServer(chosenMove)
-                        end)
-                    end
-                end
-            end
-        end)
-        print("[SquidNoMo]: RPSMinusOne Enabled.")
-    else
-        if self.Connection then self.Connection:Disconnect() end
-        print("[SquidNoMo]: RPSMinusOne Disabled.")
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-return RPSMinusOne
+local Runtime = Environment.__SquidNoMoFeatureRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_feature_recode_r2")
+    Runtime = loadstring(source)()
+end
+
+return Runtime:CreateFeature({
+    Id = "mapped.games.rock_paper_scissors_minus_one.autoplay",
+    Name = "Auto Play",
+    Description = "Automatically selects and submits choices for each RPS Minus One round.",
+    Kind = "RPSAutoPlay",
+    Interval = 0.35,
+})

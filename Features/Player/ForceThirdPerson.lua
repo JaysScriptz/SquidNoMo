@@ -1,59 +1,23 @@
-local ForceThirdPerson = {}
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
-local LocalPlayer = Players.LocalPlayer
-local Enabled = false
-local Connection = nil
-local Defaults = nil
-local Elapsed = 0
-
-local function apply()
-    if not LocalPlayer then return end
-    LocalPlayer.CameraMode = Enum.CameraMode.Classic
-    LocalPlayer.CameraMinZoomDistance = math.max(6, LocalPlayer.CameraMinZoomDistance)
-    LocalPlayer.CameraMaxZoomDistance = math.max(12, LocalPlayer.CameraMaxZoomDistance)
-end
-
-function ForceThirdPerson:Enable()
-    if Enabled or not LocalPlayer then return end
-    Enabled = true
-    Defaults = {
-        CameraMode = LocalPlayer.CameraMode,
-        MinZoom = LocalPlayer.CameraMinZoomDistance,
-        MaxZoom = LocalPlayer.CameraMaxZoomDistance,
-    }
-    apply()
-    Elapsed = 0
-    Connection = RunService.Heartbeat:Connect(function(deltaTime)
-        Elapsed = Elapsed + deltaTime
-        if Elapsed >= 0.5 then
-            Elapsed = 0
-            apply()
-        end
-    end)
-end
-
-function ForceThirdPerson:Disable()
-    Enabled = false
-    if Connection then
-        Connection:Disconnect()
-        Connection = nil
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
-    if LocalPlayer and Defaults then
-        pcall(function() LocalPlayer.CameraMode = Defaults.CameraMode end)
-        pcall(function() LocalPlayer.CameraMinZoomDistance = Defaults.MinZoom end)
-        pcall(function() LocalPlayer.CameraMaxZoomDistance = Defaults.MaxZoom end)
-    end
-    Defaults = nil
 end
 
-function ForceThirdPerson:IsEnabled()
-    return Enabled
+local Runtime = Environment.__SquidNoMoPlayerRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_revision=1_1b1_player_recode_r1")
+    Runtime = loadstring(source)()
 end
 
-function ForceThirdPerson:GetState()
-    return Enabled and "on" or "off"
-end
-
-return ForceThirdPerson
+return Runtime:CreateFeature({
+    Id = "player.force_third_person",
+    Name = "Force Third Person",
+    Description = "Keeps the local camera in a readable third-person range and restores the previous camera settings when disabled.",
+    Kind = "ForceThirdPerson",
+    MinZoom = 6,
+    MaxZoom = 24,
+})

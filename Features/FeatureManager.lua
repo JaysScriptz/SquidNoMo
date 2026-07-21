@@ -37,8 +37,8 @@ local function normalizeCategory(category)
 end
 
 local function safeFeatureState(entry)
-    local feature = entry.Feature
-    local options = entry.Options or {}
+    local feature = entry and entry.Feature
+    local options = entry and entry.Options or {}
 
     local ok, state = pcall(function()
         if type(options.GetState) == "function" then
@@ -47,13 +47,21 @@ local function safeFeatureState(entry)
         if type(feature) == "table" and type(feature.GetState) == "function" then
             return feature:GetState()
         end
-        if type(feature) == "table" and type(feature.IsPartiallyEnabled) == "function" and feature:IsPartiallyEnabled() then
+        if type(feature) == "table"
+            and type(feature.IsPartiallyEnabled) == "function"
+            and feature:IsPartiallyEnabled()
+        then
             return "partial"
         end
         if type(feature) == "table" and type(feature.IsEnabled) == "function" then
             return feature:IsEnabled() and "on" or "off"
         end
-        return entry.State or "off"
+        if type(feature) == "table" then
+            if feature.Enabled == true or feature.Active == true then
+                return "on"
+            end
+        end
+        return entry and entry.State or "off"
     end)
 
     if not ok then
@@ -67,7 +75,7 @@ local function safeFeatureState(entry)
     end
 
     state = string.lower(tostring(state or "off"))
-    if state == "on" or state == "enabled" or state == "fully" then
+    if state == "on" or state == "enabled" or state == "fully" or state == "full" then
         return "on"
     elseif state == "partial" or state == "mixed" or state == "partially" then
         return "partial"
@@ -76,10 +84,39 @@ local function safeFeatureState(entry)
     return "off"
 end
 
+local function setFeatureEnabled(feature, enabled)
+    if type(feature) ~= "table" then
+        return false
+    end
+
+    local method = enabled and feature.Enable or feature.Disable
+    if type(method) == "function" then
+        local ok, result = pcall(method, feature)
+        return ok and result ~= false
+    end
+
+    if type(feature.Toggle) == "function" then
+        local ok, result = pcall(
+            feature.Toggle,
+            feature,
+            enabled
+        )
+        return ok and result ~= false
+    end
+
+    return false
+end
+
 function FeatureManager:Initialize(Loader)
+    -- The module can be re-used after a character rebuild, so clear stale entries
+    -- before registering the current build's live and catalog features.
+    self.Registry = {}
+
     local Features = {}
 
     Features.Shared = {}
+    Features.Shared.Runtime = Load(Loader, "Features/Shared/Runtime.lua")
+    Features.Shared.PlayerRuntime = Load(Loader, "Features/Shared/PlayerRuntime.lua")
     Features.Shared.RoleService = Load(Loader, "Features/Shared/RoleService.lua")
     Loader.Features = Features
 
@@ -91,13 +128,26 @@ function FeatureManager:Initialize(Loader)
 
     self.Features = Features
     Loader.Features = Features
-    self:Notify()
 
+    if Loader.FeatureCatalog then
+        self:RegisterCatalog(Loader.FeatureCatalog)
+    end
+
+    self:Notify()
     return Features
 end
 
 function FeatureManager:Get()
     return self.Features
+end
+
+function FeatureManager:GetEntry(id)
+    return self.Registry[id]
+end
+
+function FeatureManager:GetFeature(id)
+    local entry = self.Registry[id]
+    return entry and entry.Feature or nil
 end
 
 function FeatureManager:RegisterFeature(id, feature, options)
@@ -108,17 +158,121 @@ function FeatureManager:RegisterFeature(id, feature, options)
     local category = normalizeCategory(options.Category)
     assert(category and validCategories[category], "Category must be Safe, SemiSafe, or Experimental")
 
+    local previous = self.Registry[id]
     self.Registry[id] = {
         Id = id,
-        Name = tostring(options.Name or id),
+        Name = tostring(options.Name or (previous and previous.Name) or id),
         Category = category,
         Feature = feature,
         Options = options,
-        State = options.InitialState or "off",
+        State = previous and previous.State or options.InitialState or "off",
+        IsCatalog = previous and previous.IsCatalog or false,
+        Path = previous and previous.Path or options.Path,
+        Description = options.Description or (previous and previous.Description),
+        PendingEnabled = previous and previous.PendingEnabled or nil,
     }
+
+    if self.Registry[id].PendingEnabled ~= nil then
+        local enabled = self.Registry[id].PendingEnabled == true
+        if setFeatureEnabled(feature, enabled) then
+            self.Registry[id].State = enabled and "on" or "off"
+            self.Registry[id].PendingEnabled = nil
+        end
+    end
 
     self:Notify()
     return self.Registry[id]
+end
+
+function FeatureManager:RegisterCatalogFeature(definition)
+    if type(definition) ~= "table" then
+        return nil
+    end
+
+    local id = tostring(definition.Id or "")
+    if id == "" then
+        return nil
+    end
+
+    local existing = self.Registry[id]
+    if existing then
+        existing.Name = tostring(definition.Name or existing.Name or id)
+        existing.Path = definition.Path or existing.Path
+        existing.Description = definition.Description or existing.Description
+        existing.IsCatalog = true
+        return existing
+    end
+
+    local category = normalizeCategory(definition.Category) or "Experimental"
+    local entry = {
+        Id = id,
+        Name = tostring(definition.Name or id),
+        Category = category,
+        Feature = nil,
+        Options = {
+            Name = definition.Name,
+            Category = category,
+            Description = definition.Description,
+            Path = definition.Path,
+        },
+        State = "off",
+        IsCatalog = true,
+        Path = definition.Path,
+        Description = definition.Description,
+    }
+
+    self.Registry[id] = entry
+    return entry
+end
+
+function FeatureManager:RegisterCatalog(catalog)
+    if type(catalog) ~= "table" or type(catalog.GetAllFeatures) ~= "function" then
+        return 0
+    end
+
+    local ok, features = pcall(catalog.GetAllFeatures, catalog)
+    if not ok or type(features) ~= "table" then
+        return 0
+    end
+
+    local count = 0
+    for _, definition in ipairs(features) do
+        if self:RegisterCatalogFeature(definition) then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
+function FeatureManager:AttachCatalogFeature(id, feature)
+    if type(id) ~= "string" or id == "" or type(feature) ~= "table" then
+        return false
+    end
+
+    local entry = self.Registry[id]
+    if not entry then
+        entry = self:RegisterCatalogFeature({
+            Id = id,
+            Name = id,
+            Category = "Experimental",
+        })
+    end
+
+    entry.Feature = feature
+
+    if entry.PendingEnabled ~= nil then
+        local enabled = entry.PendingEnabled == true
+        if setFeatureEnabled(feature, enabled) then
+            entry.State = enabled and "on" or "off"
+            entry.PendingEnabled = nil
+        end
+    else
+        entry.State = safeFeatureState(entry)
+    end
+
+    self:Notify()
+    return true
 end
 
 function FeatureManager:UnregisterFeature(id)
@@ -145,18 +299,8 @@ function FeatureManager:SetCategoryEnabled(category, enabled)
 
     local changed = 0
     for _, entry in pairs(self.Registry) do
-        if entry.Category == normalized then
-            local feature = entry.Feature
-            local methodName = enabled and "Enable" or "Disable"
-            if type(feature) == "table" and type(feature[methodName]) == "function" then
-                local ok = pcall(function()
-                    feature[methodName](feature)
-                end)
-                if ok then
-                    entry.State = enabled and "on" or "off"
-                    changed = changed + 1
-                end
-            else
+        if entry.Category == normalized and type(entry.Feature) == "table" then
+            if setFeatureEnabled(entry.Feature, enabled) then
                 entry.State = enabled and "on" or "off"
                 changed = changed + 1
             end
@@ -165,6 +309,24 @@ function FeatureManager:SetCategoryEnabled(category, enabled)
 
     self:Notify()
     return changed
+end
+
+function FeatureManager:GetLoadedCount()
+    local count = 0
+    for _, entry in pairs(self.Registry) do
+        if type(entry.Feature) == "table" then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+function FeatureManager:GetTotalCount()
+    local count = 0
+    for _ in pairs(self.Registry) do
+        count = count + 1
+    end
+    return count
 end
 
 function FeatureManager:GetSnapshot()
@@ -183,6 +345,7 @@ function FeatureManager:GetSnapshot()
     for _, entry in pairs(self.Registry) do
         local state = safeFeatureState(entry)
         local category = snapshot.Categories[entry.Category]
+            or snapshot.Categories.Experimental
 
         snapshot.Total = snapshot.Total + 1
         category.Total = category.Total + 1
@@ -275,9 +438,7 @@ function FeatureManager:ExportSettings()
             Enabled = safeFeatureState(entry) ~= "off",
         }
 
-        if type(feature) == "table"
-            and type(feature.Get) == "function"
-        then
+        if type(feature) == "table" and type(feature.Get) == "function" then
             local ok, value = pcall(feature.Get, feature)
             if ok and (
                 type(value) == "number"
@@ -288,9 +449,7 @@ function FeatureManager:ExportSettings()
             end
         end
 
-        if type(feature) == "table"
-            and type(feature.GetColor) == "function"
-        then
+        if type(feature) == "table" and type(feature.GetColor) == "function" then
             local ok, color = pcall(feature.GetColor, feature)
             if ok then
                 data.Color = packColor(color)
@@ -315,29 +474,27 @@ function FeatureManager:ApplySettings(saved)
         local entry = self.Registry[id]
         if entry and type(data) == "table" then
             local feature = entry.Feature
-
-            if data.Value ~= nil
-                and type(feature.Set) == "function"
-            then
-                pcall(feature.Set, feature, data.Value)
-            end
-
-            local color = unpackColor(data.Color)
-            if color and type(feature.SetColor) == "function" then
-                pcall(feature.SetColor, feature, color)
-            end
-
             local enabled = data.Enabled == true
-            local method = enabled
-                and feature.Enable
-                or feature.Disable
 
-            if type(method) == "function" then
-                local ok = pcall(method, feature)
-                if ok then
+            if type(feature) == "table" then
+                if data.Value ~= nil and type(feature.Set) == "function" then
+                    pcall(feature.Set, feature, data.Value)
+                end
+
+                local color = unpackColor(data.Color)
+                if color and type(feature.SetColor) == "function" then
+                    pcall(feature.SetColor, feature, color)
+                end
+
+                if setFeatureEnabled(feature, enabled) then
                     entry.State = enabled and "on" or "off"
                     count = count + 1
                 end
+            elseif entry.IsCatalog then
+                -- Catalog features are loaded only when their page button is used.
+                -- Preserve the requested state and apply it when the module attaches.
+                entry.PendingEnabled = enabled
+                entry.State = "off"
             end
         end
     end
@@ -355,22 +512,21 @@ function FeatureManager:ResetAll()
         local feature = entry.Feature
         local options = entry.Options or {}
 
-        if type(feature.Disable) == "function" then
-            pcall(feature.Disable, feature)
+        if type(feature) == "table" then
+            setFeatureEnabled(feature, false)
+
+            if options.DefaultValue ~= nil and type(feature.Set) == "function" then
+                pcall(feature.Set, feature, options.DefaultValue)
+            end
+
+            if typeof(options.DefaultColor) == "Color3"
+                and type(feature.SetColor) == "function"
+            then
+                pcall(feature.SetColor, feature, options.DefaultColor)
+            end
         end
 
-        if options.DefaultValue ~= nil
-            and type(feature.Set) == "function"
-        then
-            pcall(feature.Set, feature, options.DefaultValue)
-        end
-
-        if typeof(options.DefaultColor) == "Color3"
-            and type(feature.SetColor) == "function"
-        then
-            pcall(feature.SetColor, feature, options.DefaultColor)
-        end
-
+        entry.PendingEnabled = nil
         entry.State = "off"
         count = count + 1
     end

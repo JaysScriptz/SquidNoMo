@@ -1,63 +1,25 @@
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local Humanoid = Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-
-local AutoWalk = { Enabled = false }
-
-local function getSafeTiles()
-    local safe = {}
-    local glassBridge = workspace:FindFirstChild("GlassBridge") or workspace:FindFirstChild("GlassSteppingStones")
-    if not glassBridge then return safe end
-    
-    for _, part in ipairs(glassBridge:GetDescendants()) do
-        if part:IsA("BasePart") and (part:GetAttribute("IsSafe") == true) then
-            table.insert(safe, part)
-        end
-    end
-    return safe
-end
-
-function AutoWalk:Toggle(state)
-    self.Enabled = state
-    
-    if state then
-        self.Connection = RunService.RenderStepped:Connect(function()
-            if not self.Enabled then return end
-            local char = Players.LocalPlayer.Character
-            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-            
-            local hrp = char.HumanoidRootPart
-            local safeTiles = getSafeTiles()
-            
-            -- Find the nearest safe tile in front of the player
-            local targetTile = nil
-            local closestDist = math.huge
-            
-            for _, tile in ipairs(safeTiles) do
-                local dist = (tile.Position - hrp.Position).Magnitude
-                -- Only target tiles ahead of us (positive Z/X relative to bridge direction)
-                if dist < 25 and dist > 5 and dist < closestDist then
-                    closestDist = dist
-                    targetTile = tile
-                end
-            end
-            
-            if targetTile then
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    hum:MoveTo(targetTile.Position + Vector3.new(0, 3, 0))
-                    -- Auto-jump to ensure we clear gaps
-                    if (targetTile.Position - hrp.Position).Magnitude < 10 then
-                        hum.Jump = true
-                    end
-                end
-            end
-        end)
-        print("[SquidNoMo]: GlassBridge AutoWalk Enabled.")
-    else
-        if self.Connection then self.Connection:Disconnect() end
-        print("[SquidNoMo]: GlassBridge AutoWalk Disabled.")
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-return AutoWalk
+local Runtime = Environment.__SquidNoMoFeatureRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_feature_recode_r2")
+    Runtime = loadstring(source)()
+end
+
+return Runtime:CreateFeature({
+    Id = "mapped.games.glass_bridge.autocomplete",
+    Name = "Auto Complete",
+    Description = "Moves toward detected safe glass tiles in sequence.",
+    Kind = "SafeTileWalk",
+    MinimumDistance = 2,
+    MaximumDistance = 55,
+    Interval = 0.32,
+    WaitingMessage = "Waiting for Glass Bridge panels",
+})

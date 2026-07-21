@@ -1,40 +1,22 @@
---//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Player
---// Reset.lua
---//========================================================--
-
-local Reset = {}
-
-local Players = game:GetService("Players")
-
-local LocalPlayer = Players.LocalPlayer
-
-----------------------------------------------------------
--- Execute
-----------------------------------------------------------
-
-function Reset:Execute()
-
-	local Character = LocalPlayer.Character
-
-	if not Character then
-		return
-	end
-
-	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-
-	if Humanoid then
-
-		Humanoid.Health = 0
-
-	end
-
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
+    end
 end
 
-----------------------------------------------------------
--- Return
-----------------------------------------------------------
+local Runtime = Environment.__SquidNoMoPlayerRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_revision=1_1b1_player_recode_r1")
+    Runtime = loadstring(source)()
+end
 
-return Reset
+return Runtime:CreateFeature({
+    Id = "player.reset",
+    Name = "Reset Character",
+    Description = "Requests a local character reset once, then returns to the off state.",
+    Kind = "Action",
+    Action = "Reset",
+})

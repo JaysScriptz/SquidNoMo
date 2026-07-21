@@ -1,36 +1,25 @@
-local TraceHelper = { Enabled = false, Adorner = nil }
-
-function TraceHelper:Toggle(state)
-    self.Enabled = state
-    local player = game.Players.LocalPlayer
-    local gui = player.PlayerGui
-
-    if state then
-        -- Find the Shape UI (adjust name based on your game)
-        local cookieFrame = gui:FindFirstChild("Shape", true) or gui:FindFirstChild("Cookie", true)
-        
-        if cookieFrame then
-            -- Create a visual guide path
-            self.Adorner = Instance.new("Frame")
-            self.Adorner.Name = "TraceGuide"
-            self.Adorner.Size = UDim2.new(0.1, 0, 0.1, 0)
-            self.Adorner.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-            self.Adorner.BorderSizePixel = 0
-            self.Adorner.Parent = cookieFrame
-            
-            -- Logic: Follow the mouse or highlight the target path
-            task.spawn(function()
-                while self.Enabled do
-                    local mouse = player:GetMouse()
-                    -- Snap the visual guide to the mouse for better precision
-                    self.Adorner.Position = UDim2.new(0, mouse.X - cookieFrame.AbsolutePosition.X, 0, mouse.Y - cookieFrame.AbsolutePosition.Y)
-                    task.wait()
-                end
-            end)
-        end
-    else
-        if self.Adorner then self.Adorner:Destroy() end
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-return TraceHelper
+local Runtime = Environment.__SquidNoMoFeatureRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_feature_recode_r2")
+    Runtime = loadstring(source)()
+end
+
+return Runtime:CreateFeature({
+    Id = "mapped.games.dalgona.tacehelper",
+    Name = "Trace Helper",
+    Description = "Adds a visual tracing guide that follows the cursor over the cookie shape.",
+    Kind = "GuiHighlight",
+    TargetTokens = {"trace", "path", "line", "cursor", "needle", "shape"},
+    Color = Color3.fromRGB(60, 220, 255),
+    Thickness = 4,
+    WaitingMessage = "Waiting for a trace path or cursor",
+})

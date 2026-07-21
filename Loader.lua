@@ -1,6 +1,7 @@
 --// SquidNoMo loader 1.1 beta 1
 
 local BUILD_VERSION = "1.1 beta 1"
+local BUILD_REVISION = "feature-recode-r2"
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -15,6 +16,7 @@ local ExistingSession = Environment.__SquidNoMoSession
 if type(ExistingSession) == "table" and ExistingSession.JobId == game.JobId then
     local existingApp = ExistingSession.App
     local sameVersion = ExistingSession.Version == BUILD_VERSION
+        and ExistingSession.Revision == BUILD_REVISION
 
     if sameVersion and existingApp and type(existingApp.BringToFront) == "function" then
         ExistingSession.UserClosed = false
@@ -52,9 +54,10 @@ if type(ExistingSession) == "table" and ExistingSession.JobId == game.JobId then
     ExistingSession.UserClosed = false
     ExistingSession.FreeRoamEnabled = true
     ExistingSession.Version = BUILD_VERSION
+    ExistingSession.Revision = BUILD_REVISION
 end
 
-local BUILD_TOKEN = string.gsub(BUILD_VERSION, "[^%w_%-]", "_")
+local BUILD_TOKEN = string.gsub(BUILD_VERSION .. "-" .. BUILD_REVISION, "[^%w_%-]", "_")
 
 local function AddVersion(url)
     local separator = string.find(url, "?", 1, true) and "&" or "?"
@@ -69,10 +72,11 @@ local Config = loadstring(ConfigSource)()
 local Loader = {}
 Loader.Config = Config
 Loader.BuildVersion = BUILD_VERSION
+Loader.BuildRevision = BUILD_REVISION
 
 local Bootstrap = Environment.__SquidNoMoBootstrap
 local loadStep = 0
-local estimatedSteps = 34
+local estimatedSteps = 72
 
 local function ReportLoading(message, progress)
     if type(Bootstrap) == "table" and type(Bootstrap.SetStatus) == "function" then
@@ -126,6 +130,20 @@ local function Load(path)
     return Loader:LoadRemote(path)
 end
 
+Loader.Manifest = Load("BuildManifest.lua")
+if type(Loader.Manifest) ~= "table"
+    or Loader.Manifest.Version ~= BUILD_VERSION
+    or Loader.Manifest.Revision ~= BUILD_REVISION
+then
+    error(
+        "[Loader] Repository build mismatch. Upload the complete "
+        .. BUILD_VERSION
+        .. " / "
+        .. BUILD_REVISION
+        .. " project before executing it."
+    )
+end
+
 Loader.Theme = Load("Core/Theme.lua")
 Loader.Components = Load("Core/Components.lua")
 Loader.Navigation = Load("Core/Navigation.lua")
@@ -152,6 +170,7 @@ then
             )
 end
 
+Loader.FeatureCatalog = Load("Modules/FeatureCatalog.lua")
 Loader.FeatureManager = Load("Features/FeatureManager.lua")
 Loader.App = Load("Core/App.lua")
 
@@ -277,10 +296,37 @@ if featuresLoaded then
         )
     end
 
-    print("[Loader] Features initialized before page build")
+    local expectedTotal = Loader.Manifest
+        and tonumber(
+            Loader.Manifest.ExpectedRegistryTotal
+        )
+    local actualTotal = type(
+        Loader.FeatureManager.GetTotalCount
+    ) == "function"
+        and Loader.FeatureManager:GetTotalCount()
+        or 0
+
+    if expectedTotal
+        and actualTotal ~= expectedTotal
+    then
+        error(
+            "[Loader] Feature registry mismatch. Expected "
+            .. tostring(expectedTotal)
+            .. " features but registered "
+            .. tostring(actualTotal)
+            .. ". Upload the complete repository build."
+        )
+    end
+
+    print(
+        "[Loader] Features initialized before page build:",
+        actualTotal
+    )
 else
-    warn("[Loader] Feature initialization failed:", featuresOrError)
-    Loader.Features = {}
+    error(
+        "[Loader] Feature initialization failed: "
+        .. tostring(featuresOrError)
+    )
 end
 
 Loader.App.Features = Loader.Features
@@ -290,6 +336,7 @@ Loader.App:AttachFeatureManager(Loader.FeatureManager, Loader.Features)
 ReportLoading("Finalizing startup...", 0.98)
 
 Session.Version = BUILD_VERSION
+Session.Revision = BUILD_REVISION
 Session.Loader = Loader
 Session.App = Loader.App
 Session.UserClosed = false

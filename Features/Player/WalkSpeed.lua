@@ -1,57 +1,27 @@
-local WalkSpeed = {}
-
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local DefaultSpeed = 16
-local CurrentSpeed = DefaultSpeed
-local PreferredSpeed = 32
-
-local function Apply()
-    local character = LocalPlayer and LocalPlayer.Character
-    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid.WalkSpeed = CurrentSpeed
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
     end
 end
 
-function WalkSpeed:Set(value)
-    CurrentSpeed = math.clamp(tonumber(value) or DefaultSpeed, 8, 100)
-    if CurrentSpeed ~= DefaultSpeed then
-        PreferredSpeed = CurrentSpeed
-    end
-    Apply()
+local Runtime = Environment.__SquidNoMoPlayerRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_revision=1_1b1_player_recode_r1")
+    Runtime = loadstring(source)()
 end
 
-function WalkSpeed:Enable()
-    self:Set(PreferredSpeed)
-end
-
-function WalkSpeed:Disable()
-    self:Reset()
-end
-
-function WalkSpeed:Get()
-    return CurrentSpeed
-end
-
-function WalkSpeed:Reset()
-    CurrentSpeed = DefaultSpeed
-    Apply()
-end
-
-function WalkSpeed:IsEnabled()
-    return CurrentSpeed ~= DefaultSpeed
-end
-
-function WalkSpeed:GetState()
-    return self:IsEnabled() and "on" or "off"
-end
-
-if LocalPlayer then
-    LocalPlayer.CharacterAdded:Connect(function()
-        task.wait(0.25)
-        Apply()
-    end)
-end
-
-return WalkSpeed
+return Runtime:CreateFeature({
+    Id = "player.walk_speed",
+    Name = "Walk Speed",
+    Description = "Continuously applies the selected walking speed to the local humanoid and reapplies it after respawn.",
+    Kind = "HumanoidValue",
+    Property = "WalkSpeed",
+    EnabledValue = 32,
+    DefaultValue = 16,
+    Min = 8,
+    Max = 120,
+    Interval = 0.1,
+})

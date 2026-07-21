@@ -1,73 +1,21 @@
---//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Player
---// AntiAFK.lua
---//========================================================--
-
-local AntiAFK = {}
-
-local Players = game:GetService("Players")
-
-local VirtualUser = game:GetService("VirtualUser")
-
-local LocalPlayer = Players.LocalPlayer
-
-local Enabled = false
-local Connection
-
-----------------------------------------------------------
--- Enable
-----------------------------------------------------------
-
-function AntiAFK:Enable()
-
-	if Enabled then
-		return
-	end
-
-	Enabled = true
-
-	Connection = LocalPlayer.Idled:Connect(function()
-
-		VirtualUser:CaptureController()
-
-		VirtualUser:ClickButton2(Vector2.new())
-
-	end)
-
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
+    end
 end
 
-----------------------------------------------------------
--- Disable
-----------------------------------------------------------
-
-function AntiAFK:Disable()
-
-	Enabled = false
-
-	if Connection then
-
-		Connection:Disconnect()
-
-		Connection = nil
-
-	end
-
+local Runtime = Environment.__SquidNoMoPlayerRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_revision=1_1b1_player_recode_r1")
+    Runtime = loadstring(source)()
 end
 
-----------------------------------------------------------
--- Status
-----------------------------------------------------------
-
-function AntiAFK:IsEnabled()
-
-	return Enabled
-
-end
-
-----------------------------------------------------------
--- Return
-----------------------------------------------------------
-
-return AntiAFK
+return Runtime:CreateFeature({
+    Id = "player.anti_afk",
+    Name = "Anti AFK",
+    Description = "Listens for Roblox idle events and sends a harmless local input to prevent an idle disconnect when supported.",
+    Kind = "AntiAFK",
+})

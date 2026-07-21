@@ -1,114 +1,21 @@
---//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Player
---// Noclip.lua
---//========================================================--
-
-local Noclip = {}
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
-local LocalPlayer = Players.LocalPlayer
-
-local Enabled = false
-local Connection
-
-----------------------------------------------------------
--- Apply
-----------------------------------------------------------
-
-local function Apply()
-
-	local Character = LocalPlayer.Character
-
-	if not Character then
-		return
-	end
-
-	for _, Object in ipairs(Character:GetDescendants()) do
-
-		if Object:IsA("BasePart") then
-
-			Object.CanCollide = false
-
-		end
-
-	end
-
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
+    end
 end
 
-----------------------------------------------------------
--- Enable
-----------------------------------------------------------
-
-function Noclip:Enable()
-
-	if Enabled then
-		return
-	end
-
-	Enabled = true
-
-	Connection = RunService.Stepped:Connect(function()
-
-		if Enabled then
-
-			Apply()
-
-		end
-
-	end)
-
+local Runtime = Environment.__SquidNoMoPlayerRuntime
+if type(Runtime) ~= "table" then
+    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+    local source = game:HttpGet(repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_revision=1_1b1_player_recode_r1")
+    Runtime = loadstring(source)()
 end
 
-----------------------------------------------------------
--- Disable
-----------------------------------------------------------
-
-function Noclip:Disable()
-
-	Enabled = false
-
-	if Connection then
-
-		Connection:Disconnect()
-
-		Connection = nil
-
-	end
-
-	local Character = LocalPlayer.Character
-
-	if Character then
-
-		for _, Object in ipairs(Character:GetDescendants()) do
-
-			if Object:IsA("BasePart") then
-
-				Object.CanCollide = true
-
-			end
-
-		end
-
-	end
-
-end
-
-----------------------------------------------------------
--- Status
-----------------------------------------------------------
-
-function Noclip:IsEnabled()
-
-	return Enabled
-
-end
-
-----------------------------------------------------------
--- Return
-----------------------------------------------------------
-
-return Noclip
+return Runtime:CreateFeature({
+    Id = "player.noclip",
+    Name = "Noclip",
+    Description = "Disables collision on local character parts while enabled and restores every original collision value afterward.",
+    Kind = "NoClip",
+})

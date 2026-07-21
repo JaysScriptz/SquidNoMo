@@ -1,0 +1,27 @@
+{
+  "build_version": "1.1 beta 1",
+  "build_revision": "feature-recode-r2",
+  "lua_files_parsed": 157,
+  "parse_errors": [],
+  "rewritten_modules": {
+    "games": 53,
+    "guard": 7,
+    "detective": 5,
+    "player": 25,
+    "player_init": 1,
+    "total_feature_modules": 90
+  },
+  "catalog_features": 65,
+  "catalog_missing_paths": [],
+  "catalog_module_issues": [],
+  "player_module_issues": [],
+  "duplicate_feature_ids": [],
+  "player_registered_count": 25,
+  "player_page_count": 25,
+  "player_page_missing_registry_ids": [],
+  "player_registry_missing_page_ids": [],
+  "placeholder_description_hits": [],
+  "expected_registry_total": 113,
+  "manifest_consistent": true,
+  "is_clean": true
+}
