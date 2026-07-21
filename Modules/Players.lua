@@ -105,11 +105,7 @@ local function createRoot(
     grid:GetPropertyChangedSignal(
         "AbsoluteContentSize"
     ):Connect(updateCanvas)
-    Page:GetPropertyChangedSignal(
-        "AbsoluteSize"
-    ):Connect(updateCanvas)
     task.defer(updateCanvas)
-    task.delay(0.15, updateCanvas)
 
     return root
 end
@@ -282,10 +278,9 @@ local function createSliderCard(
     defaultValue,
     order
 )
-    local cardHeight = App:IsMobile() and 164 or 156
     local card = App:CreateCard(
         parent,
-        UDim2.new(1, 0, 0, cardHeight),
+        UDim2.new(1, 0, 0, 178),
         {
             Color = App.Colors.CardAlt,
             BorderColor = accent,
@@ -299,10 +294,11 @@ local function createSliderCard(
         card,
         title,
         UDim2.new(1, -86, 0, 24),
-        UDim2.fromOffset(14, 12),
+        UDim2.fromOffset(14, 14),
         {
             Font = Enum.Font.GothamBold,
-            TextSize = App:IsMobile() and 15 or 14,
+            TextSize =
+                App:IsMobile() and 13 or 14,
             Color = App.Colors.Text,
             ZIndex = 1014,
         }
@@ -311,23 +307,33 @@ local function createSliderCard(
     local valueLabel = App:CreateText(
         card,
         tostring(defaultValue),
-        UDim2.fromOffset(72, 24),
-        UDim2.new(1, -86, 0, 12),
+        UDim2.fromOffset(68, 24),
+        UDim2.new(1, -82, 0, 14),
         {
             Font = Enum.Font.GothamBlack,
-            TextSize = App:IsMobile() and 15 or 14,
+            TextSize =
+                App:IsMobile() and 13 or 14,
             Color = accent,
-            XAlignment = Enum.TextXAlignment.Right,
+            XAlignment =
+                Enum.TextXAlignment.Right,
             ZIndex = 1014,
         }
     )
 
-    local feature = getFeature(App, featureId)
+    local feature =
+        getFeature(App, featureId)
     local current = defaultValue
 
-    if feature and type(feature.Get) == "function" then
-        local ok, value = pcall(feature.Get, feature)
-        if ok and type(value) == "number" then
+    if feature
+        and type(feature.Get) == "function"
+    then
+        local ok, value = pcall(
+            feature.Get,
+            feature
+        )
+        if ok
+            and type(value) == "number"
+        then
             current = value
         end
     end
@@ -336,150 +342,85 @@ local function createSliderCard(
 
     local function applyValue(nextValue)
         current = math.clamp(
-            math.floor((tonumber(nextValue) or current) + 0.5),
+            math.floor(nextValue + 0.5),
             minimum,
             maximum
         )
         valueLabel.Text = tostring(current)
 
-        feature = feature or getFeature(App, featureId)
-        if feature and type(feature.Set) == "function" then
-            local ok, result = pcall(feature.Set, feature, current)
-            if not ok then
-                warn("[SquidNoMo] " .. title .. " failed: " .. tostring(result))
-            end
+        feature =
+            feature
+            or getFeature(App, featureId)
+
+        if feature
+            and type(feature.Set)
+                == "function"
+        then
+            pcall(
+                feature.Set,
+                feature,
+                current
+            )
             notify(App)
         end
     end
 
-    local controls = Instance.new("Frame")
-    controls.Name = "TouchSliderControls"
-    controls.Position = UDim2.fromOffset(12, 46)
-    controls.Size = UDim2.new(1, -24, 0, App:IsMobile() and 58 or 54)
-    controls.BackgroundTransparency = 1
-    controls.BorderSizePixel = 0
-    controls.Parent = card
-
-    local buttonSize = App:IsMobile() and 48 or 44
-    local buttonGap = App:IsMobile() and 6 or 5
-    local totalButtonWidth = (buttonSize * 4) + (buttonGap * 4)
-
-    local sliderHost = Instance.new("Frame")
-    sliderHost.Name = "GrabBarHost"
-    sliderHost.Position = UDim2.fromOffset(
-        (buttonSize * 2) + (buttonGap * 2),
-        0
-    )
-    sliderHost.Size = UDim2.new(
-        1,
-        -totalButtonWidth,
-        1,
-        0
-    )
-    sliderHost.BackgroundTransparency = 1
-    sliderHost.BorderSizePixel = 0
-    sliderHost.Parent = controls
-
-    controller = App:CreateSlider(sliderHost, {
-        Position = UDim2.fromOffset(0, 0),
-        Size = UDim2.fromScale(1, 1),
+    controller = App:CreateSlider(card, {
+        Position =
+            UDim2.fromOffset(14, 50),
+        Size =
+            UDim2.new(1, -28, 0, 34),
         Min = minimum,
         Max = maximum,
         Value = current,
         AccentColor = accent,
-        TrackHeight = App:IsMobile() and 18 or 16,
-        KnobSize = App:IsMobile() and 40 or 36,
+        TrackHeight = 12,
+        KnobSize = 28,
         OnChanged = applyValue,
     })
 
-    local range = maximum - minimum
-    local smallStep = 1
-    local largeStep = math.max(5, math.floor((range * 0.05) + 0.5))
-    if featureId == "player.gravity" then
-        largeStep = 10
-    end
+    local row = Instance.new("Frame")
+    row.Position =
+        UDim2.fromOffset(12, 104)
+    row.Size =
+        UDim2.new(1, -24, 0, 46)
+    row.BackgroundTransparency = 1
+    row.BorderSizePixel = 0
+    row.Parent = card
 
-    local function makeStepButton(label, position, delta)
-        local button = App:CreateQuickButton(
-            controls,
+    local layout =
+        Instance.new("UIListLayout")
+    layout.FillDirection =
+        Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment =
+        Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment =
+        Enum.VerticalAlignment.Center
+    layout.Padding = UDim.new(0, 6)
+    layout.Parent = row
+
+    for _, delta in ipairs({
+        -10, -5, -1, 1, 5, 10,
+    }) do
+        local label = delta > 0
+            and ("+" .. tostring(delta))
+            or tostring(delta)
+
+        local quick = App:CreateQuickButton(
+            row,
             label,
-            UDim2.fromOffset(buttonSize, buttonSize),
+            UDim2.fromOffset(48, 38),
             accent
         )
-        button.Position = position
-        button.AnchorPoint = Vector2.new(0, 0.5)
-        button.TextSize = App:IsMobile() and 20 or 18
-        button.ZIndex = 1018
 
-        local held = false
-        local holdToken = 0
-
-        local function step()
+        quick.Activated:Connect(function()
             applyValue(current + delta)
-            controller:SetValue(current, false)
-        end
-
-        button.Activated:Connect(step)
-        button.InputBegan:Connect(function(input)
-            if input.UserInputType ~= Enum.UserInputType.Touch
-                and input.UserInputType ~= Enum.UserInputType.MouseButton1
-            then
-                return
-            end
-            held = true
-            holdToken = holdToken + 1
-            local token = holdToken
-            task.delay(0.42, function()
-                while held and token == holdToken do
-                    step()
-                    task.wait(App:IsMobile() and 0.11 or 0.08)
-                end
-            end)
+            controller:SetValue(
+                current,
+                false
+            )
         end)
-        button.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.Touch
-                or input.UserInputType == Enum.UserInputType.MouseButton1
-            then
-                held = false
-                holdToken = holdToken + 1
-            end
-        end)
-        return button
     end
-
-    local centerY = UDim2.new(0, 0, 0.5, 0)
-    makeStepButton("◀", centerY, -smallStep)
-    makeStepButton(
-        "⏪",
-        UDim2.new(0, buttonSize + buttonGap, 0.5, 0),
-        -largeStep
-    )
-    makeStepButton(
-        "⏩",
-        UDim2.new(1, -(buttonSize * 2 + buttonGap), 0.5, 0),
-        largeStep
-    )
-    makeStepButton(
-        "▶",
-        UDim2.new(1, -buttonSize, 0.5, 0),
-        smallStep
-    )
-
-    local hint = App:CreateText(
-        card,
-        "Tap arrows for precise steps, hold to repeat, or drag the large center handle.",
-        UDim2.new(1, -28, 0, 34),
-        UDim2.fromOffset(14, App:IsMobile() and 112 or 108),
-        {
-            Font = Enum.Font.GothamMedium,
-            TextSize = App:IsMobile() and 11 or 10,
-            Color = App.Colors.Muted,
-            Wrapped = true,
-            YAlignment = Enum.TextYAlignment.Top,
-            ZIndex = 1014,
-        }
-    )
-    hint.Name = "SliderHelp"
 
     controller:SetValue(current, false)
     return card
@@ -553,7 +494,7 @@ local function buildMovement(
     topY
 )
     local root =
-        createRoot(Page, App, topY, App:IsMobile() and 164 or 156)
+        createRoot(Page, App, topY, 178)
 
     createSliderCard(
         App,
@@ -923,16 +864,6 @@ local function buildUtilities(
 end
 
 function PlayersPage:Create(Page, App)
-    -- Explicit mobile scrolling setup. The page uses a manual canvas because
-    -- its two-column grid is rebuilt whenever a subpage changes.
-    Page.Active = true
-    Page.ScrollingEnabled = true
-    Page.ScrollingDirection = Enum.ScrollingDirection.Y
-    Page.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
-    Page.ScrollBarThickness = App:IsMobile() and 10 or 7
-    Page.ScrollBarImageTransparency = 0.05
-    Page.AutomaticCanvasSize = Enum.AutomaticSize.None
-
     local selected =
         App.Session.SelectedPlayerCategory
         or "Movement & Camera"
@@ -961,9 +892,6 @@ function PlayersPage:Create(Page, App)
                     if old then
                         old:Destroy()
                     end
-
-                    Page.CanvasPosition = Vector2.new(0, 0)
-                    Page.ScrollingEnabled = true
 
                     local selectorRoot =
                         Page:FindFirstChild(

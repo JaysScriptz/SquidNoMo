@@ -6069,8 +6069,6 @@ function App:CreateSlider(parent, options)
         game:GetService("UserInputService")
     local dragging = false
     local activeTouch = nil
-    local pendingTouch = nil
-    local touchStart = nil
 
     local function render(nextValue, emit)
         value = math.clamp(
@@ -6117,17 +6115,17 @@ function App:CreateSlider(parent, options)
 
     self:Track(
         touchTarget.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.Touch then
-                -- Do not claim a touch immediately. A vertical gesture belongs
-                -- to the parent ScrollingFrame; a horizontal gesture controls
-                -- the slider. This keeps feature pages scrollable on phones.
-                pendingTouch = input
-                activeTouch = input
-                touchStart = input.Position
-                dragging = false
-            elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+            if input.UserInputType
+                    == Enum.UserInputType.Touch
+                or input.UserInputType
+                    == Enum.UserInputType.MouseButton1
+            then
                 dragging = true
-                activeTouch = nil
+                activeTouch =
+                    input.UserInputType
+                        == Enum.UserInputType.Touch
+                    and input
+                    or nil
                 render(valueFromInput(input), true)
             end
         end)
@@ -6136,35 +6134,23 @@ function App:CreateSlider(parent, options)
     self:Track(
         UserInputService.InputChanged:Connect(
             function(input)
-                if pendingTouch and input == pendingTouch then
-                    local delta = input.Position - touchStart
-                    if math.abs(delta.Y) > math.abs(delta.X)
-                        and math.abs(delta.Y) >= 8
-                    then
-                        pendingTouch = nil
-                        activeTouch = nil
-                        dragging = false
-                        return
-                    end
-
-                    if math.abs(delta.X) >= 5 then
-                        dragging = true
-                        pendingTouch = nil
-                    end
+                if not dragging then
+                    return
                 end
 
                 local validTouch =
-                    dragging
-                    and activeTouch
+                    activeTouch
                     and input == activeTouch
                 local validMouse =
-                    dragging
-                    and activeTouch == nil
+                    activeTouch == nil
                     and input.UserInputType
                         == Enum.UserInputType.MouseMovement
 
                 if validTouch or validMouse then
-                    render(valueFromInput(input), true)
+                    render(
+                        valueFromInput(input),
+                        true
+                    )
                 end
             end
         )
@@ -6173,19 +6159,15 @@ function App:CreateSlider(parent, options)
     self:Track(
         UserInputService.InputEnded:Connect(
             function(input)
-                if pendingTouch and input == pendingTouch then
-                    -- A short tap on the track still jumps to that value.
-                    render(valueFromInput(input), true)
-                end
-
-                if input.UserInputType == Enum.UserInputType.MouseButton1
-                    or (activeTouch and input == activeTouch)
-                    or (pendingTouch and input == pendingTouch)
+                if input.UserInputType
+                        == Enum.UserInputType.MouseButton1
+                    or (
+                        activeTouch
+                        and input == activeTouch
+                    )
                 then
                     dragging = false
                     activeTouch = nil
-                    pendingTouch = nil
-                    touchStart = nil
                 end
             end
         )

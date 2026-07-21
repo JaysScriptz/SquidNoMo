@@ -640,6 +640,35 @@ FeatureCatalog.Pages = {
             },
         },
     },
+    Farming = {
+        {
+            Name = "Automation Controllers",
+            Short = "AUTO",
+            Features = {
+                {
+                    Id = "mapped.farming.player_minigame_bot",
+                    Name = "Player Minigame Farming",
+                    Description = "Detects the active minigame and runs one conservative automation profile at a time.",
+                    Path = "Features/Farming/PlayerMinigameBot.lua",
+                    Category = "Experimental",
+                },
+                {
+                    Id = "mapped.farming.guard_master_controller",
+                    Name = "Guard Staff Farming",
+                    Description = "Selects one compatible guard duty at a time for kitchen, morgue, or moderation work.",
+                    Path = "Features/Farming/GuardMasterController.lua",
+                    Category = "Experimental",
+                },
+                {
+                    Id = "mapped.farming.detective_master_controller",
+                    Name = "Detective Evidence Farming",
+                    Description = "Runs a stable evidence loop: walk to clues, collect them, and return them to the boat.",
+                    Path = "Features/Farming/DetectiveMasterController.lua",
+                    Category = "Experimental",
+                },
+            },
+        },
+    },
 }
 
 local function finalize()

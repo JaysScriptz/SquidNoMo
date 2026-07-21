@@ -3,16 +3,17 @@
 
 return {
     Version = "1.1 beta 1",
-    Revision = "ultralight-touch-persist-r5",
+    Revision = "farming-single-page-r5",
     FeatureRuntimeRevision = "1.1b1-ultralight-r4",
     PlayerRuntimeRevision = "1.1b1-player-ultralight-r3",
-    CatalogFeatureCount = 65,
+    CatalogFeatureCount = 68,
     PlayerFeatureCount = 25,
     UIFeatureCount = 23,
-    ExpectedRegistryTotal = 113,
+    ExpectedRegistryTotal = 116,
     RequiredSharedFiles = {
         "Features/Shared/Runtime.lua",
         "Features/Shared/PlayerRuntime.lua",
         "Features/Shared/RoleService.lua",
+        "Features/Farming/FarmingRuntime.lua",
     },
 }

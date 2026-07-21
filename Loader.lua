@@ -1,7 +1,7 @@
 --// SquidNoMo loader 1.1 beta 1
 
 local BUILD_VERSION = "1.1 beta 1"
-local BUILD_REVISION = "ultralight-touch-persist-r5"
+local BUILD_REVISION = "farming-single-page-r5"
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -383,76 +383,6 @@ if LocalPlayer then
             )
         end
     end)
-end
-
--- Best-effort persistence across Roblox teleports and rejoins. Executors that
--- expose a queue-on-teleport hook will automatically execute the current
--- Main.lua in the next server, where saved feature settings and per-game
--- auto-apply profiles are restored by SettingsStore and FeatureManager.
-local function resolveTeleportQueue()
-    local direct = rawget(Environment, "queue_on_teleport")
-        or rawget(Environment, "queueonteleport")
-        or rawget(_G, "queue_on_teleport")
-        or rawget(_G, "queueonteleport")
-    if type(direct) == "function" then
-        return direct
-    end
-
-    local synTable = rawget(Environment, "syn") or rawget(_G, "syn")
-    if type(synTable) == "table"
-        and type(synTable.queue_on_teleport) == "function"
-    then
-        return synTable.queue_on_teleport
-    end
-
-    local fluxusTable = rawget(Environment, "fluxus") or rawget(_G, "fluxus")
-    if type(fluxusTable) == "table"
-        and type(fluxusTable.queue_on_teleport) == "function"
-    then
-        return fluxusTable.queue_on_teleport
-    end
-
-    return nil
-end
-
-local TELEPORT_BOOTSTRAP = [[
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
-
-task.wait(1)
-
-local url = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Main.lua"
-url = url .. "?squidnomo_teleport=" .. tostring(os.time())
-
-local ok, source = pcall(function()
-    return game:HttpGet(url)
-end)
-
-if ok and type(source) == "string" then
-    local chunk = loadstring(source)
-    if chunk then
-        pcall(chunk)
-    end
-end
-]]
-
-local queueTeleport = resolveTeleportQueue()
-if type(queueTeleport) == "function" then
-    local ok, err = pcall(queueTeleport, TELEPORT_BOOTSTRAP)
-    Session.TeleportPersistenceSupported = ok
-    Session.TeleportPersistenceDetail = ok
-        and "ARMED"
-        or tostring(err)
-    if ok then
-        print("[SquidNoMo] Teleport/rejoin persistence armed.")
-    else
-        warn("[SquidNoMo] Could not arm teleport persistence: " .. tostring(err))
-    end
-else
-    Session.TeleportPersistenceSupported = false
-    Session.TeleportPersistenceDetail = "EXECUTOR_UNSUPPORTED"
-    warn("[SquidNoMo] This executor does not expose queue_on_teleport; automatic reloading after a server teleport is unavailable.")
 end
 
 return Loader
