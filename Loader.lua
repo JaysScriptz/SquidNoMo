@@ -1,7 +1,6 @@
---// SquidNoMo loader 1.1 beta 1
+--// SquidNoMo loader
 
-local BUILD_VERSION = "1.1 beta 1"
-local BUILD_REVISION = "farming-single-page-r5"
+local REPOSITORY = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -11,11 +10,39 @@ if type(getgenv) == "function" then
     end
 end
 
+local function LoadBuildManifest()
+    local cached = Environment.__SquidNoMoBuildManifest
+    if type(cached) == "table" and cached.Version and cached.BuildNumber then
+        return cached
+    end
+
+    local nonce = tostring(math.floor(os.clock() * 1000000))
+    local source = game:HttpGet(
+        REPOSITORY .. "BuildManifest.lua?squidnomo_manifest=" .. nonce
+    )
+    local chunk, compileError = loadstring(source)
+    if not chunk then
+        error("[Loader] Build manifest compile failed: " .. tostring(compileError))
+    end
+    local ok, manifest = pcall(chunk)
+    if not ok or type(manifest) ~= "table" then
+        error("[Loader] Build manifest load failed: " .. tostring(manifest))
+    end
+    Environment.__SquidNoMoBuildManifest = manifest
+    return manifest
+end
+
+local BuildManifest = LoadBuildManifest()
+local BUILD_VERSION = tostring(BuildManifest.Version or "SquidNoMo")
+local BUILD_NUMBER = tonumber(BuildManifest.BuildNumber) or 0
+local BUILD_REVISION = tostring(BuildManifest.Revision or "unknown")
+
 local ExistingSession = Environment.__SquidNoMoSession
 
 if type(ExistingSession) == "table" and ExistingSession.JobId == game.JobId then
     local existingApp = ExistingSession.App
     local sameVersion = ExistingSession.Version == BUILD_VERSION
+        and ExistingSession.BuildNumber == BUILD_NUMBER
         and ExistingSession.Revision == BUILD_REVISION
 
     if sameVersion and existingApp and type(existingApp.BringToFront) == "function" then
@@ -54,25 +81,30 @@ if type(ExistingSession) == "table" and ExistingSession.JobId == game.JobId then
     ExistingSession.UserClosed = false
     ExistingSession.FreeRoamEnabled = true
     ExistingSession.Version = BUILD_VERSION
+    ExistingSession.BuildNumber = BUILD_NUMBER
     ExistingSession.Revision = BUILD_REVISION
 end
 
-local BUILD_TOKEN = string.gsub(BUILD_VERSION .. "-" .. BUILD_REVISION, "[^%w_%-]", "_")
+local BUILD_TOKEN = tostring(BuildManifest.BuildToken or string.gsub(
+    BUILD_VERSION .. "-" .. BUILD_REVISION,
+    "[^%w_%-]",
+    "_"
+))
 
 local function AddVersion(url)
     local separator = string.find(url, "?", 1, true) and "&" or "?"
     return url .. separator .. "squidnomo_build=" .. BUILD_TOKEN
 end
 
-local ConfigSource = game:HttpGet(AddVersion(
-    "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Config.lua"
-))
+local ConfigSource = game:HttpGet(AddVersion(REPOSITORY .. "Config.lua"))
 local Config = loadstring(ConfigSource)()
 
 local Loader = {}
 Loader.Config = Config
 Loader.BuildVersion = BUILD_VERSION
+Loader.BuildNumber = BUILD_NUMBER
 Loader.BuildRevision = BUILD_REVISION
+Loader.Manifest = BuildManifest
 
 local Bootstrap = Environment.__SquidNoMoBootstrap
 local loadStep = 0
@@ -86,8 +118,19 @@ end
 
 ReportLoading("Configuration loaded...", 0.28)
 
+local function EncodeRepositoryPath(path)
+    path = tostring(path or "")
+    -- Keep directory separators readable while encoding characters that can make
+    -- raw GitHub URLs fail in some Roblox/executor HTTP implementations.
+    path = string.gsub(path, "%%", "%%25")
+    path = string.gsub(path, " ", "%%20")
+    path = string.gsub(path, "#", "%%23")
+    path = string.gsub(path, "?", "%%3F")
+    return path
+end
+
 function Loader:GetRemoteUrl(path)
-    return AddVersion(self.Config.Repository .. path)
+    return AddVersion(self.Config.Repository .. EncodeRepositoryPath(path))
 end
 
 function Loader:FetchSource(path)
@@ -130,14 +173,16 @@ local function Load(path)
     return Loader:LoadRemote(path)
 end
 
-Loader.Manifest = Load("BuildManifest.lua")
 if type(Loader.Manifest) ~= "table"
     or Loader.Manifest.Version ~= BUILD_VERSION
+    or tonumber(Loader.Manifest.BuildNumber) ~= BUILD_NUMBER
     or Loader.Manifest.Revision ~= BUILD_REVISION
 then
     error(
         "[Loader] Repository build mismatch. Upload the complete "
         .. BUILD_VERSION
+        .. " build "
+        .. tostring(BUILD_NUMBER)
         .. " / "
         .. BUILD_REVISION
         .. " project before executing it."
@@ -291,8 +336,10 @@ if featuresLoaded then
     local playerRuntime = shared and shared.PlayerRuntime
     if type(featureRuntime) ~= "table"
         or featureRuntime.Revision ~= Loader.Manifest.FeatureRuntimeRevision
+        or tonumber(featureRuntime.BuildNumber) ~= BUILD_NUMBER
         or type(playerRuntime) ~= "table"
         or playerRuntime.Revision ~= Loader.Manifest.PlayerRuntimeRevision
+        or tonumber(playerRuntime.BuildNumber) ~= BUILD_NUMBER
     then
         error(
             "[Loader] Shared runtime revision mismatch. Upload Runtime.lua, "
@@ -352,6 +399,7 @@ Loader.App:AttachFeatureManager(Loader.FeatureManager, Loader.Features)
 ReportLoading("Finalizing startup...", 0.98)
 
 Session.Version = BUILD_VERSION
+Session.BuildNumber = BUILD_NUMBER
 Session.Revision = BUILD_REVISION
 Session.Loader = Loader
 Session.App = Loader.App

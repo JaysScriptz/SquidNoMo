@@ -6,14 +6,29 @@ if type(getgenv) == "function" then
     end
 end
 
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
+    and Environment.__SquidNoMoBuildManifest
+    or {}
+local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
+local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
+local expectedRevision = tostring(Manifest.PlayerRuntimeRevision or "player-runtime-r1")
+
 local Runtime = Environment.__SquidNoMoPlayerRuntime
-if type(Runtime) ~= "table" or Runtime.Revision ~= "1.1b1-player-ultralight-r3" then
+if type(Runtime) ~= "table"
+    or Runtime.Revision ~= expectedRevision
+    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+then
     local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_revision=1_1b1_player_ultralight_r3")
+    local source = game:HttpGet(
+        repository .. "Features/Shared/PlayerRuntime.lua?squidnomo_build=" .. BUILD_TOKEN
+    )
     Runtime = loadstring(source)()
 end
-if type(Runtime) ~= "table" or Runtime.Revision ~= "1.1b1-player-ultralight-r3" then
-    error("SquidNoMo player runtime revision mismatch; deploy the complete build")
+if type(Runtime) ~= "table"
+    or Runtime.Revision ~= expectedRevision
+    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+then
+    error("SquidNoMo player runtime build mismatch; deploy the complete build")
 end
 
 return Runtime:CreateFeature({

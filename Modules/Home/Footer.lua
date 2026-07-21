@@ -15,7 +15,7 @@ function Footer:Create(Parent, App)
 	Left.BackgroundTransparency = 1
 	Left.Size = UDim2.new(.5,0,1,0)
 	Left.Font = Theme.Font
-	Left.Text = "SquidNoMo • 1.1 beta 1"
+	Left.Text = "SquidNoMo • " .. tostring(Theme.Version)
 	Left.TextSize = 13
 	Left.TextColor3 = Theme.SubText
 	Left.TextXAlignment = Enum.TextXAlignment.Left

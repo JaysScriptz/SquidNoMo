@@ -1,10 +1,33 @@
 --// SquidNoMo entry point
 
-local BUILD_VERSION = "1.1 beta 1"
-local BUILD_REVISION = "ultralight-stable-r4"
-local BUILD_TOKEN = string.gsub(BUILD_VERSION .. "-" .. BUILD_REVISION, "[^%w_%-]", "_")
 local REPOSITORY = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
 local BANNER_PATH = "Images/BannerGuards.png"
+
+local function LoadBuildManifest()
+    local nonce = tostring(math.floor(os.clock() * 1000000))
+    local source = game:HttpGet(
+        REPOSITORY .. "BuildManifest.lua?squidnomo_manifest=" .. nonce
+    )
+    local chunk, compileError = loadstring(source)
+    if not chunk then
+        error("Build manifest compile failed: " .. tostring(compileError))
+    end
+    local ok, manifest = pcall(chunk)
+    if not ok or type(manifest) ~= "table" then
+        error("Build manifest load failed: " .. tostring(manifest))
+    end
+    return manifest
+end
+
+local BuildManifest = LoadBuildManifest()
+local BUILD_VERSION = tostring(BuildManifest.Version or "SquidNoMo")
+local BUILD_NUMBER = tonumber(BuildManifest.BuildNumber) or 0
+local BUILD_REVISION = tostring(BuildManifest.Revision or "unknown")
+local BUILD_TOKEN = tostring(BuildManifest.BuildToken or string.gsub(
+    BUILD_VERSION .. "-" .. BUILD_REVISION,
+    "[^%w_%-]",
+    "_"
+))
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -13,6 +36,8 @@ if type(getgenv) == "function" then
         Environment = result
     end
 end
+
+Environment.__SquidNoMoBuildManifest = BuildManifest
 
 local previous = Environment.__SquidNoMoBootstrap
 if type(previous) == "table" and previous.Loading == true then
@@ -31,6 +56,7 @@ local bootstrap = {
     Loading = true,
     Version = BUILD_VERSION,
     Revision = BUILD_REVISION,
+    BuildNumber = BUILD_NUMBER,
     StartedAt = os.clock(),
     Progress = 0.02,
 }
@@ -500,7 +526,7 @@ function bootstrap:Fail(message)
 end
 
 bootstrap:SetStatus("Connecting to the SquidNoMo repository...", 0.05)
-print("[SquidNoMo] Starting " .. BUILD_VERSION .. " (" .. BUILD_REVISION .. ")")
+print("[SquidNoMo] Starting " .. BUILD_VERSION .. " (build " .. BUILD_NUMBER .. ", " .. BUILD_REVISION .. ")")
 
 local success, result = pcall(function()
     bootstrap:SetStatus("Downloading the main loader...", 0.14)

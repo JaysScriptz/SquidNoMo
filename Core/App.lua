@@ -45,6 +45,19 @@ local Stats = game:GetService("Stats")
 
 local LocalPlayer = Players.LocalPlayer
 
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
+    end
+end
+local BuildManifest = type(Environment.__SquidNoMoBuildManifest) == "table"
+    and Environment.__SquidNoMoBuildManifest
+    or {}
+local DISPLAY_VERSION = tostring(BuildManifest.DisplayVersion or BuildManifest.Version or "1.1 beta")
+local BUILD_TOKEN = tostring(BuildManifest.BuildToken or DISPLAY_VERSION)
+
 ----------------------------------------------------------
 -- App
 ----------------------------------------------------------
@@ -53,7 +66,7 @@ local App = {}
 App.__index = App
 
 App.Name = "SquidNoMo"
-App.Version = "1.1 beta 1"
+App.Version = DISPLAY_VERSION
 App.Runtime = "Universal Injector / Studio"
 
 ----------------------------------------------------------
@@ -140,7 +153,7 @@ App.Config = {
     FreeRoamMinimumTitleWidth = 120,
     FreeRoamMinimumTitleHeight = 18,
     ForceMobile = false,
-    AssetVersion = "1.1 beta 1",
+    AssetVersion = BUILD_TOKEN,
     MobileTextBoost = true,
     RespectGuiInset = false,
     ShowHomeFooter = false,
@@ -2931,6 +2944,7 @@ function App:CreatePage(name)
     page.ScrollBarImageColor3 = self:GetPageAccent(name)
     page.ScrollBarImageTransparency = 0.12
     page.ScrollingDirection = Enum.ScrollingDirection.Y
+    page.ScrollingEnabled = true
     page.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
     page.Active = true
     page.Visible = false
@@ -6069,6 +6083,8 @@ function App:CreateSlider(parent, options)
         game:GetService("UserInputService")
     local dragging = false
     local activeTouch = nil
+    local touchStartPosition = nil
+    local touchMode = nil -- nil/"horizontal"/"vertical"
 
     local function render(nextValue, emit)
         value = math.clamp(
@@ -6115,17 +6131,16 @@ function App:CreateSlider(parent, options)
 
     self:Track(
         touchTarget.InputBegan:Connect(function(input)
-            if input.UserInputType
-                    == Enum.UserInputType.Touch
-                or input.UserInputType
-                    == Enum.UserInputType.MouseButton1
-            then
+            if input.UserInputType == Enum.UserInputType.Touch then
+                activeTouch = input
+                touchStartPosition = input.Position
+                touchMode = nil
+                dragging = false
+            elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+                activeTouch = nil
+                touchStartPosition = nil
+                touchMode = "horizontal"
                 dragging = true
-                activeTouch =
-                    input.UserInputType
-                        == Enum.UserInputType.Touch
-                    and input
-                    or nil
                 render(valueFromInput(input), true)
             end
         end)
@@ -6134,23 +6149,28 @@ function App:CreateSlider(parent, options)
     self:Track(
         UserInputService.InputChanged:Connect(
             function(input)
-                if not dragging then
-                    return
-                end
+                local validTouch = activeTouch and input == activeTouch
+                local validMouse = activeTouch == nil
+                    and dragging
+                    and input.UserInputType == Enum.UserInputType.MouseMovement
 
-                local validTouch =
-                    activeTouch
-                    and input == activeTouch
-                local validMouse =
-                    activeTouch == nil
-                    and input.UserInputType
-                        == Enum.UserInputType.MouseMovement
-
-                if validTouch or validMouse then
-                    render(
-                        valueFromInput(input),
-                        true
-                    )
+                if validTouch then
+                    local delta = input.Position - (touchStartPosition or input.Position)
+                    if touchMode == nil then
+                        if math.abs(delta.Y) > 8 and math.abs(delta.Y) > math.abs(delta.X) then
+                            -- Vertical intent belongs to the containing ScrollingFrame.
+                            touchMode = "vertical"
+                            dragging = false
+                        elseif math.abs(delta.X) > 8 and math.abs(delta.X) >= math.abs(delta.Y) then
+                            touchMode = "horizontal"
+                            dragging = true
+                        end
+                    end
+                    if touchMode == "horizontal" and dragging then
+                        render(valueFromInput(input), true)
+                    end
+                elseif validMouse then
+                    render(valueFromInput(input), true)
                 end
             end
         )
@@ -6159,15 +6179,18 @@ function App:CreateSlider(parent, options)
     self:Track(
         UserInputService.InputEnded:Connect(
             function(input)
-                if input.UserInputType
-                        == Enum.UserInputType.MouseButton1
-                    or (
-                        activeTouch
-                        and input == activeTouch
-                    )
-                then
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging = false
+                elseif activeTouch and input == activeTouch then
+                    -- A short stationary tap still sets the slider; a vertical swipe
+                    -- is left completely untouched so the page can scroll naturally.
+                    if touchMode == nil then
+                        render(valueFromInput(input), true)
+                    end
                     dragging = false
                     activeTouch = nil
+                    touchStartPosition = nil
+                    touchMode = nil
                 end
             end
         )

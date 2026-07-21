@@ -32,9 +32,14 @@ then
 end
 
 return Runtime:CreateFeature({
-    Id = "mapped.games.rock_paper_scissors_minus_one.autoplay",
-    Name = "Auto Play",
-    Description = "Automatically selects and submits choices for each RPS Minus One round.",
-    Kind = "RPSAutoPlay",
-    Interval = 0.35,
+    Id = "mapped.guards.game_moderation.guardlocalmoderator",
+    Name = "Guard Local Moderator",
+    Description = "Assists with nearby guard moderation targets while avoiding unsupported rounds.",
+    Kind = "ToolAura",
+    PlayerTokens = {},
+    ExcludePlayerTokens = {"guard", "staff", "detective", "frontman"},
+    ToolTokens = {"taser", "stun", "baton", "guard", "weapon"},
+    Range = 12,
+    FaceTarget = true,
+    Interval = 0.22,
 })

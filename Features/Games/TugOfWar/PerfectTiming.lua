@@ -32,9 +32,14 @@ then
 end
 
 return Runtime:CreateFeature({
-    Id = "mapped.games.rock_paper_scissors_minus_one.autoplay",
-    Name = "Auto Play",
-    Description = "Automatically selects and submits choices for each RPS Minus One round.",
-    Kind = "RPSAutoPlay",
-    Interval = 0.35,
+    Id = "mapped.games.tug_of_war.perfect_timing",
+    Name = "Perfect Timing",
+    Description = "Times pull inputs around the strongest part of the tug sequence.",
+    Kind = "Timing",
+    IndicatorTokens = {"indicator", "cursor", "needle", "power"},
+    ZoneTokens = {"sweet spot", "green", "target", "perfect"},
+    ActionTokens = {"pull", "tug", "tap"},
+    ActionCooldown = 0.14,
+    ActionPriority = 90,
+    WaitingMessage = "Waiting for the Tug of War timing meter",
 })

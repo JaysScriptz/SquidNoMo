@@ -82,8 +82,18 @@ local function createRoot(
     )
     grid.Parent = root
 
-    Page.AutomaticCanvasSize =
-        Enum.AutomaticSize.None
+    -- Player cards contain interactive sliders/buttons, so we manage the canvas
+    -- explicitly and keep the parent ScrollingFrame touch-active. This avoids the
+    -- mobile case where child controls consume the gesture and the page never pans.
+    Page.AutomaticCanvasSize = Enum.AutomaticSize.None
+    Page.ScrollingDirection = Enum.ScrollingDirection.Y
+    Page.ScrollingEnabled = true
+    Page.Active = true
+    Page.ClipsDescendants = true
+    Page.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+    Page.ScrollBarThickness = math.max(Page.ScrollBarThickness, App:IsMobile() and 10 or 6)
+    Page.ScrollBarImageTransparency = App:IsMobile() and 0.05 or 0.18
+    Page.ScrollBarImageColor3 = App:GetPageAccent("Players")
 
     local function updateCanvas()
         local height = math.max(
@@ -96,16 +106,34 @@ local function createRoot(
             0,
             height
         )
+        local viewport = math.max(0, Page.AbsoluteSize.Y)
+        local contentHeight = topY + height + (App:IsMobile() and 72 or 40)
         Page.CanvasSize = UDim2.fromOffset(
             0,
-            topY + height + 36
+            math.max(contentHeight, viewport + 1)
         )
     end
 
-    grid:GetPropertyChangedSignal(
+    local connections = {}
+    table.insert(connections, grid:GetPropertyChangedSignal(
         "AbsoluteContentSize"
-    ):Connect(updateCanvas)
+    ):Connect(updateCanvas))
+    table.insert(connections, Page:GetPropertyChangedSignal(
+        "AbsoluteSize"
+    ):Connect(updateCanvas))
+    table.insert(connections, root:GetPropertyChangedSignal(
+        "AbsoluteSize"
+    ):Connect(updateCanvas))
+
+    root.Destroying:Connect(function()
+        for _, connection in ipairs(connections) do
+            pcall(function() connection:Disconnect() end)
+        end
+    end)
+
     task.defer(updateCanvas)
+    task.delay(0.08, updateCanvas)
+    task.delay(0.25, updateCanvas)
 
     return root
 end
@@ -139,7 +167,7 @@ local function createToggle(
         {
             Font = Enum.Font.GothamBold,
             TextSize =
-                App:IsMobile() and 13 or 14,
+                App:IsMobile() and 15 or 14,
             Color = App.Colors.Text,
             ZIndex = 1014,
         }
@@ -153,7 +181,7 @@ local function createToggle(
         {
             Font = Enum.Font.GothamMedium,
             TextSize =
-                App:IsMobile() and 10 or 11,
+                App:IsMobile() and 13 or 11,
             Color = App.Colors.Muted,
             Wrapped = true,
             YAlignment =
@@ -298,7 +326,7 @@ local function createSliderCard(
         {
             Font = Enum.Font.GothamBold,
             TextSize =
-                App:IsMobile() and 13 or 14,
+                App:IsMobile() and 15 or 14,
             Color = App.Colors.Text,
             ZIndex = 1014,
         }
@@ -312,7 +340,7 @@ local function createSliderCard(
         {
             Font = Enum.Font.GothamBlack,
             TextSize =
-                App:IsMobile() and 13 or 14,
+                App:IsMobile() and 15 or 14,
             Color = accent,
             XAlignment =
                 Enum.TextXAlignment.Right,
@@ -863,7 +891,109 @@ local function buildUtilities(
     end
 end
 
+local function installTouchScrollFallback(Page, App)
+    if Page:GetAttribute("SquidNoMoTouchScrollInstalled") then return end
+    Page:SetAttribute("SquidNoMoTouchScrollInstalled", true)
+
+    local UserInputService = game:GetService("UserInputService")
+    local activeTouch = nil
+    local startPosition = nil
+    local startCanvas = nil
+    local dragging = false
+    local connections = {}
+
+    local function inside(point)
+        local minimum = Page.AbsolutePosition
+        local maximum = minimum + Page.AbsoluteSize
+        return point.X >= minimum.X and point.X <= maximum.X
+            and point.Y >= minimum.Y and point.Y <= maximum.Y
+    end
+
+    local function maxCanvasY()
+        local canvasHeight = Page.AbsoluteCanvasSize.Y
+        local windowHeight = Page.AbsoluteWindowSize.Y
+        if windowHeight <= 0 then windowHeight = Page.AbsoluteSize.Y end
+        return math.max(0, canvasHeight - windowHeight)
+    end
+
+    local function beginTouch(input)
+        if input.UserInputType ~= Enum.UserInputType.Touch or not Page.Visible then return end
+        if activeTouch or not inside(input.Position) then return end
+        activeTouch = input
+        startPosition = input.Position
+        startCanvas = Page.CanvasPosition
+        dragging = false
+    end
+
+    local function moveTouch(input)
+        if not activeTouch or not startPosition or not startCanvas then return end
+        if input.UserInputType ~= Enum.UserInputType.Touch then return end
+        local delta = input.Position - startPosition
+        if not dragging and math.abs(delta.Y) >= 7 and math.abs(delta.Y) > math.abs(delta.X) * 1.08 then
+            dragging = true
+            -- Once the gesture is clearly vertical, the fallback owns it. This
+            -- prevents a slider or card button from swallowing the phone scroll.
+            Page.ScrollingEnabled = false
+        end
+        if dragging then
+            Page.CanvasPosition = Vector2.new(
+                0,
+                math.clamp(startCanvas.Y - delta.Y, 0, maxCanvasY())
+            )
+        end
+    end
+
+    local function endTouch(input)
+        if not activeTouch then return end
+        if input == activeTouch or input.UserInputType == Enum.UserInputType.Touch then
+            activeTouch = nil
+            startPosition = nil
+            startCanvas = nil
+            dragging = false
+            Page.ScrollingEnabled = true
+        end
+    end
+
+    table.insert(connections, UserInputService.InputBegan:Connect(function(input)
+        beginTouch(input)
+    end))
+    table.insert(connections, UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            moveTouch(input)
+        elseif input.UserInputType == Enum.UserInputType.MouseWheel and Page.Visible and inside(input.Position) then
+            Page.CanvasPosition = Vector2.new(
+                0,
+                math.clamp(Page.CanvasPosition.Y - input.Position.Z * 54, 0, maxCanvasY())
+            )
+        end
+    end))
+    table.insert(connections, UserInputService.InputEnded:Connect(endTouch))
+
+    -- Roblox also exposes dedicated touch signals on mobile. Registering them as
+    -- a fallback covers executors that do not forward touch updates through the
+    -- generic InputChanged event consistently.
+    pcall(function()
+        table.insert(connections, UserInputService.TouchStarted:Connect(beginTouch))
+        table.insert(connections, UserInputService.TouchMoved:Connect(moveTouch))
+        table.insert(connections, UserInputService.TouchEnded:Connect(endTouch))
+    end)
+
+    table.insert(connections, Page:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(function()
+        Page.CanvasPosition = Vector2.new(0, math.clamp(Page.CanvasPosition.Y, 0, maxCanvasY()))
+    end))
+
+    Page.Destroying:Connect(function()
+        Page.ScrollingEnabled = true
+        for _, connection in ipairs(connections) do
+            pcall(function() connection:Disconnect() end)
+        end
+    end)
+end
+
 function PlayersPage:Create(Page, App)
+    installTouchScrollFallback(Page, App)
+    Page.CanvasPosition = Vector2.zero
+
     local selected =
         App.Session.SelectedPlayerCategory
         or "Movement & Camera"
@@ -884,6 +1014,7 @@ function PlayersPage:Create(Page, App)
                 Items = CATEGORIES,
                 OnSelected = function(item)
                     selected = item.Name
+                    Page.CanvasPosition = Vector2.zero
 
                     local old =
                         Page:FindFirstChild(

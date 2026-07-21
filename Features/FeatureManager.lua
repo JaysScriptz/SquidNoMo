@@ -203,21 +203,11 @@ function FeatureManager:_ApplyDetectedGame(force)
     end
 
     if not detected then
-        if not self.DetectedGameCategory then return 0 end
-        self.DetectedGameCategory = nil
-        self.SuppressPersistence = true
-        local disabled = 0
-        for _, entry in pairs(self.Registry) do
-            if entry.PageName == "Games" and type(entry.Feature) == "table" then
-                if safeFeatureState(entry) ~= "off" and setFeatureEnabled(entry.Feature, false) then
-                    disabled = disabled + 1
-                end
-                entry.State = "off"
-            end
-        end
-        self.SuppressPersistence = false
-        self:Notify()
-        return disabled
+        -- Detection is intentionally conservative. An uncertain/transition state must
+        -- never turn off a feature the user enabled manually. Keep the last confirmed
+        -- category and currently running features until a different game is positively
+        -- identified.
+        return 0
     end
 
     if not force and detected == self.DetectedGameCategory then return 0 end
@@ -428,13 +418,39 @@ function FeatureManager:UnregisterFeature(id)
     self:Notify()
 end
 
-function FeatureManager:SetFeatureState(id, state)
+function FeatureManager:SetFeatureState(id, state, options)
     local entry = self.Registry[id]
     if not entry then return false end
+    options = options or {}
     local enabled = tostring(state or "off"):lower() ~= "off"
     entry.State = enabled and "on" or "off"
+
     if entry.PageName == "Games" then
         entry.DesiredEnabled = enabled
+
+        -- A direct tap is a manual command, even when Auto Apply per Game is on.
+        -- The old behavior only armed the profile and did nothing unless automatic
+        -- game detection happened to succeed, which made every toggle appear broken.
+        if options.Manual == true then
+            local feature = entry.Feature
+            if type(feature) ~= "table" then
+                feature = self:LoadCatalogFeature(id)
+            end
+            if type(feature) ~= "table" then
+                entry.State = "off"
+                self:Notify()
+                return false
+            end
+            local applied = setFeatureEnabled(feature, enabled)
+            entry.State = applied and (enabled and "on" or "off") or safeFeatureState(entry)
+            if enabled then
+                self.ManualGameCategory = entry.CategoryName
+                self.ManualGameCategoryAt = os.clock()
+            end
+            self:Notify()
+            return applied
+        end
+
         if self.AutoApplyPerGameEnabled then
             local shouldRun = entry.CategoryName == self.DetectedGameCategory and enabled
             local feature = entry.Feature

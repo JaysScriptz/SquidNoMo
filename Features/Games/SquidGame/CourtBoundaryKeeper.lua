@@ -32,9 +32,13 @@ then
 end
 
 return Runtime:CreateFeature({
-    Id = "mapped.games.rock_paper_scissors_minus_one.autoplay",
-    Name = "Auto Play",
-    Description = "Automatically selects and submits choices for each RPS Minus One round.",
-    Kind = "RPSAutoPlay",
-    Interval = 0.35,
+    Id = "mapped.games.squid_game.courtboundarykeeper",
+    Name = "Court Boundary Keeper",
+    Description = "Helps keep the character inside the active Squid Game court.",
+    Kind = "Boundary",
+    TargetTokens = {"court", "squid game", "arena", "play area", "field"},
+    Radius = 58,
+    Interval = 0.28,
+    MovementPriority = 70,
+    WaitingMessage = "Waiting for the Squid Game court",
 })

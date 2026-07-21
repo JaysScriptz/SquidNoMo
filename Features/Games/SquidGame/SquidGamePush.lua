@@ -32,9 +32,13 @@ then
 end
 
 return Runtime:CreateFeature({
-    Id = "mapped.games.rock_paper_scissors_minus_one.autoplay",
-    Name = "Auto Play",
-    Description = "Automatically selects and submits choices for each RPS Minus One round.",
-    Kind = "RPSAutoPlay",
-    Interval = 0.35,
+    Id = "mapped.games.squid_game.squidgamepush",
+    Name = "Squid Game Push",
+    Description = "Automatically uses the push tool against nearby opponents.",
+    Kind = "ToolAura",
+    ToolTokens = {"push", "shove"},
+    Range = 12,
+    FaceTarget = true,
+    Interval = 0.24,
+    ActionPriority = 70,
 })

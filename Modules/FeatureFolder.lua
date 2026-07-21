@@ -257,7 +257,7 @@ function FeatureFolder:Render(Page, App, options)
         local function renderStatus()
             local armed = desiredState(manager, info, feature)
             local running = enabledState(feature)
-            if isAutoManagedGame(manager, info) and armed and not running then
+            if isAutoManagedGame(manager, info) and armed and not running and type(feature) ~= "table" then
                 local entry = manager:GetEntry(info.Id)
                 statusLabel.Text = "ARMED • Waiting for " .. tostring(entry and entry.CategoryName or "matching game")
                 statusLabel.TextColor3 = Color3.fromRGB(255, 210, 80)
@@ -330,7 +330,7 @@ function FeatureFolder:Render(Page, App, options)
             -- This prevents a restored pending state from flipping the first click.
             local nextState = not desiredState(manager, info, feature)
 
-            if not feature and not isAutoManagedGame(manager, info) then
+            if not feature then
                 local ok, result = pcall(loadFeature, App, info)
                 if not ok then
                     local message = tostring(result)
@@ -353,18 +353,19 @@ function FeatureFolder:Render(Page, App, options)
                 subscribeStatus()
             end
 
-            local ok, err = true, nil
-            if isAutoManagedGame(manager, info) then
-                ok = manager:SetFeatureState(info.Id, nextState and "on" or "off")
-                if not ok then err = "auto-apply profile could not be updated" end
-            else
-                ok, err = setEnabled(feature, nextState)
-                if ok and manager then
-                    if type(manager.SetFeatureState) == "function" and info.Id then
-                        manager:SetFeatureState(info.Id, nextState and "on" or "off")
-                    elseif type(manager.Notify) == "function" then
-                        manager:Notify()
-                    end
+            local ok, err = setEnabled(feature, nextState)
+            if ok and manager then
+                if type(manager.SetFeatureState) == "function" and info.Id then
+                    -- Manual means the tap must take effect now. Auto Apply still
+                    -- remembers the selection and handles later game transitions.
+                    ok = manager:SetFeatureState(
+                        info.Id,
+                        nextState and "on" or "off",
+                        {Manual = true}
+                    )
+                    if not ok then err = "feature state could not be saved" end
+                elseif type(manager.Notify) == "function" then
+                    manager:Notify()
                 end
             end
             if not ok then

@@ -1,14 +1,10 @@
 -- SquidNoMo feature runtime
--- SquidNoMo feature revision: 1.1b1-ultralight-r4
+-- Runtime identity is supplied by BuildManifest.lua so feature fixes can advance builds automatically.
 
 local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local Runtime = {
-    Revision = "1.1b1-ultralight-r4",
-}
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -17,6 +13,15 @@ if type(getgenv) == "function" then
         Environment = result
     end
 end
+
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
+    and Environment.__SquidNoMoBuildManifest
+    or {}
+local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
+local Runtime = {
+    Revision = tostring(Manifest.FeatureRuntimeRevision or "visual-gameplay-runtime-r2"),
+    BuildNumber = BUILD_NUMBER,
+}
 Environment.__SquidNoMoFeatureRuntime = Runtime
 
 
@@ -24,9 +29,9 @@ Environment.__SquidNoMoFeatureRuntime = Runtime
 -- feature. It prevents dozens of independent while-loops from waking on the same
 -- frame and automatically backs off features that are waiting for a round.
 local Scheduler = Environment.__SquidNoMoScheduler
-if type(Scheduler) ~= "table" or Scheduler.Revision ~= "1.1b1-ultralight-scheduler-r1" then
+if type(Scheduler) ~= "table" or Scheduler.Revision ~= ("shared-scheduler-r2-build-" .. tostring(BUILD_NUMBER)) then
     Scheduler = {
-        Revision = "1.1b1-ultralight-scheduler-r1",
+        Revision = "shared-scheduler-r2-build-" .. tostring(BUILD_NUMBER),
         Tasks = setmetatable({}, {__mode = "k"}),
         Running = false,
         Lightweight = true,
@@ -149,10 +154,16 @@ local function instanceText(instance)
     elseif instance:IsA("ValueBase") then
         table.insert(parts, tostring(instance.Value))
     end
-    local ok, actionText = pcall(function()
-        return instance:IsA("ProximityPrompt") and instance.ActionText or nil
+    local ok, actionText, objectText = pcall(function()
+        if instance:IsA("ProximityPrompt") then
+            return instance.ActionText, instance.ObjectText
+        end
+        return nil, nil
     end)
-    if ok and actionText then table.insert(parts, actionText) end
+    if ok then
+        if actionText and actionText ~= "" then table.insert(parts, actionText) end
+        if objectText and objectText ~= "" then table.insert(parts, objectText) end
+    end
     local text = lower(table.concat(parts, " "))
     if not dynamic then InstanceTextCache[instance] = {Signature = signature, Text = text} end
     return text
@@ -247,7 +258,7 @@ end
 -- Each data-model tree is enumerated once and then updated incrementally as objects
 -- are created or removed. Feature queries usually inspect only the requested class
 -- buckets (BasePart, Model, Tool, prompt, and so on).
-local INDEX_REVISION = "1.1b1-object-index-r2"
+local INDEX_REVISION = "object-index-r3-build-" .. tostring(BUILD_NUMBER)
 local IndexManager = Environment.__SquidNoMoObjectIndex
 if type(IndexManager) ~= "table" or IndexManager.Revision ~= INDEX_REVISION then
     if type(IndexManager) == "table" and type(IndexManager.Connections) == "table" then
@@ -453,6 +464,453 @@ local function isVisibleGui(instance)
     return true
 end
 
+
+-- Visual-first gameplay context -------------------------------------------------
+-- Squid Game X exposes many of its useful round and role cues through the same
+-- HUD the player sees. The runtime keeps a small cached snapshot of that HUD so
+-- features can use current objective text, counters, buttons, and meter geometry
+-- without repeatedly walking the whole PlayerGui tree.
+local function isSquidNoMoGui(instance)
+    local current = instance
+    while current do
+        if current:IsA("ScreenGui") then
+            local name = lower(current.Name)
+            if string.find(name, "squidnomo", 1, true)
+                or string.find(name, "squid no mo", 1, true)
+            then
+                return true
+            end
+        end
+        current = current.Parent
+    end
+    return false
+end
+
+local function safeGuiNumber(instance, property, fallback)
+    local ok, value = pcall(function() return instance[property] end)
+    if ok and type(value) == "number" then return value end
+    return fallback
+end
+
+local function safeGuiVector(instance, property)
+    local ok, value = pcall(function() return instance[property] end)
+    if ok and typeof(value) == "Vector2" then return value end
+    return Vector2.zero
+end
+
+local function safeGuiColor(instance, property)
+    local ok, value = pcall(function() return instance[property] end)
+    if ok and typeof(value) == "Color3" then return value end
+    return Color3.new(0, 0, 0)
+end
+
+function Runtime:GetVisualSnapshot(force)
+    local now = os.clock()
+    local cached = self._VisualSnapshot
+    if not force and cached and now - cached.Time < 0.14 then
+        return cached
+    end
+
+    local items, textParts = {}, {}
+    local scanned = 0
+    forEachIndexed("Gui", {"TextLabel", "TextButton", "TextBox", "ImageLabel", "ImageButton", "Frame"}, function(instance)
+        if scanned >= 260 then return false end
+        if isVisibleGui(instance) and not isSquidNoMoGui(instance) then
+            local rawText = ""
+            if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
+                rawText = tostring(instance.Text or "")
+            end
+            local context = instanceText(instance)
+            if rawText ~= "" or instance:IsA("GuiButton") or containsAny(context, {
+                "meter", "progress", "objective", "role", "round", "game", "evidence", "backpack"
+            }) then
+                local item = {
+                    Instance = instance,
+                    Text = lower(rawText),
+                    RawText = rawText,
+                    Context = context,
+                    Name = lower(instance.Name),
+                    ClassName = instance.ClassName,
+                    Position = safeGuiVector(instance, "AbsolutePosition"),
+                    Size = safeGuiVector(instance, "AbsoluteSize"),
+                    TextSize = safeGuiNumber(instance, "TextSize", 0),
+                    TextColor = safeGuiColor(instance, "TextColor3"),
+                    BackgroundColor = safeGuiColor(instance, "BackgroundColor3"),
+                }
+                table.insert(items, item)
+                if item.Text ~= "" then table.insert(textParts, item.Text) end
+                scanned = scanned + 1
+            end
+        end
+        return true
+    end)
+
+    cached = {
+        Time = now,
+        Items = items,
+        Text = table.concat(textParts, " | "),
+    }
+    self._VisualSnapshot = cached
+    return cached
+end
+
+function Runtime:GetVisibleText()
+    return self:GetVisualSnapshot().Text
+end
+
+function Runtime:VisualContains(tokens, requireAll)
+    local text = self:GetVisibleText()
+    return requireAll and containsAll(text, tokens) or containsAny(text, tokens)
+end
+
+function Runtime:GetRoundTimerSeconds()
+    local best
+    for _, item in ipairs(self:GetVisualSnapshot().Items) do
+        local minutes, seconds = string.match(item.RawText or "", "(%d+)%s*:%s*(%d%d)")
+        minutes, seconds = tonumber(minutes), tonumber(seconds)
+        if minutes and seconds and seconds <= 59 then
+            local value = minutes * 60 + seconds
+            if not best or value < best then best = value end
+        end
+    end
+    return best
+end
+
+function Runtime:GetRoundPhase()
+    local text = self:GetVisibleText()
+    if containsAny(text, {
+        "round complete", "game complete", "you survived", "survived the game",
+        "you were eliminated", "victory", "game over", "round results", "match results"
+    }) then
+        return "Ended"
+    end
+    if containsAny(text, {
+        "follow the beam to start", "waiting for players", "intermission",
+        "game starting", "round starting", "starting in", "choose your role"
+    }) then
+        return "Lobby"
+    end
+    if self:DetectGameCategory() then
+        return "Active"
+    end
+    return "Unknown"
+end
+
+function Runtime:GetGuardDuty()
+    local text = self:GetVisibleText()
+    local scores = {Kitchen = 0, Morgue = 0, Moderation = 0}
+    local sources = {}
+    local function add(duty, value, detail)
+        scores[duty] = scores[duty] + value
+        if detail then sources[duty] = sources[duty] or detail end
+    end
+    local function score(duty, tokens, weight, detail)
+        for _, token in ipairs(tokens) do
+            if string.find(text, token, 1, true) then
+                add(duty, weight or 1, detail or "visible objective")
+            end
+        end
+    end
+
+    -- Objective text is the strongest signal because Guard maps may remain
+    -- replicated while another duty is active.
+    score("Kitchen", {
+        "kitchen duty", "cook the food", "prepare food", "collect ingredients",
+        "bring ingredients", "store cooked", "serve the food", "meal tray"
+    }, 5, "guard objective")
+    score("Kitchen", {
+        "kitchen", "cook", "cooking", "ingredient", "raw food",
+        "storage", "serve food", "supply crate"
+    }, 2, "visible kitchen cue")
+    score("Morgue", {
+        "morgue duty", "collect the body", "collect bodies", "grab a coffin",
+        "dispose the coffin", "dispose body", "take it to the incinerator"
+    }, 5, "guard objective")
+    score("Morgue", {
+        "morgue", "coffin", "body bag", "incinerator", "cremation", "dead player"
+    }, 2, "visible morgue cue")
+    score("Moderation", {
+        "moderation duty", "moderate the game", "eliminate rule breakers",
+        "remove contestant", "guard orders", "discipline contestant"
+    }, 5, "guard objective")
+    score("Moderation", {
+        "moderation", "moderate", "taser", "stun baton", "player cleanup"
+    }, 2, "visible moderation cue")
+
+    -- Held tools are useful secondary evidence after the duty selection HUD has
+    -- closed. They never override a strong visible objective by themselves.
+    local player, character = getCharacter()
+    local containers = {}
+    if character then table.insert(containers, character) end
+    local backpack = player and player:FindFirstChildOfClass("Backpack")
+    if backpack then table.insert(containers, backpack) end
+    for _, container in ipairs(containers) do
+        for _, item in ipairs(container:GetChildren()) do
+            if item:IsA("Tool") then
+                local name = lower(item.Name)
+                if containsAny(name, {"ingredient", "food", "meal", "tray", "cook", "pan"}) then
+                    add("Kitchen", 3, "held kitchen tool")
+                elseif containsAny(name, {"coffin", "body", "corpse", "incinerator"}) then
+                    add("Morgue", 3, "held morgue tool")
+                elseif containsAny(name, {"taser", "stun", "baton", "rifle", "pistol"}) then
+                    add("Moderation", 3, "held moderation tool")
+                end
+            end
+        end
+    end
+
+    local bestDuty, bestScore, secondScore = nil, 0, 0
+    for duty, value in pairs(scores) do
+        if value > bestScore then
+            secondScore = bestScore
+            bestDuty, bestScore = duty, value
+        elseif value > secondScore then
+            secondScore = value
+        end
+    end
+    if bestScore >= 4 and bestScore - secondScore >= 2 then
+        return bestDuty, bestScore, sources[bestDuty]
+    end
+    return nil, bestScore, "guard duty is not yet unambiguous"
+end
+
+function Runtime:GetPentathlonStage()
+    local text = self:GetVisibleText()
+    local stages = {
+        {Name = "Ddakji", Tokens = {"ddakji", "paper tile", "flip tile"}},
+        {Name = "Gonggi", Tokens = {"gonggi", "stone toss", "pick up stones"}},
+        {Name = "Jegichagi", Tokens = {"jegichagi", "jegi", "kick the shuttle"}},
+        {Name = "Paengi", Tokens = {"paengi", "spinning top", "spin the top"}},
+        {Name = "Biseokchigi", Tokens = {"biseokchigi", "biseok", "flying stone", "standing stone"}},
+    }
+    for _, stage in ipairs(stages) do
+        if containsAny(text, stage.Tokens) then return stage.Name end
+    end
+    return nil
+end
+
+function Runtime:GetMingleRequiredCount()
+    local snapshot = self:GetVisualSnapshot()
+    local text = snapshot.Text
+    local patterns = {
+        "(%d+)%s*players", "players%s*[:%-]?%s*(%d+)",
+        "group%s*of%s*(%d+)", "rooms?%s*for%s*(%d+)",
+        "room%s*with%s*(%d+)", "enter%s+a%s+room%s+with%s+(%d+)",
+        "number%s*[:%-]?%s*(%d+)", "mingle%s*[:%-]?%s*(%d+)",
+    }
+    for _, pattern in ipairs(patterns) do
+        local number = tonumber(string.match(text, pattern))
+        if number and number >= 1 and number <= 20 then return number end
+    end
+
+    -- During Mingle the required number is often displayed as one large central
+    -- label. Only accept a standalone large number when the rest of the HUD
+    -- confirms that Mingle is active.
+    if containsAny(text, {"mingle", "find a room", "enter a room", "players per room"}) then
+        local best, bestSize = nil, 0
+        for _, item in ipairs(snapshot.Items) do
+            local number = tonumber(string.match(item.RawText or "", "^%s*(%d+)%s*$"))
+            if number and number >= 1 and number <= 20 and item.TextSize >= bestSize then
+                best, bestSize = number, item.TextSize
+            end
+        end
+        return best
+    end
+    return nil
+end
+
+function Runtime:GetMinglePhase()
+    local text = self:GetVisibleText()
+    if containsAny(text, {
+        "room locked", "doors closed", "door closed", "stay in the room",
+        "room accepted", "group complete"
+    }) then
+        return "Locked"
+    end
+    if containsAny(text, {
+        "find a room", "enter a room", "get in a room", "players per room",
+        "group of", "rooms open", "choose a room"
+    }) or self:GetMingleRequiredCount() then
+        return "ChooseRoom"
+    end
+    if containsAny(text, {
+        "mingle", "carousel", "wait for the number", "music is playing",
+        "keep moving"
+    }) then
+        return "Carousel"
+    end
+    return nil
+end
+
+function Runtime:GetHideSeekRole()
+    local text = self:GetVisibleText()
+    local scores = {Hider = 0, Seeker = 0}
+    local function score(role, tokens, weight)
+        for _, token in ipairs(tokens) do
+            if string.find(text, token, 1, true) then
+                scores[role] = scores[role] + weight
+            end
+        end
+    end
+    score("Hider", {
+        "you are a hider", "playing as hider", "hider objective", "find a key",
+        "collect a key", "unlock the exit", "escape before"
+    }, 5)
+    score("Seeker", {
+        "you are a seeker", "playing as seeker", "seeker objective", "find the hiders",
+        "eliminate the hiders", "grab a knife", "collect a knife"
+    }, 5)
+
+    if self:FindTool({"key", "door key", "exit key"}) then scores.Hider = scores.Hider + 6 end
+    if self:FindTool({"knife", "blade"}) then scores.Seeker = scores.Seeker + 6 end
+
+    if scores.Hider >= 5 and scores.Hider >= scores.Seeker + 2 then return "Hider", scores.Hider end
+    if scores.Seeker >= 5 and scores.Seeker >= scores.Hider + 2 then return "Seeker", scores.Seeker end
+    return nil, math.max(scores.Hider, scores.Seeker)
+end
+
+local function readProgressRatioNear(label)
+    if not label or not label.Parent then return nil end
+    local bestRatio, bestScore
+    local root = label.Parent
+    for depth = 1, 3 do
+        local scanned = 0
+        for _, object in ipairs(root:GetDescendants()) do
+            if scanned >= 80 then break end
+            if object:IsA("GuiObject") and object ~= label and object.Parent and isVisibleGui(object) then
+                local context = instanceText(object)
+                if containsAny(context, {"fill", "bar", "progress", "meter", "detection"}) then
+                    local parentSize = object.Parent:IsA("GuiObject") and object.Parent.AbsoluteSize or Vector2.zero
+                    local size = object.AbsoluteSize
+                    if parentSize.X > 2 and parentSize.Y > 2 and size.X > 1 and size.Y > 1 then
+                        local ratio
+                        if parentSize.Y > parentSize.X * 1.25 then
+                            ratio = math.clamp(size.Y / parentSize.Y, 0, 1)
+                        else
+                            ratio = math.clamp(size.X / parentSize.X, 0, 1)
+                        end
+                        local score = object.ZIndex + (containsAny(context, {"fill", "progress"}) and 10 or 0)
+                        if ratio < 0.995 and (not bestScore or score > bestScore) then
+                            bestRatio, bestScore = ratio, score
+                        end
+                    end
+                end
+                scanned = scanned + 1
+            end
+        end
+        if bestRatio then break end
+        root = root.Parent
+        if not root then break end
+    end
+    return bestRatio
+end
+
+function Runtime:GetDetectiveState()
+    local snapshot = self:GetVisualSnapshot()
+    local state = {
+        Stage = nil,
+        Evidence = nil,
+        Capacity = nil,
+        Detection = nil,
+        HasHint = false,
+    }
+
+    for _, item in ipairs(snapshot.Items) do
+        local text = item.Text
+        local current, maximum = string.match(text, "evidence%s*backpack%s*[:%-]?%s*(%d+)%s*/%s*(%d+)")
+        if not current then current, maximum = string.match(text, "(%d+)%s*/%s*(%d+)%s*evidence") end
+        if current and maximum then
+            state.Evidence, state.Capacity = tonumber(current), tonumber(maximum)
+        end
+        if containsAny(text, {"detection meter", "detection"}) and not state.Detection then
+            state.Detection = readProgressRatioNear(item.Instance)
+        end
+        if containsAny(text, {"hint", "next evidence", "evidence nearby", "clue nearby"}) then
+            state.HasHint = true
+        end
+    end
+
+    local text = snapshot.Text
+    -- The objective list can show every step at once, so backpack state and live
+    -- action prompts take priority over merely finding words in the list.
+    if state.Evidence and state.Capacity and state.Evidence >= state.Capacity and state.Capacity > 0 then
+        state.Stage = "Deposit Evidence"
+    elseif containsAny(text, {"deposit evidence now", "return to the boat", "return to your boat", "deposit at the boat"}) then
+        state.Stage = "Deposit Evidence"
+    elseif containsAny(text, {"collect evidence", "gather the evidence", "search for evidence", "evidence nearby"}) then
+        state.Stage = "Gather Evidence"
+    elseif containsAny(text, {"find the island", "locate the island", "identify the island", "island picture"}) then
+        state.Stage = "Find Island"
+    elseif state.Evidence and state.Evidence > 0 then
+        state.Stage = "Gather Evidence"
+    end
+    return state
+end
+
+function Runtime:GetVisualRole()
+    local player, character = getCharacter()
+    if not player then return nil, 0, "local player unavailable" end
+    local scores = {Player = 0, Guard = 0, Detective = 0, Frontman = 0}
+    local source = {}
+    local function add(role, weight, detail)
+        scores[role] = (scores[role] or 0) + weight
+        source[role] = source[role] or detail
+    end
+    local function scoreValue(value, weight, detail)
+        local valueText = lower(value)
+        if containsAny(valueText, {"frontman", "front man", "manager"}) then add("Frontman", weight, detail)
+        elseif containsAny(valueText, {"detective", "investigator"}) then add("Detective", weight, detail)
+        elseif containsAny(valueText, {
+            "guard", "soldier", "staff", "worker", "guard mask",
+            "triangle guard", "square guard", "circle guard"
+        }) then add("Guard", weight, detail)
+        elseif containsAny(valueText, {"player", "contestant", "participant"}) then add("Player", weight, detail) end
+    end
+
+    if player.Team then scoreValue(player.Team.Name, 12, "team") end
+    for _, object in ipairs({player, character}) do
+        if object then
+            for _, attributeName in ipairs({"Role", "TeamRole", "PlayerRole", "Class", "Job", "SelectedRole", "CurrentRole"}) do
+                local ok, value = pcall(object.GetAttribute, object, attributeName)
+                if ok and value ~= nil then scoreValue(value, 14, attributeName) end
+            end
+        end
+    end
+    if character then
+        local scanned = 0
+        for _, child in ipairs(character:GetDescendants()) do
+            scoreValue(child.Name, 1, "character appearance")
+            scanned = scanned + 1
+            if scanned >= 100 then break end
+        end
+    end
+
+    local visualText = self:GetVisibleText()
+    local phrases = {
+        Guard = {"playing as guard", "role: guard", "guard duties", "guard mode active"},
+        Detective = {"playing as detective", "role: detective", "detective objectives", "evidence backpack"},
+        Frontman = {"playing as frontman", "role: frontman", "frontman mode"},
+        Player = {"playing as player", "role: player", "contestant mode active"},
+    }
+    for role, tokens in pairs(phrases) do
+        if containsAny(visualText, tokens) then add(role, 10, "visible role HUD") end
+    end
+
+    local bestRole, bestScore, secondScore = nil, 0, 0
+    for role, score in pairs(scores) do
+        if score > bestScore then
+            secondScore = bestScore
+            bestRole, bestScore = role, score
+        elseif score > secondScore then
+            secondScore = score
+        end
+    end
+    if bestScore >= 8 and bestScore - secondScore >= 3 then
+        return bestRole, bestScore, source[bestRole] or "role signal"
+    end
+    return nil, bestScore, "role is not yet unambiguous"
+end
+
 function Runtime:Matches(instance, config)
     if not instance then return false end
     if not classAllowed(instance, config.TargetClasses) then return false end
@@ -515,8 +973,11 @@ function Runtime:FindTargets(config)
     local cache = signature and self.QueryCache[signature] or nil
     local defaultTTL = lower(config.Scope) == "gui" and 0.30 or (self.LightweightMode and 1.35 or 0.65)
     local ttl = tonumber(config.CacheTTL) or defaultTTL
+    if cache and #cache.Results == 0 then
+        ttl = math.min(ttl, 0.20)
+    end
 
-    if cache and now - cache.Time <= ttl then
+    if cache and cache.Generation == IndexManager.Generation and now - cache.Time <= ttl then
         local results = {}
         for _, target in ipairs(cache.Results) do
             if target and target.Parent then
@@ -544,7 +1005,11 @@ function Runtime:FindTargets(config)
     end)
 
     if signature then
-        self.QueryCache[signature] = {Time = now, Results = results}
+        self.QueryCache[signature] = {
+            Time = now,
+            Results = results,
+            Generation = IndexManager.Generation,
+        }
     end
     return results
 end
@@ -621,7 +1086,7 @@ function Runtime:Interact(target, feature, options)
         or target:FindFirstChildWhichIsA("BasePart", true)
     local _, _, _, root = getCharacter()
 
-    local supportedPrompt = prompt and prompt.Enabled
+    local supportedPrompt = prompt and prompt.Enabled and prompt.MaxActivationDistance >= 0
     local supportedDetector = detector and type(fireclickdetector) == "function"
     local supportedTouch = touchPart and root and type(firetouchinterest) == "function"
     if not supportedPrompt and not supportedDetector and not supportedTouch then
@@ -641,12 +1106,12 @@ function Runtime:Interact(target, feature, options)
             local ok, err = pcall(fireproximityprompt, prompt)
             return ok, ok and nil or tostring(err)
         end
-        local ok = pcall(function()
+        local ok, err = pcall(function()
             prompt:InputHoldBegin()
-            task.wait(math.min(prompt.HoldDuration, 0.1))
+            task.wait(math.max(0.03, math.min(prompt.HoldDuration, 0.18)))
             prompt:InputHoldEnd()
         end)
-        return ok, ok and nil or "executor cannot trigger ProximityPrompt"
+        return ok, ok and nil or tostring(err or "executor cannot trigger ProximityPrompt")
     end
 
     if supportedDetector then
@@ -827,24 +1292,75 @@ function Runtime:ClickGui(target, feature, options)
         options.Duration or 0.25
     )
     if not claimed then return false, "GUI action is currently controlled by " .. tostring(ownerName) end
-    local button = target:IsA("GuiButton") and target or target:FindFirstChildWhichIsA("GuiButton", true)
-    if button and type(firesignal) == "function" then
-        local ok = pcall(function()
-            firesignal(button.Activated)
-        end)
-        if ok then return true end
+
+    local button = target:IsA("GuiButton") and target
+        or target:FindFirstChildWhichIsA("GuiButton", true)
+    if button and not button.Active then
+        pcall(function() button.Active = true end)
     end
 
-    local virtualInput
-    pcall(function() virtualInput = game:GetService("VirtualInputManager") end)
+    -- Executors expose different signal helpers. Try all normal button signals,
+    -- rather than only Activated, before falling back to simulated pointer input.
+    if button and type(firesignal) == "function" then
+        local fired = false
+        for _, signalName in ipairs({"Activated", "MouseButton1Click", "MouseButton1Down", "MouseButton1Up"}) do
+            local ok, signal = pcall(function() return button[signalName] end)
+            if ok and signal then
+                local signalOk = pcall(firesignal, signal)
+                fired = fired or signalOk
+            end
+        end
+        if fired then return true end
+    end
+
+    if button and type(getconnections) == "function" then
+        local invoked = false
+        for _, signalName in ipairs({"Activated", "MouseButton1Click"}) do
+            local ok, signal = pcall(function() return button[signalName] end)
+            if ok and signal then
+                local connectionOk, connections = pcall(getconnections, signal)
+                if connectionOk and type(connections) == "table" then
+                    for _, connection in ipairs(connections) do
+                        local callback = connection.Function or connection.Fire
+                        if type(callback) == "function" then
+                            invoked = pcall(callback) or invoked
+                        elseif type(connection.Fire) == "function" then
+                            invoked = pcall(connection.Fire, connection) or invoked
+                        end
+                    end
+                end
+            end
+        end
+        if invoked then return true end
+    end
+
     local guiObject = button or (target:IsA("GuiObject") and target)
-    if virtualInput and guiObject then
+    if guiObject then
         local center = guiObject.AbsolutePosition + guiObject.AbsoluteSize / 2
-        local ok, err = pcall(function()
-            virtualInput:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 1)
-            virtualInput:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 1)
-        end)
-        return ok, ok and nil or tostring(err)
+        local virtualInput
+        pcall(function() virtualInput = game:GetService("VirtualInputManager") end)
+        if virtualInput then
+            local ok, err = pcall(function()
+                virtualInput:SendMouseMoveEvent(center.X, center.Y, game)
+                virtualInput:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 1)
+                task.wait()
+                virtualInput:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 1)
+            end)
+            if ok then return true end
+            if err then self.LastGuiInputError = tostring(err) end
+        end
+
+        local virtualUser
+        pcall(function() virtualUser = game:GetService("VirtualUser") end)
+        if virtualUser then
+            local ok = pcall(function()
+                virtualUser:CaptureController()
+                virtualUser:Button1Down(Vector2.new(center.X, center.Y), workspace.CurrentCamera and workspace.CurrentCamera.CFrame or CFrame.new())
+                task.wait()
+                virtualUser:Button1Up(Vector2.new(center.X, center.Y), workspace.CurrentCamera and workspace.CurrentCamera.CFrame or CFrame.new())
+            end)
+            if ok then return true end
+        end
     end
     return false, "executor cannot press the detected GUI control"
 end
@@ -913,8 +1429,19 @@ function FeatureMethods:_Loop(interval, callback)
     interval = tonumber(interval) or tonumber(self.Config.Interval) or 0.5
     local idleInterval = tonumber(self.Config.IdleInterval) or math.max(interval * 4, 1.0)
     Scheduler:Add(self, interval, idleInterval, function(owner)
+        local contextAllowed, contextDetail = Runtime:FeatureContextAllowed(owner)
+        if not contextAllowed then
+            Runtime:StopMovement(owner)
+            owner:_SetStatus("Waiting", contextDetail)
+            return false
+        end
+
         local ok, active, detail = pcall(callback, owner)
         if not ok then error(active) end
+        local hint = Runtime:GetFeatureVisualHint(owner)
+        if hint and hint ~= "" then
+            detail = tostring(detail or (active and "Working" or owner.Config.WaitingMessage or "Waiting")) .. " • " .. hint
+        end
         if active then
             owner:_SetStatus("Active", detail or "Working")
         else
@@ -1013,17 +1540,42 @@ local function startWalkTo(feature)
         end
         local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority)
         if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
+
+        local targetTokens = self.Config.TargetTokens
+        local targetNames = self.Config.TargetNames
+        local excludeTokens = self.Config.ExcludeTokens
+        local waitingMessage = self.Config.WaitingMessage
+        local id = lower(self.Id)
+
+        -- Detective navigation follows the visible objective rather than assuming
+        -- evidence is already spawned as soon as the role begins.
+        if string.find(id, "mapped.detective.island_navigation.islandnavigator", 1, true) then
+            local detective = Runtime:GetDetectiveState()
+            if detective.Stage == "Deposit Evidence" then
+                Runtime:StopMovement(self)
+                return false, "Evidence is ready to deposit; use Boat Depositor"
+            elseif detective.Stage == "Find Island" then
+                targetTokens = {"objective", "island", "shore", "landing", "dock", "waypoint", "marker", "hint"}
+                excludeTokens = {"wrong island", "decoy", "deposit", "submitted"}
+                waitingMessage = "Waiting for the island objective marker or landing point"
+            else
+                targetTokens = {"evidence", "clue", "file", "document", "keycard", "fingerprint", "objective", "hint"}
+                excludeTokens = {"boat deposit", "submitted", "evidence box"}
+                waitingMessage = "Waiting for an evidence marker on the island"
+            end
+        end
+
         local target, distance = Runtime:FindNearest({
             Scope = self.Config.Scope or "Workspace",
-            TargetNames = self.Config.TargetNames,
-            TargetTokens = self.Config.TargetTokens,
+            TargetNames = targetNames,
+            TargetTokens = targetTokens,
             RequiredTokens = self.Config.RequiredTokens,
-            ExcludeTokens = self.Config.ExcludeTokens,
+            ExcludeTokens = excludeTokens,
             TargetClasses = self.Config.TargetClasses or {"Model", "BasePart", "ProximityPrompt"},
             ReturnAdornee = self.Config.ReturnAdornee,
             MaxTargets = self.Config.MaxTargets or 120,
         }, root.Position)
-        if not target then return false, self.Config.WaitingMessage end
+        if not target then return false, waitingMessage end
         local position = getPosition(target)
         local moved, moveDetail = Runtime:MoveTo(position, self, self.Config)
         if self.Enabled and self.Config.Interact and position then
@@ -1033,7 +1585,7 @@ local function startWalkTo(feature)
                 if os.clock() - (self.LastAction or 0) < cooldown then
                     return true, "Reached " .. target.Name .. " — interaction cooling down"
                 end
-                local interacted, interactDetail = Runtime:Interact(target, self, {Priority = self.Config.ActionPriority or 55, Duration = self.Config.ActionCooldown or 0.8})
+                local interacted, interactDetail = Runtime:Interact(target, self, {Priority = self.Config.ActionPriority or 55, Duration = cooldown})
                 if interacted then
                     self.LastAction = os.clock()
                     return true, "Reached and interacted with " .. target.Name
@@ -1051,6 +1603,17 @@ local function startInteract(feature)
         if not root then return false, "Waiting for the local character" end
         local contextAllowed, contextDetail = Runtime:ContextAllowed(self.Config)
         if not contextAllowed then return false, contextDetail end
+
+        local id = lower(self.Id)
+        if string.find(id, "mapped.detective.evidence.evidencecollector", 1, true) then
+            local detective = Runtime:GetDetectiveState()
+            if detective.Evidence and detective.Capacity and detective.Evidence >= detective.Capacity then
+                return false, "Evidence backpack is full; return to the boat"
+            elseif detective.Stage == "Deposit Evidence" then
+                return false, "Current detective objective is to deposit evidence"
+            end
+        end
+
         if self.Config.SkipIfToolTokens and Runtime:FindTool(self.Config.SkipIfToolTokens) then
             return false, self.Config.CompletedMessage or "Required item is already in the inventory"
         end
@@ -1061,7 +1624,8 @@ local function startInteract(feature)
             local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority)
             if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
         end
-        local target, distance = Runtime:FindNearest({
+
+        local query = {
             Scope = self.Config.Scope or "Workspace",
             TargetNames = self.Config.TargetNames,
             TargetTokens = self.Config.TargetTokens,
@@ -1069,12 +1633,28 @@ local function startInteract(feature)
             ExcludeTokens = self.Config.ExcludeTokens,
             TargetClasses = self.Config.TargetClasses or {"Model", "BasePart", "ProximityPrompt", "ClickDetector"},
             MaxTargets = self.Config.MaxTargets or 140,
-        }, root.Position)
+        }
+        local targets = Runtime:FindTargets(query)
+        local target, distance, bestScore = nil, math.huge, -math.huge
+        for _, candidate in ipairs(targets) do
+            local position = getPosition(candidate)
+            if position then
+                local candidateDistance = (position - root.Position).Magnitude
+                local score = -candidateDistance
+                local prompt = candidate:IsA("ProximityPrompt") and candidate or candidate:FindFirstChildWhichIsA("ProximityPrompt", true)
+                local detector = candidate:IsA("ClickDetector") and candidate or candidate:FindFirstChildWhichIsA("ClickDetector", true)
+                if prompt and prompt.Enabled then score = score + 35 end
+                if detector then score = score + 20 end
+                if candidate:IsA("Tool") then score = score + 12 end
+                if score > bestScore then target, distance, bestScore = candidate, candidateDistance, score end
+            end
+        end
+
         if not target then return false, self.Config.WaitingMessage end
         if self.Config.MaxDistance and distance > self.Config.MaxDistance then
             if self.Config.Walk then
-                Runtime:MoveTo(getPosition(target), self, self.Config)
-                return true, "Walking to " .. target.Name
+                local moved, detail = Runtime:MoveTo(getPosition(target), self, self.Config)
+                return moved, moved and ("Walking to " .. target.Name) or detail
             end
             return false, "Nearest target is " .. math.floor(distance) .. " studs away"
         end
@@ -1083,7 +1663,7 @@ local function startInteract(feature)
         if os.clock() - (self.LastAction or 0) < cooldown then
             return true, "Target detected — interaction cooling down"
         end
-        local ok, detail = Runtime:Interact(target, self, {Priority = self.Config.ActionPriority or 55, Duration = self.Config.ActionCooldown or 0.45})
+        local ok, detail = Runtime:Interact(target, self, {Priority = self.Config.ActionPriority or 55, Duration = cooldown})
         if ok then self.LastAction = os.clock() end
         return ok, ok and ("Interacted with " .. target.Name) or detail
     end)
@@ -1180,6 +1760,63 @@ local function rectsOverlap(a, b)
     return aMin.X <= bMax.X and aMax.X >= bMin.X and aMin.Y <= bMax.Y and aMax.Y >= bMin.Y
 end
 
+local function directGuiText(instance)
+    if not instance then return "" end
+    local parts = {instance.Name}
+    if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
+        table.insert(parts, instance.Text)
+    elseif instance:IsA("ImageButton") or instance:IsA("ImageLabel") then
+        local ok, image = pcall(function() return instance.Image end)
+        if ok and image then table.insert(parts, image) end
+    end
+    return lower(table.concat(parts, " "))
+end
+
+local function scoreGuiCandidate(instance, tokens)
+    local direct = directGuiText(instance)
+    local context = instanceText(instance)
+    local score, hits = 0, 0
+    for _, rawToken in ipairs(tokens or {}) do
+        local token = lower(rawToken)
+        if token ~= "" then
+            if direct == token then
+                score = score + 80 + math.min(#token, 24)
+                hits = hits + 1
+            elseif string.find(direct, token, 1, true) then
+                score = score + 36 + math.min(#token, 20)
+                hits = hits + 1
+            elseif string.find(context, token, 1, true) then
+                score = score + 12 + math.min(#token, 12)
+                hits = hits + 1
+            end
+        end
+    end
+    if hits == 0 then return nil end
+
+    if instance:IsA("GuiButton") then
+        score = score + 18
+        local ok, active = pcall(function() return instance.Active end)
+        if ok and active then score = score + 8 end
+        local okSelectable, selectable = pcall(function() return instance.Selectable end)
+        if okSelectable and selectable then score = score + 4 end
+    end
+    local size = safeGuiVector(instance, "AbsoluteSize")
+    local area = math.max(0, size.X) * math.max(0, size.Y)
+    if area >= 400 then score = score + math.min(12, math.log(area + 1)) end
+    score = score + math.min(10, safeGuiNumber(instance, "ZIndex", 0))
+
+    -- Generic menu controls are common in the experience and can contain words
+    -- such as "play" or "button" in their ancestors. Penalize them unless the
+    -- requested token explicitly names that control.
+    local menuWords = {"shop", "daily reward", "settings", "inventory", "purchase", "buy", "donate", "close", "cancel"}
+    for _, word in ipairs(menuWords) do
+        if string.find(context, word, 1, true) and not containsAny(word, tokens or {}) then
+            score = score - 55
+        end
+    end
+    return score
+end
+
 local function findVisibleGui(tokens, classes)
     local player = getLocalPlayer()
     local gui = player and player:FindFirstChildOfClass("PlayerGui")
@@ -1195,13 +1832,16 @@ local function findVisibleGui(tokens, classes)
             return nil
         end
     end
-    local found
+
+    local found, bestScore = nil, -math.huge
     forEachIndexed("Gui", classes or {"GuiObject"}, function(instance)
         if classAllowed(instance, classes or {"GuiObject"}) and isVisibleGui(instance)
-            and containsAny(instanceText(instance), tokens)
+            and not isSquidNoMoGui(instance)
         then
-            found = instance
-            return false
+            local score = scoreGuiCandidate(instance, tokens or {})
+            if score and score > bestScore then
+                found, bestScore = instance, score
+            end
         end
         return true
     end)
@@ -1350,6 +1990,14 @@ local function contextualStatusWord(value, context)
     return nil
 end
 
+local function rlglColorState(color)
+    if typeof(color) ~= "Color3" then return nil end
+    local r, g, b = color.R, color.G, color.B
+    if g >= 0.42 and g > r * 1.28 and g > b * 1.12 then return "Green" end
+    if r >= 0.48 and r > g * 1.30 and r > b * 1.12 then return "Red" end
+    return nil
+end
+
 local function discoverRLGLSignals()
     local candidates = {}
     local likelyNames = {"light", "status", "state", "phase", "signal", "current", "red", "green"}
@@ -1366,7 +2014,7 @@ local function discoverRLGLSignals()
     if gui then
         forEachIndexed("Gui", {"TextLabel", "TextButton"}, function(instance)
             local context = instanceText(instance)
-            if containsAny(context, likelyNames) or statusWord(instance.Text) then
+            if not isSquidNoMoGui(instance) and (containsAny(context, likelyNames) or statusWord(instance.Text)) then
                 table.insert(candidates, instance)
             end
             return true
@@ -1420,6 +2068,16 @@ local function findStatusText(tokens)
                 if not state then
                     state = contextualStatusWord(instance.Text, instanceText(instance))
                     weight = state and 3 or 0
+                end
+                if not state then
+                    local context = instanceText(instance)
+                    if containsAny(context, {"light", "status", "signal", "stop", "go", "doll"}) then
+                        local okText, textColor = pcall(function() return instance.TextColor3 end)
+                        local okBackground, backgroundColor = pcall(function() return instance.BackgroundColor3 end)
+                        state = (okText and rlglColorState(textColor))
+                            or (okBackground and rlglColorState(backgroundColor))
+                        weight = state and 4 or 0
+                    end
                 end
             end
             if state and weight and weight > 0 then
@@ -1510,22 +2168,142 @@ local function startRLGLAutoMove(feature)
     end)
 end
 
+local function closestPointOnPart(part, worldPosition)
+    if not part or not part:IsA("BasePart") then return nil end
+    local localPoint = part.CFrame:PointToObjectSpace(worldPosition)
+    local half = part.Size * 0.5
+    local clamped = Vector3.new(
+        math.clamp(localPoint.X, -half.X, half.X),
+        math.clamp(localPoint.Y, -half.Y, half.Y),
+        math.clamp(localPoint.Z, -half.Z, half.Z)
+    )
+    return part.CFrame:PointToWorldSpace(clamped)
+end
+
+local RopeGeometryHistory = setmetatable({}, {__mode = "k"})
+
+local function findGeometricRope(root)
+    if not root then return nil end
+    local now = os.clock()
+    local cached = Runtime._RopeGeometryCache
+    if cached and now - cached.Time < 0.12 and cached.Target and cached.Target.Parent then
+        return cached.Target
+    end
+
+    local best, bestScore = nil, -math.huge
+    local scanned = 0
+    forEachIndexed("Workspace", {"BasePart"}, function(part)
+        if scanned >= 520 then return false end
+        scanned = scanned + 1
+        if not part.Parent or part:IsDescendantOf(root.Parent) then return true end
+
+        local offset = part.Position - root.Position
+        local distance = offset.Magnitude
+        if distance > 120 or math.abs(offset.Y) > 36 then return true end
+
+        local size = part.Size
+        local longest = math.max(size.X, size.Y, size.Z)
+        local shortest = math.min(size.X, size.Y, size.Z)
+        local middle = size.X + size.Y + size.Z - longest - shortest
+        if longest < 8 or shortest > 5.5 or middle > math.max(8, longest * 0.55) then return true end
+
+        local history = RopeGeometryHistory[part]
+        local elapsed = history and math.max(now - history.Time, 0.001) or 0
+        local positionalSpeed = 0
+        local rotationalSpeed = 0
+        if history and elapsed <= 2.0 then
+            positionalSpeed = (part.Position - history.Position).Magnitude / elapsed
+            local lookDelta = 1 - math.abs(math.clamp(part.CFrame.LookVector:Dot(history.LookVector), -1, 1))
+            local upDelta = 1 - math.abs(math.clamp(part.CFrame.UpVector:Dot(history.UpVector), -1, 1))
+            rotationalSpeed = math.max(lookDelta, upDelta) * longest / elapsed
+        end
+        RopeGeometryHistory[part] = {
+            Time = now,
+            Position = part.Position,
+            LookVector = part.CFrame.LookVector,
+            UpVector = part.CFrame.UpVector,
+        }
+
+        local physicsSpeed = part.AssemblyLinearVelocity.Magnitude
+            + part.AssemblyAngularVelocity.Magnitude * math.min(longest, 40)
+        local motion = math.max(physicsSpeed, positionalSpeed, rotationalSpeed)
+        if motion < 0.35 then return true end
+
+        local score = motion * 2.4 + math.min(longest, 45) - distance * 0.10 - math.abs(offset.Y) * 0.25
+        if containsAny(instanceText(part), {"rope", "bar", "swing", "spinner"}) then score = score + 35 end
+        if score > bestScore then
+            best, bestScore = part, score
+        end
+        return true
+    end)
+    Runtime._RopeGeometryCache = {Time = now, Target = best}
+    return best
+end
+
+function Runtime:ObserveRope(feature, root, tokens)
+    if not root then return nil end
+    local target = self:FindNearest({
+        Scope = "Workspace",
+        TargetTokens = tokens or {"rope", "bar", "swing", "spinner", "sweep"},
+        TargetClasses = {"BasePart"},
+        MaxTargets = 100,
+        CacheTTL = 0.08,
+    }, root.Position)
+    if not target then
+        -- Current Jump Rope builds can use generic part names. Fall back to the
+        -- long, slender moving obstacle the player can actually see instead of
+        -- depending only on a guessed internal object name.
+        target = findGeometricRope(root)
+    end
+    if not target then return nil end
+
+    local point = closestPointOnPart(target, root.Position) or target.Position
+    local distance = (point - root.Position).Magnitude
+    local now = os.clock()
+    local previous = feature._RopeObservation
+    local approaching, speed = false, 0
+    if previous and previous.Target == target then
+        local elapsed = math.max(now - previous.Time, 0.001)
+        speed = (point - previous.Point).Magnitude / elapsed
+        approaching = distance < previous.Distance - 0.06
+    end
+    local observation = {
+        Target = target,
+        Point = point,
+        Distance = distance,
+        Vertical = point.Y - root.Position.Y,
+        Approaching = approaching,
+        Speed = speed,
+        Time = now,
+    }
+    feature._RopeObservation = observation
+    return observation
+end
+
 local function startAutoJump(feature)
-    feature:_Loop(feature.Config.Interval or 0.06, function(self)
+    feature.LastJumpAt = 0
+    feature:_Loop(feature.Config.Interval or 0.045, function(self)
         local _, _, humanoid, root = getCharacter()
         if not humanoid or not root then return false, "Waiting for the local character" end
-        local target, distance = Runtime:FindNearest({
-            Scope = "Workspace",
-            TargetTokens = self.Config.TargetTokens or {"rope", "bar", "swing"},
-            TargetClasses = {"BasePart", "Model"},
-            ReturnAdornee = true,
-        }, root.Position)
-        if target and distance <= (self.Config.TriggerDistance or 14) then
+        local observation = Runtime:ObserveRope(self, root, self.Config.TargetTokens or {"rope", "bar", "swing", "spinner", "sweep"})
+        if not observation then return false, "Waiting for the moving rope" end
+
+        local grounded = humanoid.FloorMaterial ~= Enum.Material.Air
+        local trigger = self.Config.TriggerDistance or 17
+        local closeEnough = observation.Distance <= trigger and math.abs(observation.Vertical) <= 10
+        local emergency = observation.Distance <= math.max(4.5, trigger * 0.32)
+        local cooldownReady = os.clock() - (self.LastJumpAt or 0) >= (self.Config.JumpCooldown or 0.62)
+
+        if grounded and cooldownReady and closeEnough and (observation.Approaching or emergency) then
             humanoid.Jump = true
             humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            return true, "Jumped for the approaching obstacle"
+            self.LastJumpAt = os.clock()
+            return true, string.format("Jumped as rope approached (%.1f studs)", observation.Distance)
         end
-        return false, "Waiting for the rope or obstacle"
+        if closeEnough then
+            return true, observation.Approaching and "Rope approaching — preparing jump" or "Rope nearby — waiting for its next approach"
+        end
+        return false, string.format("Tracking rope (%.1f studs away)", observation.Distance)
     end)
 end
 
@@ -1604,65 +2382,123 @@ local function startBoundary(feature)
 end
 
 local function parseRequiredCount()
-    local player = getLocalPlayer()
-    local gui = player and player:FindFirstChildOfClass("PlayerGui")
-    if not gui then return nil end
-    local required
-    forEachIndexed("Gui", {"TextLabel", "TextButton"}, function(instance)
-        if isVisibleGui(instance) then
-            local context = instanceText(instance)
-            if containsAny(context, {"required", "players", "group", "room", "mingle", "number"}) then
-                local number = tonumber(string.match(instance.Text or "", "%d+"))
-                if number and number >= 1 and number <= 20 then
-                    required = number
-                    return false
-                end
+    return Runtime:GetMingleRequiredCount()
+end
+
+local function treeContainsNumber(target, number)
+    local wanted = tostring(number)
+    if string.find(instanceText(target), wanted, 1, true) then return true end
+    local scanned = 0
+    for _, child in ipairs(target:GetDescendants()) do
+        if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("ValueBase") or child:IsA("ProximityPrompt") then
+            if string.find(instanceText(child), wanted, 1, true) then return true end
+            scanned = scanned + 1
+            if scanned >= 50 then break end
+        end
+    end
+    return false
+end
+
+local function roomOccupancy(target)
+    for _, valueName in ipairs({"Occupants", "Occupancy", "PlayerCount", "PlayersInside", "Count"}) do
+        local value = target:FindFirstChild(valueName, true)
+        if value and value:IsA("ValueBase") then
+            local number = tonumber(value.Value)
+            if number then return number end
+        end
+    end
+
+    local center, size
+    if target:IsA("Model") then
+        local ok, cframe, bounds = pcall(target.GetBoundingBox, target)
+        if ok then center, size = cframe, bounds end
+    elseif target:IsA("BasePart") then
+        center, size = target.CFrame, target.Size
+    else
+        local adornee = getAdornee(target)
+        if adornee and adornee:IsA("Model") then
+            local ok, cframe, bounds = pcall(adornee.GetBoundingBox, adornee)
+            if ok then center, size = cframe, bounds end
+        elseif adornee and adornee:IsA("BasePart") then
+            center, size = adornee.CFrame, adornee.Size
+        end
+    end
+    if not center or not size then return nil end
+
+    local count = 0
+    for _, other in ipairs(Players:GetPlayers()) do
+        local otherRoot = other.Character and other.Character:FindFirstChild("HumanoidRootPart")
+        if otherRoot then
+            local point = center:PointToObjectSpace(otherRoot.Position)
+            if math.abs(point.X) <= size.X * 0.6
+                and math.abs(point.Y) <= math.max(size.Y * 0.7, 8)
+                and math.abs(point.Z) <= size.Z * 0.6
+            then
+                count = count + 1
             end
         end
-        return true
-    end)
-    return required
+    end
+    return count
 end
 
 local function startRoomAssist(feature)
-    feature:_Loop(feature.Config.Interval or 0.45, function(self)
+    feature:_Loop(feature.Config.Interval or 0.32, function(self)
+        local phase = Runtime:GetMinglePhase()
+        if phase == "Carousel" then return false, "Waiting for the Mingle room number" end
+        if phase == "Locked" then
+            Runtime:StopMovement(self)
+            return true, "Room is locked — holding position"
+        end
         local count = parseRequiredCount()
-        if not count then return false, "Waiting for the required Mingle room count" end
+        if not count then return false, "Waiting for the visible Mingle room count" end
         local _, _, _, root = getCharacter()
         if not root then return false, "Waiting for the local character" end
         local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority or 60)
         if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
+
         local candidates = Runtime:FindTargets({
             Scope = "Workspace",
-            TargetTokens = {"room", "door", "mingle"},
+            TargetTokens = {"room", "door", "mingle", "capacity", "enter", "join", "open"},
             TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
-            MaxTargets = 160,
+            MaxTargets = 220,
+            CacheTTL = 0.28,
         })
-        local best, bestDistance = nil, math.huge
+        local best, bestScore, bestOccupancy = nil, -math.huge, nil
         for _, target in ipairs(candidates) do
-            local text = instanceText(target)
-            local capacityMatch = string.find(text, tostring(count), 1, true)
             local capacity = target:FindFirstChild("Capacity", true)
-            if capacity and tonumber(capacity.Value) == count then capacityMatch = true end
+            local capacityNumber = capacity and capacity:IsA("ValueBase") and tonumber(capacity.Value) or nil
+            local capacityMatch = capacityNumber == count or treeContainsNumber(target, count)
             local position = getPosition(target)
             if capacityMatch and position then
-                local distance = (position - root.Position).Magnitude
-                if distance < bestDistance then best, bestDistance = target, distance end
+                local occupancy = roomOccupancy(target)
+                local hasSpace = occupancy == nil or occupancy < count
+                if hasSpace then
+                    local distance = (position - root.Position).Magnitude
+                    -- Prefer a partly filled matching room, then the nearest one.
+                    local fillBonus = occupancy and occupancy * 18 or 0
+                    local score = fillBonus - distance
+                    if score > bestScore then
+                        best, bestScore, bestOccupancy = target, score, occupancy
+                    end
+                end
             end
         end
-        if not best then return false, "No room matching capacity " .. count .. " was detected" end
+        if not best then return false, "No open room matching " .. count .. " players was detected" end
+
         local position = getPosition(best)
         local moved, detail = Runtime:MoveTo(position, self, {
-            StopDistance = 7,
+            StopDistance = 6,
             MaxWaypoints = 4,
             MovementPriority = self.Config.MovementPriority or 60,
             HoldLeaseAtTarget = 0.75,
+            RepathInterval = 0.65,
         })
         local _, _, _, currentRoot = getCharacter()
         if self.Config.Interact and currentRoot and (currentRoot.Position - position).Magnitude <= 10 then
             Runtime:Interact(best, self, {Priority = self.Config.ActionPriority or 60, Duration = self.Config.ActionCooldown or 0.6})
         end
-        return moved, moved and ("Heading to a room for " .. count .. " player(s)") or detail
+        local occupancyText = bestOccupancy ~= nil and ("; " .. bestOccupancy .. "/" .. count .. " inside") or ""
+        return moved, moved and ("Heading to a " .. count .. "-player room" .. occupancyText) or detail
     end)
 end
 
@@ -1695,6 +2531,9 @@ local function startDisguise(feature)
     feature:_Loop(feature.Config.Interval or 0.5, function(self)
         local player, character, _, root = getCharacter()
         if not player or not character or not root then return false, "Waiting for the local character" end
+
+        local detective = Runtime:GetDetectiveState()
+        local detectionHigh = detective.Detection and detective.Detection >= (self.Config.DetectionThreshold or 0.58)
         local guardNearby = false
         for _, other in ipairs(Players:GetPlayers()) do
             if other ~= player and other.Character then
@@ -1708,181 +2547,42 @@ local function startDisguise(feature)
                 end
             end
         end
-        if not guardNearby then return false, "No nearby guard detected" end
-        local tool = Runtime:FindTool(self.Config.ToolTokens or {"disguise", "uniform", "mask"})
-        if not tool then return false, "Disguise tool not found" end
-        Runtime:EquipTool(tool)
-        local claimed = Runtime:ClaimAction(self, "ToolAction", self.Config.ActionPriority or 55, 0.6)
-        if not claimed then return false, "Another tool action is active" end
-        pcall(tool.Activate, tool)
-        return true, "Disguise equipped because a guard is nearby"
-    end)
-end
 
+        if not guardNearby and not detectionHigh then
+            return false, detective.Detection
+                and ("Detection meter is " .. math.floor(detective.Detection * 100 + 0.5) .. "%")
+                or "No nearby guard or high detection warning"
+        end
 
-local function startToolActivate(feature)
-    feature:_Loop(feature.Config.Interval or 0.45, function(self)
-        local ok, detail = Runtime:ActivateTool(self.Config.ToolTokens or {}, self, {
-            Resource = "ToolAction",
-            Priority = self.Config.ActionPriority or 45,
-            Duration = math.max(self.Config.Interval or 0.45, 0.3),
-        })
-        return ok, ok and "Activated the matching tool" or detail
-    end)
-end
-
-local function startGuiHighlight(feature)
-    feature.GuiStrokes = {}
-    feature:_Loop(feature.Config.Interval or 0.7, function(self)
-        local player = getLocalPlayer()
-        local gui = player and player:FindFirstChildOfClass("PlayerGui")
-        if not gui then return false, "Waiting for PlayerGui" end
-        local count = 0
-        forEachIndexed("Gui", {"GuiObject"}, function(instance)
-            if isVisibleGui(instance)
-                and containsAny(instanceText(instance), self.Config.TargetTokens or {"shape", "cookie", "trace", "path"})
-            then
-                local stroke = self.GuiStrokes[instance]
-                if not stroke or not stroke.Parent then
-                    stroke = Instance.new("UIStroke")
-                    stroke.Name = "SquidNoMo_" .. self.Id
-                    stroke.Color = self.Config.Color or Color3.fromRGB(42, 255, 126)
-                    stroke.Thickness = self.Config.Thickness or 3
-                    stroke.Transparency = self.Config.Transparency or 0.05
-                    stroke.Parent = instance
-                    self.GuiStrokes[instance] = stroke
-                    self:_TrackInstance(stroke)
-                end
-                count = count + 1
-                if count >= (self.Config.MaxTargets or 12) then return false end
+        local tool = Runtime:FindTool(self.Config.ToolTokens or {})
+        if tool then
+            local ok = Runtime:EquipTool(tool)
+            if ok then
+                pcall(tool.Activate, tool)
+                return true, detectionHigh and "Changed disguise before detection became critical" or "Equipped disguise near a guard"
             end
-            return true
-        end)
-        return count > 0, count > 0 and ("Highlighted " .. count .. " interface element(s)") or self.Config.WaitingMessage
-    end)
-end
-
-local function startStateHUD(feature)
-    local parent
-    if type(gethui) == "function" then
-        local ok, result = pcall(gethui)
-        if ok then parent = result end
-    end
-    parent = parent or game:GetService("CoreGui")
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "SquidNoMo_StateHUD_" .. feature.Id
-    gui.ResetOnSpawn = false
-    gui.IgnoreGuiInset = true
-    gui.DisplayOrder = 999990
-    gui.Parent = parent
-    feature:_TrackInstance(gui)
-
-    local label = Instance.new("TextLabel")
-    label.AnchorPoint = Vector2.new(0.5, 0)
-    label.Position = UDim2.new(0.5, 0, 0, 78)
-    label.Size = UDim2.fromOffset(260, 44)
-    label.BackgroundColor3 = Color3.fromRGB(14, 18, 24)
-    label.BackgroundTransparency = 0.12
-    label.BorderSizePixel = 0
-    label.Font = Enum.Font.GothamBold
-    label.TextColor3 = Color3.fromRGB(235, 240, 245)
-    label.TextSize = 18
-    label.Text = "WAITING FOR GAME STATE"
-    label.Parent = gui
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = label
-
-    feature:_Loop(feature.Config.Interval or 0.12, function(self)
-        local value = Runtime:GetRLGLState()
-        if not value then
-            label.Text = "WAITING FOR CLEAR LIGHT SIGNAL"
-            label.TextColor3 = Color3.fromRGB(210, 215, 220)
-            return false, "Waiting for an unambiguous red/green signal"
-        end
-        label.Text = string.upper(value) .. " LIGHT"
-        label.TextColor3 = value == "Red"
-            and Color3.fromRGB(255, 94, 94)
-            or Color3.fromRGB(65, 255, 126)
-        return true, "Displaying verified " .. string.lower(value) .. " light state"
-    end)
-end
-
-local function startAntiStuck(feature)
-    feature.LastPosition = nil
-    feature.StuckSince = os.clock()
-    feature:_Loop(feature.Config.Interval or 0.35, function(self)
-        local _, _, humanoid, root = getCharacter()
-        if not humanoid or not root then return false, "Waiting for the local character" end
-        local state = Runtime:GetRLGLState()
-        if state ~= "Green" then
-            Runtime:StopMovement(self)
-            self.LastPosition = root.Position
-            self.StuckSince = os.clock()
-            return false, state == "Red" and "Paused during red light" or "Waiting for a verified green light"
         end
 
-        local moving = humanoid.MoveDirection.Magnitude > 0.05
-        if not self.LastPosition then
-            self.LastPosition = root.Position
-            self.StuckSince = os.clock()
-            return true, "Monitoring green-light movement"
-        end
-        local moved = (root.Position - self.LastPosition).Magnitude
-        if moving and moved < (self.Config.MinimumMovement or 0.25) then
-            if os.clock() - self.StuckSince >= (self.Config.StuckSeconds or 2.2) then
-                local claimed = Runtime:ClaimMovement(self, 80, 0.35)
-                if claimed then
-                    humanoid.Jump = true
-                    pcall(humanoid.MoveTo, humanoid, root.Position + root.CFrame.LookVector * (self.Config.RecoveryDistance or 5))
-                end
-                self.StuckSince = os.clock()
-                self.LastPosition = root.Position
-                return true, claimed and "Applied one green-light recovery step" or "Auto Move currently owns movement"
+        local station, distance = Runtime:FindNearest({
+            Scope = "Workspace",
+            TargetTokens = self.Config.ToolTokens or {"disguise", "uniform", "mask", "guard outfit"},
+            TargetClasses = {"ProximityPrompt", "ClickDetector", "Model", "BasePart", "Tool"},
+            MaxTargets = 80,
+        }, root.Position)
+        if station then
+            if distance > 11 then
+                local moved, detail = Runtime:MoveTo(getPosition(station), self, {
+                    StopDistance = 9,
+                    MovementPriority = self.Config.MovementPriority or 82,
+                    MaxWaypoints = 4,
+                })
+                return moved, moved and "Moving to a disguise station" or detail
             end
-        else
-            self.StuckSince = os.clock()
-            self.LastPosition = root.Position
+            local ok, detail = Runtime:Interact(station, self, {Priority = 82, Duration = 0.7})
+            return ok, ok and "Activated a disguise station" or detail
         end
-        return true, "Monitoring green-light movement"
+        return false, "Detection risk found, but no disguise tool or station is available"
     end)
-end
-
-local function startJumpBoost(feature)
-    local _, _, humanoid = getCharacter()
-    if not humanoid then
-        feature:_SetStatus("Waiting", "Waiting for the local character")
-    end
-    feature.OriginalJumpPower = humanoid and humanoid.JumpPower or nil
-    feature.OriginalJumpHeight = humanoid and humanoid.JumpHeight or nil
-    feature.Restore = function(self)
-        local _, _, current = getCharacter()
-        if current then
-            if self.OriginalJumpPower then current.JumpPower = self.OriginalJumpPower end
-            if self.OriginalJumpHeight then current.JumpHeight = self.OriginalJumpHeight end
-        end
-    end
-    feature:_Loop(feature.Config.Interval or 0.5, function(self)
-        local _, _, current = getCharacter()
-        if not current then return false, "Waiting for the local character" end
-        if current.UseJumpPower then
-            local wanted = self.Config.JumpPower or 72
-            if math.abs(current.JumpPower - wanted) > 0.01 then current.JumpPower = wanted end
-        else
-            local wanted = self.Config.JumpHeight or 12
-            if math.abs(current.JumpHeight - wanted) > 0.01 then current.JumpHeight = wanted end
-        end
-        return true, "Jump strength increased"
-    end)
-end
-
-
-local function getGuiParent()
-    if type(gethui) == "function" then
-        local ok, result = pcall(gethui)
-        if ok and result then return result end
-    end
-    return game:GetService("CoreGui")
 end
 
 local function startRadar(feature)
@@ -2026,46 +2726,71 @@ local function startRadar(feature)
 end
 
 local function startCourseAssist(feature)
-    feature:_Loop(feature.Config.Interval or 0.18, function(self)
-        local _, _, humanoid, root = getCharacter()
-        if not humanoid or not root then return false, "Waiting for the local character" end
+    feature.LastJumpAt = 0
+    feature:_Loop(feature.Config.Interval or 0.10, function(self)
+        local _, character, humanoid, root = getCharacter()
+        if not humanoid or not root or not character then return false, "Waiting for the local character" end
         local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority or 65)
         if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
 
-        local rope, ropeDistance = Runtime:FindNearest({
-            Scope = "Workspace",
-            TargetTokens = self.Config.ObstacleTokens or {"rope", "swing", "bar"},
-            TargetClasses = {"BasePart", "Model"},
-            ReturnAdornee = true,
-            MaxTargets = 80,
-        }, root.Position)
-
-        if rope and ropeDistance <= (self.Config.JumpDistance or 16) then
-            humanoid.Jump = true
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-
         local finish = Runtime:FindNearest({
             Scope = "Workspace",
-            TargetTokens = self.Config.TargetTokens or {"finish", "end", "goal", "exit"},
+            TargetTokens = self.Config.TargetTokens or {"finish", "end", "goal", "exit", "safe zone"},
             ExcludeTokens = {"start", "spawn"},
             TargetClasses = {"BasePart", "Model", "ProximityPrompt"},
             ReturnAdornee = true,
-            MaxTargets = 100,
+            MaxTargets = 120,
+            CacheTTL = 0.65,
         }, root.Position)
+        local finishPosition = getPosition(finish)
+        if not finishPosition then return false, self.Config.WaitingMessage or "Waiting for the Jump Rope finish area" end
 
-        local position = getPosition(finish)
-        if not position then
-            return rope ~= nil, rope and "Jumping for the detected rope" or self.Config.WaitingMessage
+        local rope = Runtime:ObserveRope(self, root, self.Config.ObstacleTokens or {"rope", "swing", "bar", "spinner", "sweep"})
+        local grounded = humanoid.FloorMaterial ~= Enum.Material.Air
+        if rope then
+            local dangerDistance = self.Config.JumpDistance or 17
+            if grounded and os.clock() - (self.LastJumpAt or 0) >= 0.62
+                and rope.Distance <= dangerDistance
+                and math.abs(rope.Vertical) <= 10
+                and (rope.Approaching or rope.Distance <= 5)
+            then
+                Runtime:StopMovement(self)
+                humanoid.Jump = true
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                self.LastJumpAt = os.clock()
+                return true, string.format("Jumping the approaching rope (%.1f studs)", rope.Distance)
+            elseif rope.Approaching and rope.Distance <= dangerDistance * 1.18 then
+                Runtime:StopMovement(self)
+                return true, "Holding position until the approaching rope can be jumped"
+            end
         end
 
-        local moved, detail = Runtime:MoveTo(position, self, {
+        -- The visual course has a gap in the bridge. Check a short distance ahead
+        -- toward the finish and jump instead of walking into empty space.
+        local flatDirection = Vector3.new(finishPosition.X - root.Position.X, 0, finishPosition.Z - root.Position.Z)
+        if grounded and flatDirection.Magnitude > 0.1 and os.clock() - (self.LastJumpAt or 0) >= 0.62 then
+            local ahead = root.Position + flatDirection.Unit * 5
+            local params = RaycastParams.new()
+            params.FilterType = Enum.RaycastFilterType.Exclude
+            params.FilterDescendantsInstances = {character}
+            local groundAhead = Workspace:Raycast(ahead + Vector3.new(0, 2, 0), Vector3.new(0, -9, 0), params)
+            if not groundAhead then
+                humanoid.Jump = true
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                self.LastJumpAt = os.clock()
+                return true, "Jumping the bridge gap"
+            end
+        end
+
+        local moved, detail = Runtime:MoveTo(finishPosition, self, {
+            Direct = true,
             StopDistance = self.Config.StopDistance or 7,
-            MaxWaypoints = self.Config.MaxWaypoints or 3,
-            WaypointTimeout = self.Config.WaypointTimeout or 0.8,
             MovementPriority = self.Config.MovementPriority or 65,
+            CommandInterval = 0.38,
+            LeaseDuration = 0.48,
+            TargetChangeDistance = 4,
         })
-        return moved, moved and "Advancing toward the course finish" or detail
+        return moved, moved and "Advancing during a safe rope window" or detail
     end)
 end
 
@@ -2073,12 +2798,46 @@ local function startPositionKeeper(feature)
     local _, _, _, initialRoot = getCharacter()
     feature.AnchorPosition = initialRoot and initialRoot.Position or nil
     feature:_Loop(feature.Config.Interval or 0.25, function(self)
-        local _, _, humanoid, root = getCharacter()
-        if not humanoid or not root then return false, "Waiting for the local character" end
+        local _, _, _, root = getCharacter()
+        if not root then return false, "Waiting for the local character" end
         if not self.AnchorPosition then
             self.AnchorPosition = root.Position
-            return true, "Saved the preferred position"
+            return true, "Saved the preferred lane"
         end
+
+        if string.find(lower(self.Id), "mapped.games.jump_rope.", 1, true) then
+            local finish = Runtime:FindNearest({
+                Scope = "Workspace",
+                TargetTokens = {"finish", "end", "goal", "exit", "safe zone"},
+                ExcludeTokens = {"start", "spawn"},
+                TargetClasses = {"BasePart", "Model"},
+                ReturnAdornee = true,
+                MaxTargets = 100,
+                CacheTTL = 1.0,
+            }, root.Position)
+            local finishPosition = getPosition(finish)
+            if not finishPosition then return false, "Waiting for the Jump Rope finish direction" end
+            local direction = Vector3.new(finishPosition.X - self.AnchorPosition.X, 0, finishPosition.Z - self.AnchorPosition.Z)
+            if direction.Magnitude < 1 then return false, "Finish direction is not ready" end
+            direction = direction.Unit
+            local displacement = Vector3.new(root.Position.X - self.AnchorPosition.X, 0, root.Position.Z - self.AnchorPosition.Z)
+            local forwardDistance = displacement:Dot(direction)
+            local desired = self.AnchorPosition + direction * forwardDistance
+            desired = Vector3.new(desired.X, root.Position.Y, desired.Z)
+            local lateralError = (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(desired.X, 0, desired.Z)).Magnitude
+            if lateralError > (self.Config.MaxDistance or 7) then
+                local moved, detail = Runtime:MoveTo(desired, self, {
+                    Direct = true,
+                    StopDistance = 1.5,
+                    MovementPriority = self.Config.MovementPriority or 25,
+                    CommandInterval = 0.45,
+                    LeaseDuration = 0.5,
+                })
+                return moved, moved and "Recentering in the Jump Rope lane" or detail
+            end
+            return true, string.format("Centered in lane (%.1f studs lateral)", lateralError)
+        end
+
         local distance = (root.Position - self.AnchorPosition).Magnitude
         if distance > (self.Config.MaxDistance or 8) then
             local moved, detail = Runtime:MoveTo(self.AnchorPosition, self, {
@@ -2093,31 +2852,47 @@ local function startPositionKeeper(feature)
     end)
 end
 
+local ObservedSafeGlass = setmetatable({}, {__mode = "k"})
+
+local function updateObservedGlass()
+    for _, player in ipairs(Players:GetPlayers()) do
+        local character = player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        if humanoid and root and humanoid.Health > 0 and humanoid.FloorMaterial ~= Enum.Material.Air then
+            local params = RaycastParams.new()
+            params.FilterType = Enum.RaycastFilterType.Exclude
+            params.FilterDescendantsInstances = {character}
+            local hit = Workspace:Raycast(root.Position, Vector3.new(0, -8, 0), params)
+            local part = hit and hit.Instance
+            if part and part:IsA("BasePart") and containsAny(instanceText(part), {"glass", "panel", "tile", "bridge"}) then
+                ObservedSafeGlass[part] = os.clock()
+            end
+        end
+    end
+end
+
 local function glassSafety(part)
     for _, attributeName in ipairs({"Safe", "IsSafe", "Correct", "Real", "CanStand"}) do
         local ok, value = pcall(part.GetAttribute, part, attributeName)
-        if ok and type(value) == "boolean" then
-            return value
-        end
+        if ok and type(value) == "boolean" then return value end
     end
     local parent = part.Parent
     if parent then
         for _, valueName in ipairs({"Safe", "IsSafe", "Correct", "Real"}) do
             local value = parent:FindFirstChild(valueName)
-            if value and value:IsA("BoolValue") then
-                return value.Value
-            end
+            if value and value:IsA("BoolValue") then return value.Value end
         end
     end
-    if part.CanCollide == false then return false end
-    if part.Transparency > 0.7 then return false end
+    if ObservedSafeGlass[part] then return true end
+    if part.CanCollide == false or part.Transparency > 0.85 then return false end
     return nil
 end
 
 local function glassParts()
     local now = os.clock()
     local cache = Runtime._GlassPartsCache
-    if cache and now - cache.Time < 2.0 then
+    if cache and now - cache.Time < 1.0 then
         local alive = {}
         for _, part in ipairs(cache.Results) do
             if part and part.Parent then table.insert(alive, part) end
@@ -2129,7 +2904,7 @@ local function glassParts()
         TargetTokens = {"glass", "panel", "tile", "bridge"},
         TargetClasses = {"BasePart"},
         MaxTargets = 240,
-        CacheTTL = 2.0,
+        CacheTTL = 1.0,
     })
     Runtime._GlassPartsCache = {Time = now, Results = results}
     return results
@@ -2141,29 +2916,26 @@ local function startSafeTileWalk(feature)
         if not root then return false, "Waiting for the local character" end
         local movementAvailable, movementOwner = Runtime:CanUseMovement(self, self.Config.MovementPriority or 70)
         if not movementAvailable then return false, "Movement is currently controlled by " .. tostring(movementOwner) end
+        updateObservedGlass()
         local best, bestDistance = nil, math.huge
-        local fallback, fallbackDistance = nil, math.huge
         for _, part in ipairs(glassParts()) do
             local distance = (part.Position - root.Position).Magnitude
-            if distance > (self.Config.MinimumDistance or 2) and distance < (self.Config.MaximumDistance or 55) then
-                local safe = glassSafety(part)
-                if safe == true and distance < bestDistance then
-                    best, bestDistance = part, distance
-                elseif safe == nil and distance < fallbackDistance then
-                    fallback, fallbackDistance = part, distance
-                end
+            if distance > (self.Config.MinimumDistance or 2) and distance < (self.Config.MaximumDistance or 55)
+                and glassSafety(part) == true and distance < bestDistance
+            then
+                best, bestDistance = part, distance
             end
         end
-        local target = best or fallback
-        if not target then return false, self.Config.WaitingMessage or "Waiting for bridge glass panels" end
-        local moved, detail = Runtime:MoveTo(target.Position + Vector3.new(0, 2.5, 0), self, {
+        if not best then
+            return false, "Waiting for a panel verified by attributes or another standing player"
+        end
+        local moved, detail = Runtime:MoveTo(best.Position + Vector3.new(0, 2.5, 0), self, {
             StopDistance = 4,
             MaxWaypoints = 2,
             WaypointTimeout = 0.75,
             MovementPriority = self.Config.MovementPriority or 70,
         })
-        local confidence = best and "verified safe" or "best available"
-        return moved, moved and ("Walking to " .. confidence .. " panel") or detail
+        return moved, moved and "Walking to an observed-safe panel" or detail
     end)
 end
 
@@ -2211,8 +2983,18 @@ local function startTaskChain(feature)
         local heldTool = Runtime:FindTool(self.Config.RequireToolTokens or {})
         local targetConfig
         local stageName
+        local id = lower(self.Id)
+        local forceDestination = false
 
-        if self.Config.RequireToolTokens and #self.Config.RequireToolTokens > 0 and not heldTool then
+        if string.find(id, "mapped.detective.boat_operations.boatdepositor", 1, true) then
+            local detective = Runtime:GetDetectiveState()
+            forceDestination = detective.Stage == "Deposit Evidence" or (detective.Evidence and detective.Evidence > 0)
+            if not forceDestination and not heldTool then
+                return false, "No carried evidence detected yet"
+            end
+        end
+
+        if not forceDestination and self.Config.RequireToolTokens and #self.Config.RequireToolTokens > 0 and not heldTool then
             targetConfig = {
                 TargetTokens = self.Config.SourceTokens,
                 TargetNames = self.Config.SourceNames,
@@ -2229,25 +3011,37 @@ local function startTaskChain(feature)
             if heldTool then Runtime:EquipTool(heldTool) end
         end
 
-        local target, distance = Runtime:FindNearest({
+        local candidates = Runtime:FindTargets({
             Scope = self.Config.Scope or "Workspace",
             TargetTokens = targetConfig.TargetTokens,
             TargetNames = targetConfig.TargetNames,
             ExcludeTokens = targetConfig.ExcludeTokens,
             TargetClasses = {"Model", "BasePart", "ProximityPrompt", "ClickDetector"},
-            MaxTargets = 160,
-        }, root.Position)
-
-        if not target then
-            return false, "Waiting for " .. stageName
+            MaxTargets = 180,
+            CacheTTL = 0.30,
+        })
+        local target, distance, bestScore = nil, math.huge, -math.huge
+        for _, candidate in ipairs(candidates) do
+            local position = getPosition(candidate)
+            if position then
+                local d = (position - root.Position).Magnitude
+                local score = -d
+                local prompt = candidate:IsA("ProximityPrompt") and candidate or candidate:FindFirstChildWhichIsA("ProximityPrompt", true)
+                local detector = candidate:IsA("ClickDetector") and candidate or candidate:FindFirstChildWhichIsA("ClickDetector", true)
+                if prompt and prompt.Enabled then score = score + 35 end
+                if detector then score = score + 20 end
+                if score > bestScore then target, distance, bestScore = candidate, d, score end
+            end
         end
 
+        if not target then return false, "Waiting for " .. stageName end
         if distance > (self.Config.InteractDistance or 12) then
             local moved, detail = Runtime:MoveTo(getPosition(target), self, {
                 StopDistance = self.Config.InteractDistance or 10,
                 MaxWaypoints = 4,
                 WaypointTimeout = 1.0,
                 MovementPriority = self.Config.MovementPriority or 60,
+                RepathInterval = 0.75,
             })
             return moved, moved and ("Walking to " .. stageName) or detail
         end
@@ -2331,63 +3125,111 @@ local function startRPSAutoPlay(feature)
 end
 
 local GameProfiles = {
-    ["Red Light, Green Light"] = {"red light", "green light", "younghee", "mugunghwa", "rlgl"},
-    ["Dalgona"] = {"dalgona", "honeycomb", "trace shape"},
-    ["Pentathlon"] = {"pentathlon", "ddakji", "gonggi", "jegichagi", "paengi", "biseokchigi"},
-    ["Hide & Seek"] = {"hide and seek", "hide & seek", "key room"},
-    ["Jump Rope"] = {"jump rope", "jumprope", "swinging rope"},
-    ["Marbles"] = {"marbles", "marble game", "ring shooter"},
-    ["Mingle"] = {"mingle", "players per room", "find a room"},
-    ["Fight Nights"] = {"night brawl", "fight night", "lights out"},
-    ["Glass Bridge"] = {"glass bridge", "glass stepping", "bridge panels"},
-    ["Rebellion"] = {"rebellion", "armory", "uprising"},
-    ["Rock, Paper, Scissors Minus One"] = {"rock paper scissors", "minus one", "rps"},
-    ["Sky Squid"] = {"sky squid", "sky game", "floating platform"},
-    ["Squid Game"] = {"squid game court", "squid court", "final squid game"},
-    ["Tug of War"] = {"tug of war", "tugofwar", "pull meter"},
-    ["Escape"] = {"escape island", "escape route", "island escape", "extraction boat"},
+    {Name = "Red Light, Green Light", VisualTokens = {"red light", "green light", "younghee", "young hee", "mugunghwa"}, WorldTokens = {"rlgl", "younghee", "finish line"}},
+    {Name = "Dalgona", VisualTokens = {"honeycomb", "dalgona", "cut the shape", "trace the shape", "carve"}, WorldTokens = {"dalgona", "honeycomb", "cookie"}},
+    {Name = "Pentathlon", VisualTokens = {"pentathlon", "ddakji", "gonggi", "jegichagi", "paengi", "biseokchigi", "spinning top", "five legged"}, WorldTokens = {"pentathlon", "ddakji", "gonggi", "jegi", "biseok"}},
+    {Name = "Hide & Seek", VisualTokens = {"hide & seek", "hide and seek", "hider", "seeker", "keys & knives", "find a key", "find the exit"}, WorldTokens = {"hide seek", "key room", "maze exit"}},
+    {Name = "Jump Rope", VisualTokens = {"jump rope", "reach the other side", "make it to the other side", "cross the bridge", "swinging rope"}, WorldTokens = {"jump rope", "jumprope", "swinging bar"}},
+    {Name = "Marbles", VisualTokens = {"marbles", "marble game", "throw the marble", "ring shooter"}, WorldTokens = {"marble", "marbles"}},
+    {Name = "Mingle", VisualTokens = {"mingle", "find a room", "enter a room", "room with", "players per room", "group of"}, WorldTokens = {"mingle", "carousel room"}},
+    {Name = "Fight Nights", VisualTokens = {"night brawl", "fight night", "lights out", "final dinner", "dinner fight"}, WorldTokens = {"night brawl", "lights out", "dinner arena"}},
+    {Name = "Glass Bridge", VisualTokens = {"glass bridge", "choose a glass", "cross the glass", "glass stepping"}, WorldTokens = {"glass bridge", "glass panels", "bridge glass"}},
+    {Name = "Rebellion", VisualTokens = {"rebellion", "uprising", "take the armory", "fight the guards"}, WorldTokens = {"rebellion", "armory", "uprising"}},
+    {Name = "Rock, Paper, Scissors Minus One", VisualTokens = {"rock, paper, scissors", "rock paper scissors", "minus one", "remove one"}, WorldTokens = {"rps", "minus one"}},
+    {Name = "Sky Squid", VisualTokens = {"sky squid", "push a player off", "floating platform", "platform round"}, WorldTokens = {"sky squid", "floating platform"}},
+    {Name = "Squid Game", VisualTokens = {"squid game", "attack the goal", "defend the goal", "squid court"}, WorldTokens = {"squid court", "squid game court"}},
+    {Name = "Tug of War", VisualTokens = {"tug of war", "pull", "pull meter", "keep the marker"}, WorldTokens = {"tugofwar", "tug of war", "rope team"}},
+    {Name = "Escape", VisualTokens = {"island escape", "escape the island", "extraction boat", "escape route"}, WorldTokens = {"escape island", "extraction boat"}},
 }
+
+local ExpectedGameFragments = {
+    {"mapped.games.red_light_green_light.", "Red Light, Green Light"},
+    {"mapped.games.dalgona.", "Dalgona"},
+    {"mapped.games.pentathlon.", "Pentathlon"},
+    {"mapped.games.hide_seek.", "Hide & Seek"},
+    {"mapped.games.jump_rope.", "Jump Rope"},
+    {"mapped.games.marbles.", "Marbles"},
+    {"mapped.games.mingle.", "Mingle"},
+    {"mapped.games.fight_nights.", "Fight Nights"},
+    {"mapped.games.glass_bridge.", "Glass Bridge"},
+    {"mapped.games.rebellion.", "Rebellion"},
+    {"mapped.games.rock_paper_scissors_minus_one.", "Rock, Paper, Scissors Minus One"},
+    {"mapped.games.sky_squid.", "Sky Squid"},
+    {"mapped.games.squid_game.", "Squid Game"},
+    {"mapped.games.tug_of_war.", "Tug of War"},
+    {"mapped.games.escape.", "Escape"},
+}
+
+local PentathlonStageFragments = {
+    {".ddakji", "Ddakji"},
+    {".gonggi", "Gonggi"},
+    {".jegichagi", "Jegichagi"},
+    {".paengi", "Paengi"},
+    {".biseokchigi", "Biseokchigi"},
+}
+
+function Runtime:GetExpectedGame(feature)
+    local config = feature and feature.Config or feature or {}
+    if config.ExpectedGame then return config.ExpectedGame end
+    local id = lower(feature and feature.Id or config.Id)
+    for _, pair in ipairs(ExpectedGameFragments) do
+        if string.find(id, pair[1], 1, true) then return pair[2] end
+    end
+    return nil
+end
+
+function Runtime:GetExpectedPentathlonStage(feature)
+    local id = lower(feature and feature.Id or "")
+    for _, pair in ipairs(PentathlonStageFragments) do
+        if string.find(id, pair[1], 1, true) then return pair[2] end
+    end
+    return nil
+end
 
 function Runtime:DetectGameCategory()
     local now = os.clock()
-    if self._GameDetectionCache and now - self._GameDetectionCache.Time < 1.5 then
+    if self._GameDetectionCache and now - self._GameDetectionCache.Time < 0.35 then
         return self._GameDetectionCache.Name, self._GameDetectionCache.Score
     end
 
     local evidence = {}
-    local function addEvidence(value, weight)
-        local text = lower(value)
-        if text ~= "" then
-            table.insert(evidence, {Text = text, Weight = tonumber(weight) or 1})
+    local function addEvidence(value, weight, source)
+        local valueText = lower(value)
+        if valueText ~= "" then
+            table.insert(evidence, {Text = valueText, Weight = tonumber(weight) or 1, Source = source})
         end
     end
 
-    addEvidence(Workspace.Name, 1)
-    addEvidence(ReplicatedStorage.Name, 1)
+    -- The visible HUD is the strongest evidence because the experience can keep
+    -- several maps in Workspace simultaneously. SquidNoMo's own GUI is excluded
+    -- by GetVisualSnapshot so category tabs cannot contaminate detection.
+    for _, item in ipairs(self:GetVisualSnapshot().Items) do
+        if item.Text ~= "" then
+            local weight = item.TextSize >= 28 and 11 or (item.TextSize >= 18 and 9 or 7)
+            addEvidence(item.Text .. " " .. item.Context, weight, "HUD")
+        end
+    end
 
     for _, root in ipairs({Workspace, ReplicatedStorage}) do
         for attributeName, attributeValue in pairs(root:GetAttributes()) do
             if containsAny(attributeName, {"game", "round", "mode", "phase", "state", "current"}) then
-                addEvidence(attributeName .. " " .. tostring(attributeValue), 7)
+                addEvidence(attributeName .. " " .. tostring(attributeValue), 8, "root attribute")
             end
         end
-
         local scanned = 0
         local scope = root == Workspace and "Workspace" or "ReplicatedStorage"
         forEachIndexed(scope, {"Folder", "Model", "ValueBase"}, function(instance)
-            if scanned >= 240 then return false end
+            if scanned >= 220 then return false end
             if instance:IsA("ValueBase") then
                 local context = instanceText(instance)
-                local weight = containsAny(context, {"current game", "current round", "game mode", "round name", "phase", "round state"}) and 7 or 2
-                addEvidence(context .. " " .. tostring(instance.Value), weight)
-            else
-                -- Static map folders are weak evidence because many experiences keep
-                -- every minigame map loaded at the same time.
-                addEvidence(instanceText(instance), 1)
+                local weight = containsAny(context, {"current game", "current round", "game mode", "round name", "phase", "round state"}) and 8 or 2
+                addEvidence(context .. " " .. tostring(instance.Value), weight, "value")
+            elseif containsAny(instanceText(instance), {"active", "current", "round", "game"}) then
+                addEvidence(instanceText(instance), 2, "world")
             end
             for attributeName, attributeValue in pairs(instance:GetAttributes()) do
                 if containsAny(attributeName, {"game", "round", "mode", "phase", "state", "current"}) then
-                    addEvidence(attributeName .. " " .. tostring(attributeValue), 6)
+                    addEvidence(attributeName .. " " .. tostring(attributeValue), 7, "object attribute")
                 end
             end
             scanned = scanned + 1
@@ -2395,41 +3237,29 @@ function Runtime:DetectGameCategory()
         end)
     end
 
-    local player = getLocalPlayer()
-    local gui = player and player:FindFirstChildOfClass("PlayerGui")
-    if gui then
-        local added = 0
-        forEachIndexed("Gui", {"TextLabel", "TextButton"}, function(instance)
-            if added >= 100 then return false end
-            if isVisibleGui(instance) then
-                local text = lower(instance.Text)
-                if text ~= "" then
-                    addEvidence(text .. " " .. instanceText(instance), 5)
-                    added = added + 1
-                end
-            end
-            return true
-        end)
-    end
-
     local ranked = {}
-    for name, tokens in pairs(GameProfiles) do
+    for _, profile in ipairs(GameProfiles) do
         local score, strong, hits = 0, false, 0
-        for _, token in ipairs(tokens) do
-            local best = 0
-            local specificity = string.find(token, " ", 1, true) and 2 or 1
-            for _, item in ipairs(evidence) do
-                if string.find(item.Text, token, 1, true) then
-                    best = math.max(best, item.Weight * specificity)
+        local function scoreTokens(tokens, visual)
+            for _, token in ipairs(tokens) do
+                local best = 0
+                local specificity = string.find(token, " ", 1, true) and 1.6 or 1.0
+                for _, item in ipairs(evidence) do
+                    if string.find(item.Text, token, 1, true) then
+                        local sourceMultiplier = visual and item.Source == "HUD" and 1.4 or 1.0
+                        best = math.max(best, item.Weight * specificity * sourceMultiplier)
+                    end
                 end
-            end
-            if best > 0 then
-                score = score + best
-                hits = hits + 1
-                if best >= 5 then strong = true end
+                if best > 0 then
+                    score = score + best
+                    hits = hits + 1
+                    if best >= 8 then strong = true end
+                end
             end
         end
-        table.insert(ranked, {Name = name, Score = score, Strong = strong, Hits = hits})
+        scoreTokens(profile.VisualTokens, true)
+        scoreTokens(profile.WorldTokens, false)
+        table.insert(ranked, {Name = profile.Name, Score = score, Strong = strong, Hits = hits})
     end
     table.sort(ranked, function(a, b)
         if a.Score == b.Score then return a.Name < b.Name end
@@ -2437,20 +3267,128 @@ function Runtime:DetectGameCategory()
     end)
 
     local best, second = ranked[1], ranked[2]
-    local bestName, bestScore = nil, best and best.Score or 0
-    if best and bestScore >= 5 and (best.Strong or best.Hits >= 3)
-        and (not second or bestScore - second.Score >= 2)
+    local name, score = nil, best and best.Score or 0
+    if best and score >= 8 and best.Strong
+        and (not second or score - second.Score >= 3)
     then
-        bestName = best.Name
+        name = best.Name
     end
 
     self._GameDetectionCache = {
         Time = now,
-        Name = bestName,
-        Score = bestScore,
+        Name = name,
+        Score = score,
         RunnerUp = second and second.Name or nil,
     }
-    return bestName, bestScore
+    return name, score
+end
+
+function Runtime:FeatureContextAllowed(feature)
+    if not feature or not feature.Config then return true end
+    if feature.Config.IgnoreVisualContext == true then return true end
+
+    local expectedGame = self:GetExpectedGame(feature)
+    if expectedGame then
+        local detectedGame = self:DetectGameCategory()
+        local phase = self:GetRoundPhase()
+        if phase == "Lobby" then
+            return false, "Paused: waiting for the round to begin"
+        elseif phase == "Ended" then
+            return false, "Paused: the current round has ended"
+        elseif detectedGame and detectedGame ~= expectedGame then
+            return false, "Paused: " .. tostring(detectedGame) .. " is active; this feature is for " .. tostring(expectedGame)
+        end
+        if expectedGame == "Pentathlon" then
+            local expectedStage = self:GetExpectedPentathlonStage(feature)
+            local currentStage = self:GetPentathlonStage()
+            if expectedStage and currentStage and expectedStage ~= currentStage then
+                return false, "Paused: Pentathlon is currently on " .. currentStage
+            end
+        elseif expectedGame == "Mingle" and feature.Config.Kind == "RoomAssist" then
+            local minglePhase = self:GetMinglePhase()
+            if minglePhase == "Carousel" then
+                return false, "Paused: waiting for the room number"
+            elseif minglePhase == "Locked" then
+                return false, "Paused: the selected Mingle room is already locked"
+            end
+        end
+    end
+
+    local id = lower(feature.Id)
+    if string.find(id, "mapped.games.hide_seek.", 1, true) then
+        local hideSeekRole = self:GetHideSeekRole()
+        local hiderOnly = string.find(id, ".autograbkey", 1, true)
+            or string.find(id, ".autopathtoexit", 1, true)
+            or string.find(id, ".exitesp", 1, true)
+            or string.find(id, ".huntertracker", 1, true)
+        local seekerOnly = string.find(id, ".autograbknife", 1, true)
+            or string.find(id, ".autoswing", 1, true)
+        if hideSeekRole == "Hider" and seekerOnly then
+            return false, "Paused: this Hide & Seek feature is for Seekers"
+        elseif hideSeekRole == "Seeker" and hiderOnly then
+            return false, "Paused: this Hide & Seek feature is for Hiders"
+        end
+    end
+    local expectedRole
+    if string.find(id, "mapped.guards.", 1, true) then expectedRole = "Guard"
+    elseif string.find(id, "mapped.detective.", 1, true) then expectedRole = "Detective" end
+    if expectedRole then
+        local role = self:GetVisualRole()
+        if role then
+            local allowed = role == expectedRole or (expectedRole == "Guard" and role == "Frontman")
+            if not allowed then
+                return false, "Paused: local role appears to be " .. role .. "; this feature is for " .. expectedRole
+            end
+        end
+    end
+
+    if string.find(id, "mapped.guards.", 1, true) then
+        local expectedDuty
+        if string.find(id, ".kitchen_staff.", 1, true) then expectedDuty = "Kitchen"
+        elseif string.find(id, ".morgue_staff.", 1, true) then expectedDuty = "Morgue"
+        elseif string.find(id, ".game_moderation.", 1, true) then expectedDuty = "Moderation" end
+        local duty = self:GetGuardDuty()
+        if expectedDuty and duty and duty ~= expectedDuty then
+            return false, "Paused: current guard duty appears to be " .. duty
+        end
+    end
+
+    return true
+end
+
+function Runtime:GetFeatureVisualHint(feature)
+    if not feature then return nil end
+    local id = lower(feature.Id)
+    if string.find(id, "mapped.games.red_light_green_light.", 1, true) then
+        local state = self:GetRLGLState()
+        return state and (state .. " light") or "signal uncertain"
+    elseif string.find(id, "mapped.games.mingle.", 1, true) then
+        local count = self:GetMingleRequiredCount()
+        local phase = self:GetMinglePhase()
+        local parts = {}
+        if phase then table.insert(parts, phase) end
+        if count then table.insert(parts, "room count " .. count) end
+        return #parts > 0 and table.concat(parts, ", ") or nil
+    elseif string.find(id, "mapped.games.hide_seek.", 1, true) then
+        local role = self:GetHideSeekRole()
+        return role and ("role " .. role) or nil
+    elseif string.find(id, "mapped.games.pentathlon.", 1, true) then
+        local stage = self:GetPentathlonStage()
+        return stage and ("stage " .. stage) or nil
+    elseif string.find(id, "mapped.detective.", 1, true) then
+        local state = self:GetDetectiveState()
+        local parts = {}
+        if state.Stage then table.insert(parts, state.Stage) end
+        if state.Evidence and state.Capacity then table.insert(parts, state.Evidence .. "/" .. state.Capacity .. " evidence") end
+        if state.Detection then table.insert(parts, math.floor(state.Detection * 100 + 0.5) .. "% detection") end
+        return #parts > 0 and table.concat(parts, ", ") or nil
+    elseif string.find(id, "mapped.guards.", 1, true) then
+        local duty = self:GetGuardDuty()
+        return duty and ("duty " .. duty) or nil
+    end
+    local expected = self:GetExpectedGame(feature)
+    local detected = expected and self:DetectGameCategory()
+    return detected and ("visual cue " .. detected) or nil
 end
 
 local starters = {

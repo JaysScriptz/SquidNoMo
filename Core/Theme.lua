@@ -4,6 +4,17 @@
 --// Theme.lua
 --//========================================================--
 
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then
+        Environment = result
+    end
+end
+local BuildManifest = type(Environment.__SquidNoMoBuildManifest) == "table"
+    and Environment.__SquidNoMoBuildManifest
+    or {}
+
 local Theme = {}
 
 ----------------------------------------------------------
@@ -12,7 +23,7 @@ local Theme = {}
 
 Theme.Name = "SquidNoMo"
 
-Theme.Version = "1.1 beta 1"
+Theme.Version = tostring(BuildManifest.DisplayVersion or BuildManifest.Version or "1.1 beta")
 
 ----------------------------------------------------------
 -- Colors

@@ -9,10 +9,6 @@ local TeleportService = game:GetService("TeleportService")
 
 local LocalPlayer = Players.LocalPlayer
 
-local Runtime = {
-    Revision = "1.1b1-player-ultralight-r3",
-}
-
 local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
@@ -20,15 +16,23 @@ if type(getgenv) == "function" then
         Environment = result
     end
 end
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
+    and Environment.__SquidNoMoBuildManifest
+    or {}
+local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
+local Runtime = {
+    Revision = tostring(Manifest.PlayerRuntimeRevision or "player-runtime-r1"),
+    BuildNumber = BUILD_NUMBER,
+}
 Environment.__SquidNoMoPlayerRuntime = Runtime
 
 
 local Scheduler = Environment.__SquidNoMoScheduler
-if type(Scheduler) ~= "table" or Scheduler.Revision ~= "1.1b1-ultralight-scheduler-r1" then
+if type(Scheduler) ~= "table" or Scheduler.Revision ~= ("shared-scheduler-r2-build-" .. tostring(BUILD_NUMBER)) then
     -- Runtime.lua normally creates this first. The fallback is intentionally the
     -- same cooperative scheduler so PlayerRuntime remains safe when loaded alone.
     Scheduler = {
-        Revision = "1.1b1-ultralight-scheduler-r1",
+        Revision = "shared-scheduler-r2-build-" .. tostring(BUILD_NUMBER),
         Tasks = setmetatable({}, {__mode = "k"}),
         Running = false,
         Lightweight = true,
@@ -120,10 +124,22 @@ local function roleText(player)
         local character = player.Character
         if character then
             table.insert(parts, character.Name)
-            for _, attributeName in ipairs({"Role", "Class", "Team", "Job", "Rank"}) do
+            for _, attributeName in ipairs({"Role", "Class", "Team", "Job", "Rank", "TeamRole", "PlayerRole"}) do
                 local ok, value = pcall(character.GetAttribute, character, attributeName)
                 if ok and value ~= nil then
                     table.insert(parts, value)
+                end
+            end
+            local scanned = 0
+            for _, descendant in ipairs(character:GetDescendants()) do
+                if descendant:IsA("Tool") or descendant:IsA("Accessory")
+                    or descendant:IsA("Shirt") or descendant:IsA("Pants")
+                    or descendant:IsA("StringValue") or descendant:IsA("ObjectValue")
+                then
+                    table.insert(parts, descendant.Name)
+                    if descendant:IsA("StringValue") then table.insert(parts, descendant.Value) end
+                    scanned = scanned + 1
+                    if scanned >= 36 then break end
                 end
             end
         end

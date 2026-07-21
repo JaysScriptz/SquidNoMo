@@ -32,9 +32,12 @@ then
 end
 
 return Runtime:CreateFeature({
-    Id = "mapped.games.rock_paper_scissors_minus_one.autoplay",
-    Name = "Auto Play",
-    Description = "Automatically selects and submits choices for each RPS Minus One round.",
-    Kind = "RPSAutoPlay",
-    Interval = 0.35,
+    Id = "mapped.games.dalgona.tacehelper",
+    Name = "Trace Helper",
+    Description = "Adds a visual tracing guide that follows the cursor over the cookie shape.",
+    Kind = "GuiHighlight",
+    TargetTokens = {"trace", "path", "line", "cursor", "needle", "shape"},
+    Color = Color3.fromRGB(60, 220, 255),
+    Thickness = 4,
+    WaitingMessage = "Waiting for a trace path or cursor",
 })

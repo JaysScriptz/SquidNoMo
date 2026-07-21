@@ -2,6 +2,8 @@
 -- Coordinates existing feature modules without relying on Roblox Instance require paths.
 
 local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -11,21 +13,36 @@ if type(getgenv) == "function" then
     end
 end
 
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
+    and Environment.__SquidNoMoBuildManifest
+    or {}
+local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
+local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
+
 local FarmingRuntime = {
-    Revision = "1.1b1-farming-r1",
+    Revision = tostring(Manifest.FarmingRuntimeRevision or "farming-runtime-r1"),
+    BuildNumber = BUILD_NUMBER,
     Repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/",
 }
 
 local FeatureRuntime = Environment.__SquidNoMoFeatureRuntime
-if type(FeatureRuntime) ~= "table" or FeatureRuntime.Revision ~= "1.1b1-ultralight-r4" then
+local expectedFeatureRevision = tostring(Manifest.FeatureRuntimeRevision or "visual-gameplay-runtime-r2")
+if type(FeatureRuntime) ~= "table"
+    or FeatureRuntime.Revision ~= expectedFeatureRevision
+    or tonumber(FeatureRuntime.BuildNumber) ~= BUILD_NUMBER
+then
     local source = game:HttpGet(
         FarmingRuntime.Repository
-            .. "Features/Shared/Runtime.lua?squidnomo_revision=1_1b1_ultralight_r4"
+            .. "Features/Shared/Runtime.lua?squidnomo_build="
+            .. BUILD_TOKEN
     )
     FeatureRuntime = loadstring(source)()
 end
-if type(FeatureRuntime) ~= "table" or FeatureRuntime.Revision ~= "1.1b1-ultralight-r4" then
-    error("SquidNoMo farming runtime requires feature runtime 1.1b1-ultralight-r4")
+if type(FeatureRuntime) ~= "table"
+    or FeatureRuntime.Revision ~= expectedFeatureRevision
+    or tonumber(FeatureRuntime.BuildNumber) ~= BUILD_NUMBER
+then
+    error("SquidNoMo farming runtime requires the current feature runtime build")
 end
 
 local ModuleCache = Environment.__SquidNoMoFarmingModuleCache
@@ -80,7 +97,7 @@ local function loadFeature(path)
             FarmingRuntime.Repository
                 .. path
                 .. separator
-                .. "squidnomo_farming=1_1b1_farming_r1"
+                .. "squidnomo_build=" .. BUILD_TOKEN
         )
         local chunk, compileError = loadstring(source)
         if not chunk then
@@ -164,6 +181,319 @@ local function getCharacter()
     return player, character, humanoid, root
 end
 
+
+local function normalizeText(value)
+    local text = string.lower(tostring(value or ""))
+    text = string.gsub(text, "[_%-]", " ")
+    text = string.gsub(text, "%s+", " ")
+    return text
+end
+
+local function containsAnyText(text, tokens)
+    text = normalizeText(text)
+    for _, token in ipairs(tokens or {}) do
+        if string.find(text, normalizeText(token), 1, true) then
+            return true
+        end
+    end
+    return false
+end
+
+
+local function containsModeValue(value, tokens)
+    local text = normalizeText(value)
+    local words = " " .. string.gsub(text, "[^%w]+", " ") .. " "
+    local compact = string.gsub(text, "[^%w]", "")
+    for _, token in ipairs(tokens or {}) do
+        local normalized = normalizeText(token)
+        local compactToken = string.gsub(normalized, "[^%w]", "")
+        if string.find(words, " " .. normalized .. " ", 1, true)
+            or compact == compactToken
+            or compact == "frontman" .. compactToken
+            or compact == compactToken .. "mode"
+            or compact == "frontman" .. compactToken .. "mode"
+        then
+            return true
+        end
+    end
+    return false
+end
+
+local function isSquidNoMoGui(instance)
+    local current = instance
+    while current do
+        if current:IsA("ScreenGui") and string.lower(current.Name) == "squidnomo" then
+            return true
+        end
+        current = current.Parent
+    end
+    return false
+end
+
+local FrontmanModeCache = nil
+
+local function detectFrontmanMode()
+    local now = os.clock()
+    if FrontmanModeCache and now - FrontmanModeCache.Time < 0.75 then
+        return FrontmanModeCache.Mode, FrontmanModeCache.Detail, FrontmanModeCache.Confidence
+    end
+
+    local scores = {Guard = 0, Player = 0}
+    local strongest = {Guard = nil, Player = nil}
+    local strongestWeight = {Guard = 0, Player = 0}
+
+    local function record(mode, weight, source)
+        if mode ~= "Guard" and mode ~= "Player" then return end
+        weight = tonumber(weight) or 0
+        scores[mode] = scores[mode] + weight
+        if weight > strongestWeight[mode] then
+            strongestWeight[mode] = weight
+            strongest[mode] = tostring(source or "mode signal")
+        end
+    end
+
+    local guardValues = {"guard", "staff", "soldier", "worker", "triangle", "square", "circle"}
+    local playerValues = {"player", "contestant", "participant", "runner", "survivor"}
+    local relevantKeys = {
+        "frontman mode", "front man mode", "selected mode", "selected role",
+        "current mode", "current role", "play as", "playing as", "active role",
+        "mode", "role", "class", "job", "team", "side",
+    }
+
+    local function scoreExplicitValue(key, value, weight, source)
+        local keyText = normalizeText(key)
+        if not containsAnyText(keyText, relevantKeys) then return end
+        local valueText = normalizeText(value)
+        local hasGuard = containsModeValue(valueText, guardValues)
+        local hasPlayer = containsModeValue(valueText, playerValues)
+        if hasGuard and not hasPlayer then
+            record("Guard", weight, source .. " = " .. tostring(value))
+        elseif hasPlayer and not hasGuard then
+            record("Player", weight, source .. " = " .. tostring(value))
+        end
+    end
+
+    local function scanAttributes(instance, weight, source)
+        if not instance then return end
+        local ok, attributes = pcall(instance.GetAttributes, instance)
+        if not ok or type(attributes) ~= "table" then return end
+        for key, value in pairs(attributes) do
+            scoreExplicitValue(key, value, weight, source .. " attribute " .. tostring(key))
+        end
+    end
+
+    local function scoreStatusPhrase(value, weight, source)
+        local text = normalizeText(value)
+        local guardPhrase = containsAnyText(text, {
+            "playing as guard", "currently guard", "current mode guard",
+            "current role guard", "selected guard", "guard selected",
+            "guard mode active", "guard duties active", "mode: guard", "role: guard",
+        })
+        local playerPhrase = containsAnyText(text, {
+            "playing as player", "currently player", "current mode player",
+            "current role player", "selected player", "player selected",
+            "player mode active", "contestant mode active", "mode: player", "role: player",
+        })
+        if guardPhrase and not playerPhrase then
+            record("Guard", weight, source)
+        elseif playerPhrase and not guardPhrase then
+            record("Player", weight, source)
+        end
+    end
+
+    local player, character = getCharacter()
+    if not player then
+        FrontmanModeCache = {
+            Time = now,
+            Mode = nil,
+            Detail = "Waiting for the local player",
+            Confidence = 0,
+        }
+        return nil, FrontmanModeCache.Detail, 0
+    end
+
+    -- Explicit role/mode data is the strongest signal and is checked first.
+    scanAttributes(player, 20, "Player")
+    scanAttributes(character, 20, "Character")
+    if player.Team then
+        scoreExplicitValue("team", player.Team.Name, 16, "Team")
+    end
+
+    for _, child in ipairs(player:GetChildren()) do
+        if child:IsA("ValueBase") then
+            scoreExplicitValue(child.Name, child.Value, 18, "Player value " .. child.Name)
+        elseif child:IsA("Folder") and containsAnyText(child.Name, {"role", "mode", "selection", "frontman"}) then
+            scanAttributes(child, 16, "Player folder " .. child.Name)
+            local scanned = 0
+            for _, descendant in ipairs(child:GetDescendants()) do
+                if descendant:IsA("ValueBase") then
+                    scoreExplicitValue(descendant.Name, descendant.Value, 16, "Player folder value " .. descendant.Name)
+                    scanned = scanned + 1
+                    if scanned >= 40 then break end
+                end
+            end
+        end
+    end
+
+    if character then
+        local scanned = 0
+        for _, descendant in ipairs(character:GetDescendants()) do
+            if descendant:IsA("ValueBase") then
+                scoreExplicitValue(descendant.Name, descendant.Value, 18, "Character value " .. descendant.Name)
+            end
+
+            local appearance = normalizeText(descendant.Name)
+            if containsAnyText(appearance, {
+                "guard uniform", "guard mask", "triangle mask", "square mask",
+                "circle mask", "soldier uniform", "staff uniform",
+            }) then
+                record("Guard", 9, "Guard uniform or mask detected")
+            elseif containsAnyText(appearance, {
+                "player uniform", "contestant uniform", "tracksuit", "track suit",
+                "contestant outfit", "player outfit",
+            }) then
+                record("Player", 8, "Player uniform detected")
+            end
+
+            scanned = scanned + 1
+            if scanned >= 140 then break end
+        end
+    end
+
+    -- Some experiences store the local selection in a player-named folder.
+    for _, dataRoot in ipairs({Workspace, ReplicatedStorage}) do
+        for _, child in ipairs(dataRoot:GetChildren()) do
+            local childName = normalizeText(child.Name)
+            if childName == normalizeText(player.Name)
+                or childName == tostring(player.UserId)
+                or containsAnyText(childName, {"local player", "frontman selection", "frontman mode"})
+            then
+                scanAttributes(child, 16, dataRoot.Name .. "/" .. child.Name)
+                local scanned = 0
+                for _, descendant in ipairs(child:GetDescendants()) do
+                    if descendant:IsA("ValueBase") then
+                        scoreExplicitValue(
+                            descendant.Name,
+                            descendant.Value,
+                            15,
+                            dataRoot.Name .. "/" .. child.Name .. "/" .. descendant.Name
+                        )
+                        scanned = scanned + 1
+                        if scanned >= 50 then break end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Visible selection/status text is useful, but choice buttons by themselves
+    -- are ignored because both Player and Guard buttons may be visible together.
+    if type(FeatureRuntime.FindTargets) == "function" then
+        local guiObjects = FeatureRuntime:FindTargets({
+            Scope = "Gui",
+            TargetClasses = {"TextLabel", "TextButton", "TextBox"},
+            TargetTokens = {"frontman", "playing as", "selected", "current mode", "current role", "mode:", "role:"},
+            VisibleOnly = true,
+            MaxTargets = 90,
+            CacheTTL = 0.45,
+        })
+        for _, object in ipairs(guiObjects) do
+            if not isSquidNoMoGui(object) then
+                local text = tostring(object.Text or object.Name)
+                scoreStatusPhrase(text, 17, "Visible mode status: " .. text)
+                scanAttributes(object, 15, "Mode UI " .. object.Name)
+
+                local selected = false
+                for _, attributeName in ipairs({"Selected", "IsSelected", "Active", "Chosen", "Current"}) do
+                    local ok, value = pcall(object.GetAttribute, object, attributeName)
+                    if ok and (value == true or normalizeText(value) == "selected" or normalizeText(value) == "active") then
+                        selected = true
+                        break
+                    end
+                end
+                if selected then
+                    local selectedText = normalizeText(text)
+                    local hasGuard = containsModeValue(selectedText, guardValues)
+                    local hasPlayer = containsModeValue(selectedText, playerValues)
+                    if hasGuard and not hasPlayer then
+                        record("Guard", 18, "Selected Guard mode button")
+                    elseif hasPlayer and not hasGuard then
+                        record("Player", 18, "Selected Player mode button")
+                    end
+                end
+            end
+        end
+    end
+
+    -- Equipped duty tools are a dependable fallback after the selection UI closes.
+    if FeatureRuntime:FindTool({"taser", "stun", "baton", "guard weapon", "coffin", "corpse", "body bag"}) then
+        record("Guard", 13, "Guard duty tool equipped")
+    elseif FeatureRuntime:FindTool({"cooked", "meal", "tray", "raw", "ingredient", "uncooked"}) then
+        record("Guard", 11, "Guard staff tool equipped")
+    end
+
+    local backpack = player:FindFirstChildOfClass("Backpack")
+    for _, container in ipairs({character, backpack}) do
+        if container then
+            for _, item in ipairs(container:GetChildren()) do
+                if item:IsA("Tool") then
+                    local toolName = normalizeText(item.Name)
+                    local compactTool = string.gsub(toolName, "[^%w]", "")
+                    if containsAnyText(toolName, {"marble", "dalgona", "lighter", "keycard"})
+                        or compactTool == "key"
+                    then
+                        record("Player", 7, "Player minigame tool equipped")
+                        break
+                    end
+                end
+            end
+        end
+    end
+
+    -- A detected minigame is only weak evidence. It cannot override an explicit
+    -- Guard signal, but it helps Player mode settle after a player morph loads.
+    local category = nil
+    if type(FeatureRuntime.DetectGameCategory) == "function" then
+        category = FeatureRuntime:DetectGameCategory()
+    end
+    if category then
+        record("Player", 3, "Active minigame: " .. tostring(category))
+    end
+
+    local mode = nil
+    local confidence = math.abs(scores.Guard - scores.Player)
+    if scores.Guard >= 8 and scores.Guard >= scores.Player + 4 then
+        mode = "Guard"
+    elseif scores.Player >= 8 and scores.Player >= scores.Guard + 4 then
+        mode = "Player"
+    end
+
+    local detail
+    if mode then
+        detail = string.format(
+            "%s mode detected (%s)",
+            mode,
+            strongest[mode] or "combined role signals"
+        )
+    elseif scores.Guard > 0 or scores.Player > 0 then
+        detail = string.format(
+            "Mode is ambiguous (Guard %d / Player %d); waiting for the selected mode to settle",
+            scores.Guard,
+            scores.Player
+        )
+    else
+        detail = "Waiting for Frontman Player or Guard mode selection"
+    end
+
+    FrontmanModeCache = {
+        Time = now,
+        Mode = mode,
+        Detail = detail,
+        Confidence = confidence,
+    }
+    return mode, detail, confidence
+end
+
 local function normalizePathList(paths)
     local result = {}
     local seen = {}
@@ -226,11 +556,14 @@ end
 
 function ControllerMethods:_DisableAll()
     local firstError
-    for _, feature in pairs(self.Children) do
-        local ok, err = setFeatureEnabled(feature, false)
-        if not ok and not firstError then firstError = err end
+    for path, feature in pairs(self.Children) do
+        if self.OwnedPaths[path] then
+            local ok, err = setFeatureEnabled(feature, false)
+            if not ok and not firstError then firstError = err end
+        end
     end
     self.ActivePaths = {}
+    self.OwnedPaths = {}
     return firstError == nil, firstError
 end
 
@@ -243,18 +576,23 @@ function ControllerMethods:_SwitchTo(paths)
     -- leases cannot fight during a farming transition.
     for path, feature in pairs(self.Children) do
         if self.ActivePaths[path] and not desired[path] then
-            local ok, err = setFeatureEnabled(feature, false)
-            if not ok then return false, "failed to stop " .. tostring(path) .. ": " .. tostring(err) end
+            if self.OwnedPaths[path] then
+                local ok, err = setFeatureEnabled(feature, false)
+                if not ok then return false, "failed to stop " .. tostring(path) .. ": " .. tostring(err) end
+            end
             self.ActivePaths[path] = nil
+            self.OwnedPaths[path] = nil
         end
     end
 
     for _, path in ipairs(paths) do
         local feature, loadError = self:_Load(path)
         if not feature then return false, loadError end
+        local alreadyEnabled = featureEnabled(feature)
         local ok, err = setFeatureEnabled(feature, true)
         if not ok then return false, "failed to start " .. tostring(path) .. ": " .. tostring(err) end
         self.ActivePaths[path] = true
+        if not alreadyEnabled then self.OwnedPaths[path] = true end
     end
     return true
 end
@@ -383,6 +721,7 @@ function FarmingRuntime:CreateController(config)
         LastError = nil,
         Children = {},
         ActivePaths = {},
+        OwnedPaths = {},
         StatusListeners = {},
         NextListenerId = 0,
     }, ControllerMethods)
@@ -402,6 +741,10 @@ end
 function FarmingRuntime:FindNearest(config, origin)
     if type(FeatureRuntime.FindNearest) ~= "function" then return nil, math.huge end
     return FeatureRuntime:FindNearest(config or {}, origin)
+end
+
+function FarmingRuntime:DetectFrontmanMode()
+    return detectFrontmanMode()
 end
 
 Environment.__SquidNoMoFarmingRuntime = FarmingRuntime

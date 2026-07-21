@@ -32,9 +32,16 @@ then
 end
 
 return Runtime:CreateFeature({
-    Id = "mapped.games.rock_paper_scissors_minus_one.autoplay",
-    Name = "Auto Play",
-    Description = "Automatically selects and submits choices for each RPS Minus One round.",
-    Kind = "RPSAutoPlay",
-    Interval = 0.35,
+    Id = "mapped.guards.game_moderation.guardlocalcleanup",
+    Name = "Guard Local Cleanup",
+    Description = "Locally clears nearby eliminated bodies and cleanup targets during guard duty.",
+    Kind = "Interact",
+    TargetTokens = {"body", "dead", "eliminated", "cleanup", "coffin"},
+    ExcludeTokens = {"alive"},
+    TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
+    MaxDistance = 55,
+    Walk = true,
+    InteractDistance = 12,
+    ActionCooldown = 0.55,
+    WaitingMessage = "Waiting for a nearby cleanup target",
 })
