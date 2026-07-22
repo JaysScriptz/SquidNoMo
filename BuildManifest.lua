@@ -4,9 +4,9 @@
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 6,
-    Revision = "stability-gameplay-rebuild-r6",
-    FeatureRuntimeRevision = "gameplay-runtime-r6",
+    BuildNumber = 7,
+    Revision = "adaptive-game-detection-r7",
+    FeatureRuntimeRevision = "adaptive-game-runtime-r7",
     PlayerRuntimeRevision = "player-runtime-r4",
     FarmingRuntimeRevision = "farming-runtime-r2",
     CatalogFeatureCount = 68,

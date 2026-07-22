@@ -1,7 +1,7 @@
 -- Generated SquidNoMo verified source bundle.
 -- Upload this file together with BuildManifest.lua and Main.lua.
 return {
-    BuildToken = [====[1_1_beta_6-stability-gameplay-rebuild-r6]====],
+    BuildToken = [====[1_1_beta_7-adaptive-game-detection-r7]====],
     Sources = {
         [ [====[BuildManifest.lua]====] ] = [====[-- SquidNoMo deployment manifest.
 -- BuildNumber is advanced automatically by repository workflows whenever feature code changes.
@@ -9,9 +9,9 @@ return {
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 6,
-    Revision = "stability-gameplay-rebuild-r6",
-    FeatureRuntimeRevision = "gameplay-runtime-r6",
+    BuildNumber = 7,
+    Revision = "adaptive-game-detection-r7",
+    FeatureRuntimeRevision = "adaptive-game-runtime-r7",
     PlayerRuntimeRevision = "player-runtime-r4",
     FarmingRuntimeRevision = "farming-runtime-r2",
     CatalogFeatureCount = 68,
@@ -10997,6 +10997,8 @@ function FeatureManager:Initialize(Loader)
     -- The module can be re-used after a character rebuild, so clear stale entries
     -- before registering the current build's live and catalog features.
     self.Registry = {}
+    self.DetectedGameCategory = nil
+    self.DetectedGameScore = 0
 
     local Features = {}
 
@@ -11056,6 +11058,23 @@ end
 
 function FeatureManager:GetDetectedGameCategory()
     return self.DetectedGameCategory
+end
+
+function FeatureManager:SetManualGameCategory(category)
+    if type(category) ~= "string" or category == "" then return false end
+    -- Manual page selection is only a fallback while automatic detection is
+    -- genuinely uncertain. It will not overwrite a strong confirmed game just
+    -- because the user browsed another category.
+    if self.DetectedGameCategory and (tonumber(self.DetectedGameScore) or 0) >= 30 then
+        return false
+    end
+    local runtime = self.Features and self.Features.Shared and self.Features.Shared.Runtime
+    if runtime and type(runtime.SetManualGameHint) == "function" then
+        runtime:SetManualGameHint(category, 14)
+    end
+    self:_SetDetectedGame(category, 29, "manual fallback")
+    if self.AutoApplyPerGameEnabled then self:_ApplyDetectedGame(true) end
+    return true
 end
 
 function FeatureManager:_SetDetectedGame(category, score, source)
@@ -16095,6 +16114,8 @@ local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local SoundService = game:GetService("SoundService")
 
 local Environment = _G
 if type(getgenv) == "function" then
@@ -16113,6 +16134,12 @@ local Runtime = {
     BuildNumber = BUILD_NUMBER,
 }
 Environment.__SquidNoMoFeatureRuntime = Runtime
+if Environment.__SquidNoMoDetectionBuild ~= BUILD_NUMBER then
+    Environment.__SquidNoMoDetectedGame = nil
+    Environment.__SquidNoMoDetectedGameAt = nil
+    Environment.__SquidNoMoManualGameHint = nil
+    Environment.__SquidNoMoDetectionBuild = BUILD_NUMBER
+end
 
 
 -- One cooperative scheduler is shared by every game, guard, detective, and player
@@ -16379,7 +16406,7 @@ if type(IndexManager) ~= "table" or IndexManager.Revision ~= INDEX_REVISION then
     local broadClasses = {
         "BasePart", "Model", "Folder", "Tool", "ProximityPrompt", "ClickDetector",
         "ValueBase", "GuiObject", "GuiButton", "TextLabel", "TextButton", "TextBox",
-        "RemoteEvent", "RemoteFunction", "BindableEvent", "BindableFunction",
+        "RemoteEvent", "RemoteFunction", "BindableEvent", "BindableFunction", "Sound",
     }
 
     local function weakSet()
@@ -16614,37 +16641,56 @@ function Runtime:GetVisualSnapshot(force)
     end
 
     local items, textParts = {}, {}
-    local scanned = 0
-    forEachIndexed("Gui", {"TextLabel", "TextButton", "TextBox", "ImageLabel", "ImageButton", "Frame"}, function(instance)
-        if scanned >= 260 then return false end
-        if isVisibleGui(instance) and not isSquidNoMoGui(instance) then
-            local rawText = ""
-            if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
-                rawText = tostring(instance.Text or "")
-            end
-            local context = instanceText(instance)
-            if rawText ~= "" or instance:IsA("GuiButton") or containsAny(context, {
-                "meter", "progress", "objective", "role", "round", "game", "evidence", "backpack"
-            }) then
-                local item = {
-                    Instance = instance,
-                    Text = lower(rawText),
-                    RawText = rawText,
-                    Context = context,
-                    Name = lower(instance.Name),
-                    ClassName = instance.ClassName,
-                    Position = safeGuiVector(instance, "AbsolutePosition"),
-                    Size = safeGuiVector(instance, "AbsoluteSize"),
-                    TextSize = safeGuiNumber(instance, "TextSize", 0),
-                    TextColor = safeGuiColor(instance, "TextColor3"),
-                    BackgroundColor = safeGuiColor(instance, "BackgroundColor3"),
-                }
-                table.insert(items, item)
-                if item.Text ~= "" then table.insert(textParts, item.Text) end
-                scanned = scanned + 1
-            end
+    local seen = setmetatable({}, {__mode = "k"})
+    local textCount, supportingCount = 0, 0
+
+    local function addInstance(instance, supporting)
+        if not instance or seen[instance] or not isVisibleGui(instance) or isSquidNoMoGui(instance) then
+            return true
         end
+        seen[instance] = true
+
+        local rawText = ""
+        if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
+            rawText = tostring(instance.Text or "")
+        end
+        local context = instanceText(instance)
+        local relevantSupporting = instance:IsA("GuiButton") or containsAny(context, {
+            "meter", "progress", "objective", "role", "round", "game", "evidence",
+            "backpack", "light", "signal", "timer", "status"
+        })
+        if rawText == "" and supporting and not relevantSupporting then return true end
+
+        local item = {
+            Instance = instance,
+            Text = lower(rawText),
+            RawText = rawText,
+            Context = context,
+            Name = lower(instance.Name),
+            ClassName = instance.ClassName,
+            Position = safeGuiVector(instance, "AbsolutePosition"),
+            Size = safeGuiVector(instance, "AbsoluteSize"),
+            TextSize = safeGuiNumber(instance, "TextSize", 0),
+            TextColor = safeGuiColor(instance, "TextColor3"),
+            BackgroundColor = safeGuiColor(instance, "BackgroundColor3"),
+        }
+        table.insert(items, item)
+        if item.Text ~= "" then table.insert(textParts, item.Text) end
         return true
+    end
+
+    -- Text is scanned first. The old mixed 260-object cap could fill with Frames
+    -- before the actual objective label was reached, which made game detection
+    -- effectively random on UI-heavy mobile servers.
+    forEachIndexed("Gui", {"TextLabel", "TextButton", "TextBox"}, function(instance)
+        if textCount >= 720 then return false end
+        textCount = textCount + 1
+        return addInstance(instance, false)
+    end)
+    forEachIndexed("Gui", {"GuiButton", "ImageLabel", "ImageButton", "Frame"}, function(instance)
+        if supportingCount >= 180 then return false end
+        supportingCount = supportingCount + 1
+        return addInstance(instance, true)
     end)
 
     cached = {
@@ -18202,26 +18248,68 @@ end
 
 local function discoverRLGLSignals()
     local candidates = {}
-    local likelyNames = {"light", "status", "state", "phase", "signal", "current", "red", "green"}
-    for _, scope in ipairs({"Workspace", "ReplicatedStorage"}) do
-        forEachIndexed(scope, {"ValueBase"}, function(instance)
-            if containsAny(instance.Name, likelyNames) then
-                table.insert(candidates, instance)
-            end
-            return true
-        end)
-    end
-    local player = getLocalPlayer()
-    local gui = player and player:FindFirstChildOfClass("PlayerGui")
-    if gui then
-        forEachIndexed("Gui", {"TextLabel", "TextButton"}, function(instance)
-            local context = instanceText(instance)
-            if not isSquidNoMoGui(instance) and (containsAny(context, likelyNames) or statusWord(instance.Text)) then
-                table.insert(candidates, instance)
-            end
-            return true
-        end)
-    end
+    local explicitContext = {
+        "rlgl", "red light", "green light", "redlight", "greenlight",
+        "younghee", "young hee", "yeonghee", "mugunghwa", "doll signal"
+    }
+    local stateNames = {"light", "signal", "traffic", "doll", "red", "green"}
+
+    -- Workspace values are live-map evidence. ReplicatedStorage often contains
+    -- dormant values for every minigame, so only explicit RLGL context is allowed
+    -- there; generic objects named State/Phase no longer create false signals.
+    forEachIndexed("Workspace", {"ValueBase"}, function(instance)
+        local context = instanceText(instance)
+        if containsAny(context, explicitContext)
+            or (containsAny(instance.Name, stateNames) and contextualStatusWord(instance.Value, context))
+        then
+            table.insert(candidates, instance)
+        end
+        return true
+    end)
+    forEachIndexed("ReplicatedStorage", {"ValueBase"}, function(instance)
+        local context = instanceText(instance)
+        if containsAny(context, explicitContext) then
+            table.insert(candidates, instance)
+        end
+        return true
+    end)
+
+    Runtime._RLGLColorHistory = Runtime._RLGLColorHistory or setmetatable({}, {__mode = "k"})
+    forEachIndexed("Gui", {"TextLabel", "TextButton", "Frame", "ImageLabel", "ImageButton"}, function(instance)
+        if isSquidNoMoGui(instance) or not isVisibleGui(instance) then return true end
+        local context = instanceText(instance)
+        local rawText = (instance:IsA("TextLabel") or instance:IsA("TextButton")) and instance.Text or ""
+        local colorState
+        pcall(function() colorState = rlglColorState(instance.BackgroundColor3) end)
+        if not colorState and (instance:IsA("ImageLabel") or instance:IsA("ImageButton")) then
+            pcall(function() colorState = rlglColorState(instance.ImageColor3) end)
+        end
+        if colorState then
+            local history = Runtime._RLGLColorHistory[instance] or {SeenRed = false, SeenGreen = false}
+            history.SeenRed = history.SeenRed or colorState == "Red"
+            history.SeenGreen = history.SeenGreen or colorState == "Green"
+            history.State = colorState
+            history.Time = os.clock()
+            Runtime._RLGLColorHistory[instance] = history
+        end
+        local history = Runtime._RLGLColorHistory[instance]
+        local flippedColorSignal = history and history.SeenRed and history.SeenGreen
+        if containsAny(context, explicitContext)
+            or (containsAny(context, {"light", "signal", "doll"}) and statusWord(rawText))
+            or flippedColorSignal
+        then
+            table.insert(candidates, instance)
+        end
+        return true
+    end)
+
+    forEachIndexed("Workspace", {"Sound"}, function(instance)
+        if instance.Playing and containsAny(instanceText(instance), explicitContext) then
+            table.insert(candidates, instance)
+        end
+        return true
+    end)
+
     Runtime._RLGLSignalCandidates = candidates
     Runtime._RLGLSignalsScannedAt = os.clock()
     return candidates
@@ -18233,13 +18321,10 @@ local function findStatusText(tokens)
     if cached and now - cached.Time < 0.08 then return cached.Value, cached.Instance end
 
     local candidates = Runtime._RLGLSignalCandidates
-    if not candidates or now - (Runtime._RLGLSignalsScannedAt or 0) > 2.0 then
+    if not candidates or now - (Runtime._RLGLSignalsScannedAt or 0) > 1.2 then
         candidates = discoverRLGLSignals()
     end
 
-    -- Vote across every live signal instead of trusting whichever object happens
-    -- to be returned first. When old red/green labels are both still present, a
-    -- tie becomes Unknown, which is safer than moving or applying recovery input.
     local scores = {Red = 0, Green = 0}
     local bestInstance = {Red = nil, Green = nil}
     local bestWeight = {Red = 0, Green = 0}
@@ -18250,36 +18335,37 @@ local function findStatusText(tokens)
             local state, weight
             if instance:IsA("ValueBase") then
                 local context = instanceText(instance)
-                state = statusWord(instance.Value)
-                weight = state and 7 or 0
-                if not state then
-                    state = contextualStatusWord(instance.Value, context)
-                    weight = state and 4 or 0
-                end
+                state = contextualStatusWord(instance.Value, context)
+                weight = state and (containsAny(context, {"rlgl", "red light", "green light", "younghee", "mugunghwa"}) and 9 or 5) or 0
                 if instance:IsA("BoolValue") then
                     local name = lower(instance.Name)
                     if string.find(name, "red", 1, true) then
-                        state, weight = instance.Value and "Red" or "Green", 8
+                        state, weight = instance.Value and "Red" or "Green", 9
                     elseif string.find(name, "green", 1, true) then
-                        state, weight = instance.Value and "Green" or "Red", 8
+                        state, weight = instance.Value and "Green" or "Red", 9
                     end
                 end
+            elseif instance:IsA("Sound") then
+                -- In RLGL the doll/song audio is normally active during the move
+                -- window. This is supporting evidence only and cannot beat a live
+                -- red HUD/value signal by itself.
+                state, weight = instance.Playing and "Green" or nil, instance.Playing and 3 or 0
             elseif isVisibleGui(instance) then
-                state = statusWord(instance.Text)
-                weight = state and 6 or 0
-                if not state then
-                    state = contextualStatusWord(instance.Text, instanceText(instance))
-                    weight = state and 3 or 0
-                end
-                if not state then
-                    local context = instanceText(instance)
-                    if containsAny(context, {"light", "status", "signal", "stop", "go", "doll"}) then
-                        local okText, textColor = pcall(function() return instance.TextColor3 end)
-                        local okBackground, backgroundColor = pcall(function() return instance.BackgroundColor3 end)
-                        state = (okText and rlglColorState(textColor))
-                            or (okBackground and rlglColorState(backgroundColor))
-                        weight = state and 4 or 0
-                    end
+                local rawText = (instance:IsA("TextLabel") or instance:IsA("TextButton")) and instance.Text or ""
+                local context = instanceText(instance)
+                state = contextualStatusWord(rawText, context)
+                weight = state and 7 or 0
+                local history = Runtime._RLGLColorHistory and Runtime._RLGLColorHistory[instance]
+                local colorAllowed = containsAny(context, {"light", "signal", "doll", "rlgl"})
+                    or (history and history.SeenRed and history.SeenGreen)
+                if not state and colorAllowed then
+                    local okText, textColor = pcall(function() return instance.TextColor3 end)
+                    local okBackground, backgroundColor = pcall(function() return instance.BackgroundColor3 end)
+                    local okImage, imageColor = pcall(function() return instance.ImageColor3 end)
+                    state = (okText and rlglColorState(textColor))
+                        or (okBackground and rlglColorState(backgroundColor))
+                        or (okImage and rlglColorState(imageColor))
+                    weight = state and (history and history.SeenRed and history.SeenGreen and 7 or 5) or 0
                 end
             end
             if state and weight and weight > 0 then
@@ -18292,18 +18378,18 @@ local function findStatusText(tokens)
         end
     end
 
-    if liveCount == 0 or now - (Runtime._RLGLSignalsScannedAt or 0) > 0.75 then
+    if liveCount == 0 or now - (Runtime._RLGLSignalsScannedAt or 0) > 0.55 then
         Runtime._RLGLSignalCandidates = nil
     end
 
     local value, instance
     local margin = math.abs(scores.Red - scores.Green)
-    if scores.Red >= 4 and scores.Red > scores.Green and margin >= 2 then
+    if scores.Red >= 5 and scores.Red > scores.Green and margin >= 2 then
         value, instance = "Red", bestInstance.Red
-    elseif scores.Green >= 4 and scores.Green > scores.Red and margin >= 2 then
+    elseif scores.Green >= 5 and scores.Green > scores.Red and margin >= 2 then
         value, instance = "Green", bestInstance.Green
     end
-    Runtime._StatusTextCache = {Time = now, Value = value, Instance = instance}
+    Runtime._StatusTextCache = {Time = now, Value = value, Instance = instance, Scores = scores}
     return value, instance
 end
 
@@ -19297,8 +19383,17 @@ local function startRPSAutoPlay(feature)
 end
 
 local GameProfiles = {
-    {Name = "Red Light, Green Light", VisualTokens = {"red light", "green light", "younghee", "young hee", "mugunghwa"}, WorldTokens = {"rlgl", "younghee", "finish line"}},
-    {Name = "Dalgona", VisualTokens = {"honeycomb", "dalgona", "cut the shape", "trace the shape", "carve"}, WorldTokens = {"dalgona", "honeycomb", "cookie"}},
+    {Name = "Red Light, Green Light", VisualTokens = {
+        "red light green light", "red light, green light", "red light", "green light",
+        "younghee", "young hee", "yeonghee", "mugunghwa", "robot doll",
+        "do not move", "don't move", "stop moving", "move when the doll",
+        "reach the finish line", "cross the finish line"
+    }, WorldTokens = {
+        "rlgl", "redlightgreenlight", "red light green light", "younghee", "young hee",
+        "yeonghee", "mugunghwa", "robot doll", "doll head", "finishline", "finish line",
+        "startingline", "start line", "redlightsignal", "greenlightsignal"
+    }},
+    {Name = "Dalgona", VisualTokens = {"honeycomb", "dalgona", "cut the shape", "trace the shape", "carve", "cookie shape"}, WorldTokens = {"dalgona", "honeycomb", "cookie", "needle"}},
     {Name = "Pentathlon", VisualTokens = {"pentathlon", "ddakji", "gonggi", "jegichagi", "paengi", "biseokchigi", "spinning top", "five legged"}, WorldTokens = {"pentathlon", "ddakji", "gonggi", "jegi", "biseok"}},
     {Name = "Hide & Seek", VisualTokens = {"hide & seek", "hide and seek", "hider", "seeker", "keys & knives", "find a key", "find the exit"}, WorldTokens = {"hide seek", "key room", "maze exit"}},
     {Name = "Jump Rope", VisualTokens = {"jump rope", "reach the other side", "make it to the other side", "cross the bridge", "swinging rope"}, WorldTokens = {"jump rope", "jumprope", "swinging bar"}},
@@ -19358,36 +19453,125 @@ function Runtime:GetExpectedPentathlonStage(feature)
     return nil
 end
 
+local function addTableEvidence(addEvidence, value, prefix, depth, seen)
+    if depth > 4 or type(value) ~= "table" or seen[value] then return end
+    seen[value] = true
+    for key, item in pairs(value) do
+        local label = tostring(prefix or "") .. " " .. tostring(key)
+        if type(item) == "table" then
+            addTableEvidence(addEvidence, item, label, depth + 1, seen)
+        elseif type(item) == "string" or type(item) == "number" or type(item) == "boolean" then
+            addEvidence(label .. " " .. tostring(item), 34, "teleport data")
+        end
+    end
+end
+
+local function worldInstanceIsActive(instance, origin)
+    if not instance or not instance.Parent then return false end
+    if instance:IsA("ProximityPrompt") then return instance.Enabled end
+    if instance:IsA("Sound") then return instance.Playing end
+    local part = instance:IsA("BasePart") and instance or nil
+    if not part and instance:IsA("Model") then
+        part = instance.PrimaryPart or instance:FindFirstChildWhichIsA("BasePart", true)
+    end
+    if not part then
+        return instance.Parent == Workspace
+    end
+    if part.Transparency >= 0.985 or part.Size.Magnitude < 0.25 then return false end
+    if origin and (part.Position - origin).Magnitude > 900 then return false end
+    return true
+end
+
+local function isGameStateValue(instance, context)
+    if not instance or not instance:IsA("ValueBase") then return false end
+    local name = lower(instance.Name)
+    local exactNames = {
+        currentgame = true, game = true, gamename = true, selectedgame = true,
+        currentround = true, round = true, roundname = true,
+        mode = true, gamemode = true, minigame = true,
+        currentmap = true, mapname = true, selectedmap = true, stage = true,
+    }
+    if exactNames[string.gsub(name, "[%s_%-]", "")] then return true end
+    return containsAny(context, {
+        "current game", "current round", "game mode", "round name",
+        "minigame", "selected game", "current map", "map name", "selected map"
+    })
+end
+
+local function countEvidenceTokens(evidence, tokens, sourceFilter)
+    local hits, best = 0, 0
+    for _, token in ipairs(tokens) do
+        local tokenHit = 0
+        for _, item in ipairs(evidence) do
+            if (not sourceFilter or sourceFilter[item.Source]) and string.find(item.Text, token, 1, true) then
+                tokenHit = math.max(tokenHit, item.Weight)
+            end
+        end
+        if tokenHit > 0 then hits, best = hits + 1, best + tokenHit end
+    end
+    return hits, best
+end
+
+function Runtime:SetManualGameHint(name, ttl)
+    if type(name) ~= "string" or name == "" then return false end
+    local now = os.clock()
+    self._ManualGameHint = {Name = name, ExpiresAt = now + math.max(tonumber(ttl) or 14, 3)}
+    Environment.__SquidNoMoManualGameHint = self._ManualGameHint
+    return true
+end
+
 function Runtime:DetectGameCategory()
     local now = os.clock()
-    if self._GameDetectionCache and now - self._GameDetectionCache.Time < 0.22 then
+    if self._GameDetectionCache and now - self._GameDetectionCache.Time < 0.20 then
         return self._GameDetectionCache.Name, self._GameDetectionCache.Score
     end
 
     local evidence = {}
     local function addEvidence(value, weight, source)
-        local text = lower(value)
-        if text ~= "" then
-            table.insert(evidence, {Text = text, Weight = tonumber(weight) or 1, Source = source})
+        local valueText = lower(value)
+        if valueText ~= "" then
+            table.insert(evidence, {Text = valueText, Weight = tonumber(weight) or 1, Source = source})
         end
     end
 
     local snapshot = self:GetVisualSnapshot(true)
     for _, item in ipairs(snapshot.Items) do
         if item.Text ~= "" then
-            local weight = item.TextSize >= 30 and 15 or (item.TextSize >= 20 and 12 or 8)
+            local weight = item.TextSize >= 32 and 20 or (item.TextSize >= 22 and 15 or 10)
             addEvidence(item.Text .. " " .. item.Context, weight, "HUD")
         end
     end
 
-    local player, character = getCharacter()
+    -- Teleport/join data is the best available source when the lobby sends the
+    -- selected game to a destination server without leaving an objective label on
+    -- screen. Read it recursively but never fail on executors that block the API.
+    pcall(function()
+        local data = TeleportService:GetLocalPlayerTeleportData()
+        if type(data) == "table" then addTableEvidence(addEvidence, data, "teleport", 0, {}) end
+    end)
+    local player, character, _, root = getCharacter()
     if player then
+        pcall(function()
+            local joinData = player:GetJoinData()
+            if type(joinData) == "table" then addTableEvidence(addEvidence, joinData, "join", 0, {}) end
+        end)
         if player.Team then addEvidence(player.Team.Name, 4, "team") end
         for _, object in ipairs({player, character}) do
             if object then
-                for _, attributeName in ipairs({"CurrentGame", "Game", "Round", "RoundName", "Mode", "CurrentRound", "Minigame"}) do
+                for _, attributeName in ipairs({"CurrentGame", "Game", "Round", "RoundName", "Mode", "CurrentRound", "Minigame", "SelectedGame", "CurrentMap", "MapName"}) do
                     local ok, value = pcall(object.GetAttribute, object, attributeName)
-                    if ok and value ~= nil then addEvidence(attributeName .. " " .. tostring(value), 18, "player attribute") end
+                    if ok and value ~= nil then addEvidence(attributeName .. " " .. tostring(value), 28, "player attribute") end
+                end
+            end
+        end
+        local descendantCount = 0
+        for _, descendant in ipairs(player:GetDescendants()) do
+            if descendantCount >= 320 then break end
+            descendantCount = descendantCount + 1
+            if descendant:IsA("ValueBase") then
+                local context = instanceText(descendant)
+                if isGameStateValue(descendant, context) then
+                    addEvidence(context .. " " .. tostring(descendant.Value), 27, "player state")
                 end
             end
         end
@@ -19395,25 +19579,35 @@ function Runtime:DetectGameCategory()
 
     for _, rootObject in ipairs({Workspace, ReplicatedStorage}) do
         for attributeName, attributeValue in pairs(rootObject:GetAttributes()) do
-            if containsAny(attributeName, {"game", "round", "mode", "phase", "state", "current"}) then
-                addEvidence(attributeName .. " " .. tostring(attributeValue), 16, "root attribute")
+            if containsAny(attributeName, {"game", "round", "mode", "phase", "state", "current", "minigame"}) then
+                addEvidence(attributeName .. " " .. tostring(attributeValue), 24, "root attribute")
             end
         end
-        local scanned = 0
-        local scope = rootObject == Workspace and "Workspace" or "ReplicatedStorage"
-        forEachIndexed(scope, {"ValueBase", "Folder", "Model"}, function(instance)
-            if scanned >= 180 then return false end
-            local context = instanceText(instance)
-            if instance:IsA("ValueBase") then
-                local strong = containsAny(context, {"current game", "current round", "game mode", "round name", "minigame"})
-                addEvidence(context .. " " .. tostring(instance.Value), strong and 16 or 2, "value")
-            elseif containsAny(context, {"active round", "current game", "current round", "minigame"}) then
-                addEvidence(context, 5, "world")
-            end
-            scanned = scanned + 1
-            return true
-        end)
     end
+
+    -- Read only explicit state values from ReplicatedStorage. Dormant map folders
+    -- for Pentathlon/Dalgona/etc. are intentionally ignored because they exist
+    -- while RLGL is active and were the main source of false game switching.
+    forEachIndexed("ReplicatedStorage", {"ValueBase"}, function(instance)
+        local context = instanceText(instance)
+        local strong = isGameStateValue(instance, context)
+        if strong then addEvidence(context .. " " .. tostring(instance.Value), 25, "replicated state") end
+        return true
+    end)
+
+    local worldScanned = 0
+    forEachIndexed("Workspace", {"ValueBase", "Model", "BasePart", "ProximityPrompt", "Sound"}, function(instance)
+        if worldScanned >= 900 then return false end
+        worldScanned = worldScanned + 1
+        local context = instanceText(instance)
+        if instance:IsA("ValueBase") then
+            local strong = isGameStateValue(instance, context)
+            if strong then addEvidence(context .. " " .. tostring(instance.Value), 25, "workspace state") end
+        elseif worldInstanceIsActive(instance, root and root.Position or nil) then
+            addEvidence(context, instance:IsA("ProximityPrompt") and 12 or (instance:IsA("Sound") and 11 or 6), "active world")
+        end
+        return true
+    end)
 
     local ranked = {}
     for _, profile in ipairs(GameProfiles) do
@@ -19421,22 +19615,37 @@ function Runtime:DetectGameCategory()
         local function scoreTokens(tokens, visual)
             for _, token in ipairs(tokens) do
                 local best = 0
-                local phraseBonus = string.find(token, " ", 1, true) and 1.55 or 1.0
+                local phraseBonus = string.find(token, " ", 1, true) and 1.65 or 1.0
                 for _, item in ipairs(evidence) do
                     if string.find(item.Text, token, 1, true) then
-                        local sourceMultiplier = visual and item.Source == "HUD" and 1.45 or 1.0
+                        local sourceMultiplier = 1.0
+                        if visual and item.Source == "HUD" then sourceMultiplier = 1.6 end
+                        if item.Source == "teleport data" or item.Source == "player attribute"
+                            or item.Source == "workspace state" or item.Source == "replicated state" or item.Source == "player state"
+                        then
+                            sourceMultiplier = 2.0
+                        end
                         best = math.max(best, item.Weight * phraseBonus * sourceMultiplier)
                     end
                 end
                 if best > 0 then
                     score = score + best
                     hits = hits + 1
-                    if best >= 11 then strong = true end
+                    if best >= 15 then strong = true end
                 end
             end
         end
         scoreTokens(profile.VisualTokens, true)
         scoreTokens(profile.WorldTokens, false)
+
+        if profile.Name == "Red Light, Green Light" then
+            local rlglState = findStatusText({"light", "status", "state"})
+            if rlglState then score, hits, strong = score + 48, hits + 2, true end
+            local dollHits = select(1, countEvidenceTokens(evidence, {"younghee", "young hee", "yeonghee", "robot doll", "doll head", "mugunghwa"}, {HUD=true, ["active world"]=true}))
+            local lineHits = select(1, countEvidenceTokens(evidence, {"finishline", "finish line", "startingline", "start line", "safe zone"}, {["active world"]=true}))
+            if dollHits > 0 and lineHits > 0 then score, hits, strong = score + 38, hits + 2, true end
+        end
+
         table.insert(ranked, {Name = profile.Name, Score = score, Strong = strong, Hits = hits})
     end
     table.sort(ranked, function(a, b)
@@ -19446,11 +19655,21 @@ function Runtime:DetectGameCategory()
 
     local best, second = ranked[1], ranked[2]
     local candidate, candidateScore = nil, best and best.Score or 0
-    if best and candidateScore >= 12 and best.Strong
-        and (best.Hits >= 2 or candidateScore >= 24)
-        and (not second or candidateScore - second.Score >= 4)
+    if best and candidateScore >= 16 and best.Strong
+        and (best.Hits >= 2 or candidateScore >= 38)
+        and (not second or candidateScore - second.Score >= 7)
     then
         candidate = best.Name
+    end
+
+    local hint = self._ManualGameHint or Environment.__SquidNoMoManualGameHint
+    if type(hint) == "table" and tonumber(hint.ExpiresAt or 0) > now then
+        if not candidate or candidateScore < 30 then
+            candidate, candidateScore = hint.Name, 29
+        elseif candidate ~= hint.Name and candidateScore >= 44 then
+            self._ManualGameHint = nil
+            Environment.__SquidNoMoManualGameHint = nil
+        end
     end
 
     local state = self._StableGameDetection or {Name = nil, Candidate = nil, Count = 0, ConfirmedAt = 0}
@@ -19464,10 +19683,10 @@ function Runtime:DetectGameCategory()
         state.Count = 0
     end
 
-    if candidate and (state.Count >= 2 or candidateScore >= 30) then
+    if candidate and (state.Count >= 2 or candidateScore >= 44) then
         state.Name = candidate
         state.ConfirmedAt = now
-    elseif not candidate and state.Name and now - (state.ConfirmedAt or 0) > 7 then
+    elseif not candidate and state.Name and now - (state.ConfirmedAt or 0) > 4.5 then
         state.Name = nil
     end
     self._StableGameDetection = state
@@ -19476,6 +19695,8 @@ function Runtime:DetectGameCategory()
     if confirmed then
         Environment.__SquidNoMoDetectedGame = confirmed
         Environment.__SquidNoMoDetectedGameAt = now
+    elseif Environment.__SquidNoMoDetectedGameAt and now - Environment.__SquidNoMoDetectedGameAt > 5 then
+        Environment.__SquidNoMoDetectedGame = nil
     end
     self._GameDetectionCache = {
         Time = now,
@@ -19483,6 +19704,7 @@ function Runtime:DetectGameCategory()
         Score = candidateScore,
         Candidate = candidate,
         RunnerUp = second and second.Name or nil,
+        RunnerUpScore = second and second.Score or 0,
     }
     return confirmed, candidateScore
 end
@@ -22771,7 +22993,7 @@ function CategoryStrip:Create(Page, App, options)
     local refs = {}
     local selectedIndex = 1
 
-    local function renderSelection(index)
+    local function renderSelection(index, userInitiated)
         selectedIndex = index
         local item = items[index]
         if not item then
@@ -22816,7 +23038,7 @@ function CategoryStrip:Create(Page, App, options)
         end
 
         if type(options.OnSelected) == 'function' then
-            pcall(options.OnSelected, item, index)
+            pcall(options.OnSelected, item, index, userInitiated == true)
         end
     end
 
@@ -22888,7 +23110,7 @@ function CategoryStrip:Create(Page, App, options)
         App:BindButtonFeedback(button, accent)
         button.Activated:Connect(function()
             if Page:GetAttribute("SquidNoMoTouchDragging") then return end
-            renderSelection(index)
+            renderSelection(index, true)
         end)
 
         refs[index] = {
@@ -24150,7 +24372,10 @@ function GamesPage:Create(Page, App)
         ScrollerName = "GameCategoryScroller",
         ButtonWidth = 190,
         Items = categories,
-        OnSelected = function(item)
+        OnSelected = function(item, _, userInitiated)
+            if userInitiated and manager and type(manager.SetManualGameCategory) == "function" then
+                manager:SetManualGameCategory(item.Name)
+            end
             App.Loader.FeatureFolder:Render(Page, App, {
                 PageName = "Games",
                 Features = item.Features or {},

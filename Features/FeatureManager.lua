@@ -116,6 +116,8 @@ function FeatureManager:Initialize(Loader)
     -- The module can be re-used after a character rebuild, so clear stale entries
     -- before registering the current build's live and catalog features.
     self.Registry = {}
+    self.DetectedGameCategory = nil
+    self.DetectedGameScore = 0
 
     local Features = {}
 
@@ -175,6 +177,23 @@ end
 
 function FeatureManager:GetDetectedGameCategory()
     return self.DetectedGameCategory
+end
+
+function FeatureManager:SetManualGameCategory(category)
+    if type(category) ~= "string" or category == "" then return false end
+    -- Manual page selection is only a fallback while automatic detection is
+    -- genuinely uncertain. It will not overwrite a strong confirmed game just
+    -- because the user browsed another category.
+    if self.DetectedGameCategory and (tonumber(self.DetectedGameScore) or 0) >= 30 then
+        return false
+    end
+    local runtime = self.Features and self.Features.Shared and self.Features.Shared.Runtime
+    if runtime and type(runtime.SetManualGameHint) == "function" then
+        runtime:SetManualGameHint(category, 14)
+    end
+    self:_SetDetectedGame(category, 29, "manual fallback")
+    if self.AutoApplyPerGameEnabled then self:_ApplyDetectedGame(true) end
+    return true
 end
 
 function FeatureManager:_SetDetectedGame(category, score, source)

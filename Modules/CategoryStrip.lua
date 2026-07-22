@@ -126,7 +126,7 @@ function CategoryStrip:Create(Page, App, options)
     local refs = {}
     local selectedIndex = 1
 
-    local function renderSelection(index)
+    local function renderSelection(index, userInitiated)
         selectedIndex = index
         local item = items[index]
         if not item then
@@ -171,7 +171,7 @@ function CategoryStrip:Create(Page, App, options)
         end
 
         if type(options.OnSelected) == 'function' then
-            pcall(options.OnSelected, item, index)
+            pcall(options.OnSelected, item, index, userInitiated == true)
         end
     end
 
@@ -243,7 +243,7 @@ function CategoryStrip:Create(Page, App, options)
         App:BindButtonFeedback(button, accent)
         button.Activated:Connect(function()
             if Page:GetAttribute("SquidNoMoTouchDragging") then return end
-            renderSelection(index)
+            renderSelection(index, true)
         end)
 
         refs[index] = {

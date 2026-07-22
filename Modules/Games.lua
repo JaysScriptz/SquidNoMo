@@ -14,7 +14,10 @@ function GamesPage:Create(Page, App)
         ScrollerName = "GameCategoryScroller",
         ButtonWidth = 190,
         Items = categories,
-        OnSelected = function(item)
+        OnSelected = function(item, _, userInitiated)
+            if userInitiated and manager and type(manager.SetManualGameCategory) == "function" then
+                manager:SetManualGameCategory(item.Name)
+            end
             App.Loader.FeatureFolder:Render(Page, App, {
                 PageName = "Games",
                 Features = item.Features or {},
