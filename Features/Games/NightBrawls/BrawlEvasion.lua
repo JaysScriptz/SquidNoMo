@@ -3,26 +3,25 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Fight Nights",
+    Game = "Fight Nights",
     Id = "mapped.games.fight_nights.brawlevasion",
     Name = "Brawl Evasion",
-    Description = "Keeps distance from nearby attackers and dangerous positions.",
-    Kind = "Evasion",
+    Description = "Moves away from the nearest living opponent while preserving shared movement ownership.",
+    Handler = "Evasion",
     Range = 24,
     EvadeDistance = 20,
-    Interval = 0.24,
-    MovementPriority = 75,
+    MovementPriority = 76,
+    Interval = 0.2,
+    IdleInterval = 0.7,
 })

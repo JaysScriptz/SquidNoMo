@@ -3,27 +3,28 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Squid Game",
+    Game = "Squid Game",
     Id = "mapped.games.squid_game.courtboundarykeeper",
     Name = "Court Boundary Keeper",
-    Description = "Helps keep the character inside the active Squid Game court.",
-    Kind = "Boundary",
-    TargetTokens = {"court", "squid game", "arena", "play area", "field"},
+    Description = "Detects the active Squid Game court and moves inward only after the character crosses the configured boundary.",
+    Handler = "Boundary",
+    TargetTokens = {"squid court", "court", "play area", "field", "arena"},
+    ExcludeTokens = {"sky", "lobby", "spectator"},
+    TargetClasses = {"Model", "BasePart"},
     Radius = 58,
-    Interval = 0.28,
-    MovementPriority = 70,
+    MovementPriority = 72,
+    Interval = 0.26,
+    IdleInterval = 0.8,
     WaitingMessage = "Waiting for the Squid Game court",
 })

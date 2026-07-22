@@ -3,28 +3,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Marbles",
+    Game = "Marbles",
     Id = "mapped.games.marbles.ringshooter",
     Name = "Ring Shooter",
-    Description = "Assists with lining up and firing marbles toward ring targets.",
-    Kind = "AimActivate",
+    Description = "Aims at the nearest visible ring or hole and activates the marble tool without inventing hidden target data.",
+    Handler = "AimAssist",
     TargetTokens = {"ring", "hoop", "hole", "target"},
+    ExcludeTokens = {"shop", "icon"},
+    TargetClasses = {"Model", "BasePart"},
     ToolTokens = {"marble", "ball"},
     Range = 160,
-    Interval = 0.20,
-    ActionPriority = 75,
-    WaitingMessage = "Waiting for a ring target and marble tool",
+    ActionCooldown = 0.45,
+    ActionPriority = 76,
+    Interval = 0.2,
+    IdleInterval = 0.75,
 })

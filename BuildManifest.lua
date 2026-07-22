@@ -4,9 +4,10 @@
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 7,
-    Revision = "adaptive-game-detection-r7",
-    FeatureRuntimeRevision = "adaptive-game-runtime-r7",
+    BuildNumber = 8,
+    Revision = "all-game-modules-rebuilt-r8",
+    FeatureRuntimeRevision = "adaptive-game-runtime-r8",
+    GameRuntimeRevision = "game-modules-from-scratch-r8",
     PlayerRuntimeRevision = "player-runtime-r4",
     FarmingRuntimeRevision = "farming-runtime-r2",
     CatalogFeatureCount = 68,
@@ -17,6 +18,7 @@ local Manifest = {
     StartupTimeoutSeconds = 30,
     RequiredSharedFiles = {
         "Features/Shared/Runtime.lua",
+        "Features/Games/GameRuntime.lua",
         "Features/Shared/PlayerRuntime.lua",
         "Features/Shared/RoleService.lua",
         "Features/Farming/FarmingRuntime.lua",

@@ -3,26 +3,25 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Dalgona",
+    Game = "Dalgona",
     Id = "mapped.games.dalgona.autolighter",
     Name = "Auto Lighter",
-    Description = "Finds, equips, and repeatedly activates the lighter while enabled.",
-    Kind = "ToolActivate",
+    Description = "Equips and activates a visible lighter or flame tool while the Dalgona round is confirmed.",
+    Handler = "ToolPulse",
     ToolTokens = {"lighter", "torch", "flame", "fire"},
-    Interval = 0.3,
-    ActionPriority = 45,
+    ActionCooldown = 0.35,
+    Interval = 0.28,
+    IdleInterval = 0.8,
     WaitingMessage = "Waiting for a lighter tool",
 })

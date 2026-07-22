@@ -3,29 +3,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Pentathlon",
+    Game = "Pentathlon",
+    Stage = "Jegichagi",
     Id = "mapped.games.pentathlon.jegichagi",
     Name = "Jegichagi Assist",
-    Description = "Keeps the Jegichagi sequence going with automatic timed inputs.",
-    Kind = "Timing",
+    Description = "Triggers the visible kick control only during the ready timing zone.",
+    Handler = "TimingPulse",
     IndicatorTokens = {"indicator", "timing", "cursor", "ball"},
-    ZoneTokens = {"target", "sweet spot", "green", "kick zone"},
+    ZoneTokens = {"target", "sweet spot", "green", "kick zone", "perfect"},
     ActionTokens = {"kick", "jegi", "tap"},
-    ClickActionWhenVisible = true,
-    ActionCooldown = 0.18,
-    ActionPriority = 85,
-    WaitingMessage = "Waiting for the Jegichagi timing interface",
+    ActionCooldown = 0.17,
+    ActionPriority = 86,
+    RequireReady = true,
+    Interval = 0.09,
+    IdleInterval = 0.65,
 })

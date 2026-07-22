@@ -3,27 +3,27 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Squid Game",
+    Game = "Squid Game",
     Id = "mapped.games.squid_game.squidgamepush",
     Name = "Squid Game Push",
-    Description = "Automatically uses the push tool against nearby opponents.",
-    Kind = "ToolAura",
+    Description = "Uses an equipped push or shove tool only when a living opponent is within range.",
+    Handler = "ToolAura",
     ToolTokens = {"push", "shove"},
     Range = 12,
     FaceTarget = true,
-    Interval = 0.24,
-    ActionPriority = 70,
+    ActionCooldown = 0.3,
+    ActionPriority = 72,
+    Interval = 0.2,
+    IdleInterval = 0.7,
 })

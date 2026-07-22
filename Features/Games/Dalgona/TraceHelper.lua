@@ -3,26 +3,26 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Dalgona",
+    Game = "Dalgona",
     Id = "mapped.games.dalgona.tracehelper",
     Name = "Trace Helper",
-    Description = "Adds a visual tracing guide that follows the cursor over the cookie shape.",
-    Kind = "GuiHighlight",
+    Description = "Highlights the visible trace path, needle, or cursor so the cutting route is easier to follow.",
+    Handler = "GuiHighlight",
     TargetTokens = {"trace", "path", "line", "cursor", "needle", "shape"},
     Color = Color3.fromRGB(60, 220, 255),
     Thickness = 4,
-    WaitingMessage = "Waiting for a trace path or cursor",
+    Interval = 0.22,
+    IdleInterval = 0.75,
+    WaitingMessage = "Waiting for a visible trace path",
 })

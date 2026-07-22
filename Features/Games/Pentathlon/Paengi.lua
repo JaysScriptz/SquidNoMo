@@ -3,29 +3,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Pentathlon",
+    Game = "Pentathlon",
+    Stage = "Paengi",
     Id = "mapped.games.pentathlon.paengi",
     Name = "Paengi Assist",
-    Description = "Automates the spin interaction for the Paengi event.",
-    Kind = "Timing",
+    Description = "Triggers the visible spin or pull control only during the ready timing zone.",
+    Handler = "TimingPulse",
     IndicatorTokens = {"indicator", "power", "cursor", "spin"},
-    ZoneTokens = {"target", "sweet spot", "green", "spin zone"},
+    ZoneTokens = {"target", "sweet spot", "green", "spin zone", "perfect"},
     ActionTokens = {"spin", "pull", "paengi", "play"},
-    ClickActionWhenVisible = true,
-    ActionCooldown = 0.22,
-    ActionPriority = 85,
-    WaitingMessage = "Waiting for the Paengi timing interface",
+    ActionCooldown = 0.21,
+    ActionPriority = 86,
+    RequireReady = true,
+    Interval = 0.1,
+    IdleInterval = 0.65,
 })

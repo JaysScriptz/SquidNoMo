@@ -3,25 +3,26 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Mingle",
+    Game = "Mingle",
     Id = "mapped.games.mingle.smartroom",
     Name = "Smart Room",
-    Description = "Chooses a suitable room based on occupancy and nearby players.",
-    Kind = "RoomAssist",
-    Interact = true,
-    Interval = 0.32,
-    MovementPriority = 75,
+    Description = "Scores nearby rooms by distance and occupancy, rejects full rooms, and moves toward the best verified option.",
+    Handler = "RoomAssist",
+    RoomRadius = 12,
+    StopDistance = 5,
+    InteractDistance = 10,
+    MovementPriority = 78,
+    Interval = 0.28,
+    IdleInterval = 0.7,
 })

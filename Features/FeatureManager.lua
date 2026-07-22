@@ -123,6 +123,7 @@ function FeatureManager:Initialize(Loader)
 
     Features.Shared = {}
     Features.Shared.Runtime = Load(Loader, "Features/Shared/Runtime.lua")
+    Features.Shared.GameRuntime = Load(Loader, "Features/Games/GameRuntime.lua")
     if type(Features.Shared.Runtime.SetLightweightMode) == "function" then
         Features.Shared.Runtime:SetLightweightMode(self.LightweightModeEnabled)
     end

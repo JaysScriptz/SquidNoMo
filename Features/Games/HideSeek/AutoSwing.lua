@@ -3,29 +3,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Hide & Seek",
+    Game = "Hide & Seek",
     Id = "mapped.games.hide_seek.autoswing",
     Name = "Auto Swing",
-    Description = "Automatically activates the equipped melee tool while enabled.",
-    Kind = "ToolAura",
-    ToolTokens = {"knife", "bat", "sword", "weapon", "blade"},
+    Description = "For Seekers, faces a nearby opponent and activates an equipped melee tool at a controlled rate.",
+    Handler = "ToolAura",
+    Role = "Seeker",
+    ToolTokens = {"knife", "blade", "bat", "weapon"},
     Range = 10,
     FaceTarget = true,
-    Interval = 0.24,
-    LocalRoleTokens = {"hunter", "seeker", "killer"},
-    ActionPriority = 70,
-    WaitingMessage = "Waiting for a melee tool and a nearby opponent",
+    ActionCooldown = 0.28,
+    ActionPriority = 72,
+    Interval = 0.18,
+    IdleInterval = 0.7,
+    WaitingMessage = "Waiting for a melee tool and nearby opponent",
 })

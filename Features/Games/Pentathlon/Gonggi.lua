@@ -3,27 +3,27 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Pentathlon",
+    Game = "Pentathlon",
+    Stage = "Gonggi",
     Id = "mapped.games.pentathlon.gonggi",
     Name = "Gonggi Assist",
-    Description = "Automates the repeated inputs needed for the Gonggi event.",
-    Kind = "GuiAction",
+    Description = "Presses only visible Gonggi catch, throw, or next controls and ignores unrelated interface buttons.",
+    Handler = "GuiPulse",
     ActionTokens = {"catch", "throw", "gonggi", "tap", "next"},
-    ActionCooldown = 0.12,
-    ActionPriority = 65,
-    Interval = 0.12,
-    WaitingMessage = "Waiting for the Gonggi action controls",
+    ExcludeTokens = {"shop", "buy", "reward", "close"},
+    ActionCooldown = 0.13,
+    ActionPriority = 68,
+    Interval = 0.1,
+    IdleInterval = 0.65,
 })

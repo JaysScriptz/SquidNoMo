@@ -1,7 +1,7 @@
 -- Generated SquidNoMo verified source bundle.
 -- Upload this file together with BuildManifest.lua and Main.lua.
 return {
-    BuildToken = [====[1_1_beta_7-adaptive-game-detection-r7]====],
+    BuildToken = [====[1_1_beta_8-all-game-modules-rebuilt-r8]====],
     Sources = {
         [ [====[BuildManifest.lua]====] ] = [====[-- SquidNoMo deployment manifest.
 -- BuildNumber is advanced automatically by repository workflows whenever feature code changes.
@@ -9,9 +9,10 @@ return {
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 7,
-    Revision = "adaptive-game-detection-r7",
-    FeatureRuntimeRevision = "adaptive-game-runtime-r7",
+    BuildNumber = 8,
+    Revision = "all-game-modules-rebuilt-r8",
+    FeatureRuntimeRevision = "adaptive-game-runtime-r8",
+    GameRuntimeRevision = "game-modules-from-scratch-r8",
     PlayerRuntimeRevision = "player-runtime-r4",
     FarmingRuntimeRevision = "farming-runtime-r2",
     CatalogFeatureCount = 68,
@@ -22,6 +23,7 @@ local Manifest = {
     StartupTimeoutSeconds = 30,
     RequiredSharedFiles = {
         "Features/Shared/Runtime.lua",
+        "Features/Games/GameRuntime.lua",
         "Features/Shared/PlayerRuntime.lua",
         "Features/Shared/RoleService.lua",
         "Features/Farming/FarmingRuntime.lua",
@@ -11004,6 +11006,7 @@ function FeatureManager:Initialize(Loader)
 
     Features.Shared = {}
     Features.Shared.Runtime = Load(Loader, "Features/Shared/Runtime.lua")
+    Features.Shared.GameRuntime = Load(Loader, "Features/Games/GameRuntime.lua")
     if type(Features.Shared.Runtime.SetLightweightMode) == "function" then
         Features.Shared.Runtime:SetLightweightMode(self.LightweightModeEnabled)
     end
@@ -11715,29 +11718,25 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Dalgona",
+    Game = "Dalgona",
     Id = "mapped.games.dalgona.autocut",
     Name = "Auto Cut",
-    Description = "Automates the cookie carving interaction to help complete the selected shape.",
-    Kind = "GuiAction",
-    ActionTokens = {"cut", "carve", "trace", "complete", "finish", "tap"},
-    ActionCooldown = 0.12,
-    ActionPriority = 55,
-    Interval = 0.12,
-    WaitingMessage = "Waiting for the Dalgona cutting controls",
+    Description = "Uses only client-visible trace nodes or exposed cut controls; it pauses instead of guessing when the interface hides the path.",
+    Handler = "DalgonaCut",
+    ActionTokens = {"cut", "carve", "trace", "complete", "finish"},
+    Interval = 0.14,
+    IdleInterval = 0.75,
 })
 ]====],
         [ [====[Features/Games/Dalgona/AutoLighter.lua]====] ] = [====[local Environment = _G
@@ -11745,27 +11744,26 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Dalgona",
+    Game = "Dalgona",
     Id = "mapped.games.dalgona.autolighter",
     Name = "Auto Lighter",
-    Description = "Finds, equips, and repeatedly activates the lighter while enabled.",
-    Kind = "ToolActivate",
+    Description = "Equips and activates a visible lighter or flame tool while the Dalgona round is confirmed.",
+    Handler = "ToolPulse",
     ToolTokens = {"lighter", "torch", "flame", "fire"},
-    Interval = 0.3,
-    ActionPriority = 45,
+    ActionCooldown = 0.35,
+    Interval = 0.28,
+    IdleInterval = 0.8,
     WaitingMessage = "Waiting for a lighter tool",
 })
 ]====],
@@ -11774,27 +11772,27 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Dalgona",
+    Game = "Dalgona",
     Id = "mapped.games.dalgona.highlightesp",
     Name = "Shape Highlight",
-    Description = "Outlines the cookie shape so the tracing boundary is easier to see.",
-    Kind = "GuiHighlight",
+    Description = "Outlines the visible cookie shape or cutting area without sending game actions.",
+    Handler = "GuiHighlight",
     TargetTokens = {"cookie", "shape", "outline", "cut area", "dalgona"},
     Color = Color3.fromRGB(255, 210, 70),
-    Thickness = 3,
+    Thickness = 4,
+    Interval = 0.28,
+    IdleInterval = 0.8,
     WaitingMessage = "Waiting for the Dalgona shape interface",
 })
 ]====],
@@ -11803,28 +11801,28 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Dalgona",
+    Game = "Dalgona",
     Id = "mapped.games.dalgona.tracehelper",
     Name = "Trace Helper",
-    Description = "Adds a visual tracing guide that follows the cursor over the cookie shape.",
-    Kind = "GuiHighlight",
+    Description = "Highlights the visible trace path, needle, or cursor so the cutting route is easier to follow.",
+    Handler = "GuiHighlight",
     TargetTokens = {"trace", "path", "line", "cursor", "needle", "shape"},
     Color = Color3.fromRGB(60, 220, 255),
     Thickness = 4,
-    WaitingMessage = "Waiting for a trace path or cursor",
+    Interval = 0.22,
+    IdleInterval = 0.75,
+    WaitingMessage = "Waiting for a visible trace path",
 })
 ]====],
         [ [====[Features/Games/Escape/IslandNav.lua]====] ] = [====[local Environment = _G
@@ -11832,60 +11830,1631 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Escape",
+    Game = "Escape",
     Id = "mapped.games.escape.islandnav",
     Name = "Island Extraction Route",
-    Description = "Walks toward the detected extraction boat or finish point.",
-    Kind = "WalkTo",
+    Description = "Uses pathfinding to walk toward a confirmed extraction boat, dock, or escape finish and interacts when close.",
+    Handler = "PathTo",
     TargetTokens = {"extraction", "escape boat", "boat", "dock", "finish", "exit"},
-    ExcludeTokens = {"start boat"},
+    ExcludeTokens = {"start boat", "decorative"},
     TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
-    StopDistance = 9,
-    MovementPriority = 70,
+    StopDistance = 8,
     Interact = true,
     InteractDistance = 12,
+    MovementPriority = 70,
+    Interval = 0.42,
+    IdleInterval = 1.0,
     WaitingMessage = "Waiting for an extraction boat or finish point",
 })
 ]====],
-        [ [====[Features/Games/GlassBridge/AntiFall.lua]====] ] = [====[local Environment = _G
+        [ [====[Features/Games/GameRuntime.lua]====] ] = [====[-- SquidNoMo game feature runtime, rebuilt for beta 8.
+-- All game modules use this single cooperative runtime. No game module starts its
+-- own uncontrolled loop or performs an HTTP request.
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local UserInputService = game:GetService("UserInputService")
+
+local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
-    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
+    and Environment.__SquidNoMoBuildManifest or {}
+local Shared = Environment.__SquidNoMoFeatureRuntime
+if type(Shared) ~= "table"
+    or tostring(Shared.Revision) ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Shared.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo shared runtime is unavailable; deploy and execute the complete build")
 end
 
+local GameRuntime = {
+    Revision = tostring(Manifest.GameRuntimeRevision or "game-runtime-r8"),
+    BuildNumber = tonumber(Manifest.BuildNumber) or 0,
+    Shared = Shared,
+    DetectionCache = nil,
+    StableDetection = {Name = nil, Candidate = nil, Count = 0, ConfirmedAt = 0},
+}
+Environment.__SquidNoMoGameRuntime = GameRuntime
+
+local function lower(value)
+    return string.lower(tostring(value or ""))
+end
+
+local function containsAny(value, tokens)
+    local text = lower(value)
+    for _, token in ipairs(tokens or {}) do
+        token = lower(token)
+        if token ~= "" and string.find(text, token, 1, true) then return true end
+    end
+    return false
+end
+
+local function getCharacter()
+    local player = Players.LocalPlayer
+    local character = player and player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    return player, character, humanoid, root
+end
+
+local function positionOf(instance)
+    if not instance then return nil end
+    if instance:IsA("BasePart") then return instance.Position end
+    if instance:IsA("Attachment") then return instance.WorldPosition end
+    if instance:IsA("Model") then
+        local ok, pivot = pcall(instance.GetPivot, instance)
+        if ok then return pivot.Position end
+    end
+    local part = instance:FindFirstChildWhichIsA("BasePart", true)
+    return part and part.Position or nil
+end
+
+local function adorneeOf(instance)
+    if not instance then return nil end
+    if instance:IsA("Model") or instance:IsA("BasePart") then return instance end
+    local parent = instance.Parent
+    while parent and parent ~= Workspace do
+        if parent:IsA("Model") then return parent end
+        if parent:IsA("BasePart") then return parent end
+        parent = parent.Parent
+    end
+    return instance
+end
+
+local function guiVisible(object)
+    if not object or not object:IsA("GuiObject") or not object.Visible then return false end
+    local current = object.Parent
+    while current do
+        if current:IsA("GuiObject") and not current.Visible then return false end
+        if current:IsA("LayerCollector") and not current.Enabled then return false end
+        current = current.Parent
+    end
+    return object.AbsoluteSize.X > 1 and object.AbsoluteSize.Y > 1
+end
+
+local function objectText(object)
+    if not object then return "" end
+    local parts = {object.Name, object.ClassName}
+    local parent = object.Parent
+    if parent then table.insert(parts, parent.Name) end
+    if object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox") then
+        table.insert(parts, object.Text)
+    elseif object:IsA("ValueBase") then
+        table.insert(parts, tostring(object.Value))
+    elseif object:IsA("ProximityPrompt") then
+        table.insert(parts, object.ActionText)
+        table.insert(parts, object.ObjectText)
+    end
+    return lower(table.concat(parts, " "))
+end
+
+local function isGreen(color)
+    if typeof(color) ~= "Color3" then return false end
+    return color.G > color.R * 1.18 and color.G > color.B * 1.08 and color.G > 0.38
+end
+
+local function isRed(color)
+    if typeof(color) ~= "Color3" then return false end
+    return color.R > color.G * 1.18 and color.R > color.B * 1.08 and color.R > 0.42
+end
+
+local Profiles = {
+    {
+        Name = "Red Light, Green Light",
+        Aliases = {"red light green light", "red light, green light", "rlgl"},
+        Visual = {"younghee", "young hee", "yeonghee", "mugunghwa", "do not move", "don't move", "reach the finish line", "green light", "red light"},
+        World = {"younghee", "doll", "finishline", "finish line", "startingline", "start line", "redlightsignal", "greenlightsignal"},
+        Groups = {{"younghee", "doll", "mugunghwa"}, {"finish", "red light", "green light", "do not move"}},
+        Minimum = 42,
+    },
+    {
+        Name = "Dalgona",
+        Aliases = {"dalgona", "honeycomb"},
+        Visual = {"cut the shape", "trace the shape", "carve", "cookie shape", "needle"},
+        World = {"dalgona", "honeycomb", "cookie", "needle", "shape outline"},
+        Groups = {{"dalgona", "honeycomb", "cookie"}, {"cut", "trace", "carve", "needle"}},
+        Minimum = 38,
+    },
+    {
+        Name = "Pentathlon",
+        Aliases = {"pentathlon", "six legged pentathlon", "five legged pentathlon"},
+        Visual = {"ddakji", "gonggi", "jegichagi", "jegi", "paengi", "biseokchigi", "spinning top"},
+        World = {"pentathlon", "ddakji", "gonggi", "jegi", "paengi", "biseok"},
+        Groups = {{"pentathlon", "ddakji", "gonggi", "jegi", "paengi", "biseok"}},
+        Minimum = 34,
+    },
+    {
+        Name = "Hide & Seek",
+        Aliases = {"hide & seek", "hide and seek", "hide seek"},
+        Visual = {"you are a hider", "you are a seeker", "find a key", "grab a knife", "unlock the exit", "keys & knives"},
+        World = {"maze exit", "key room", "hide seek", "hider spawn", "seeker spawn"},
+        Groups = {{"hider", "seeker", "hide & seek", "hide and seek"}, {"key", "knife", "exit", "maze"}},
+        Minimum = 40,
+    },
+    {
+        Name = "Jump Rope",
+        Aliases = {"jump rope", "jumprope"},
+        Visual = {"reach the other side", "make it to the other side", "cross the bridge", "swinging rope"},
+        World = {"jump rope", "jumprope", "swinging bar", "rope bridge", "rope pivot"},
+        Groups = {{"jump rope", "jumprope", "swinging rope"}, {"other side", "bridge", "finish"}},
+        Minimum = 40,
+    },
+    {
+        Name = "Marbles",
+        Aliases = {"marbles", "marble game"},
+        Visual = {"throw the marble", "ring shooter", "closest marble", "marble count"},
+        World = {"marble", "ring target", "marble hole", "throw line"},
+        Groups = {{"marble", "marbles"}, {"throw", "ring", "target", "hole"}},
+        Minimum = 38,
+    },
+    {
+        Name = "Mingle",
+        Aliases = {"mingle"},
+        Visual = {"find a room", "enter a room", "players per room", "group of", "room with", "carousel"},
+        World = {"mingle", "carousel room", "room door", "room trigger"},
+        Groups = {{"mingle", "carousel"}, {"room", "group of", "players"}},
+        Minimum = 38,
+    },
+    {
+        Name = "Fight Nights",
+        Aliases = {"fight nights", "fight night", "night brawl", "lights out", "dinner fight"},
+        Visual = {"survive the night", "lights out", "night brawl", "final dinner", "fight until"},
+        World = {"night brawl", "lights out", "dinner arena", "brawl arena"},
+        Groups = {{"night brawl", "lights out", "dinner fight", "fight night"}},
+        Negative = {"rebellion", "uprising", "armory"},
+        Minimum = 38,
+    },
+    {
+        Name = "Glass Bridge",
+        Aliases = {"glass bridge", "glass stepping stones", "glass stepping"},
+        Visual = {"choose a glass", "cross the glass", "glass maker", "reach the other side"},
+        World = {"glass bridge", "glass panels", "bridge glass", "glass tile"},
+        Groups = {{"glass"}, {"bridge", "panel", "stepping"}},
+        Minimum = 42,
+    },
+    {
+        Name = "Rebellion",
+        Aliases = {"rebellion", "uprising"},
+        Visual = {"take the armory", "fight the guards", "reach the frontman", "steal a weapon"},
+        World = {"rebellion", "uprising", "armory", "frontman room", "command room"},
+        Groups = {{"rebellion", "uprising", "armory"}, {"guard", "frontman", "weapon"}},
+        Minimum = 40,
+    },
+    {
+        Name = "Rock, Paper, Scissors Minus One",
+        Aliases = {"rock paper scissors minus one", "rock, paper, scissors minus one", "minus one"},
+        Visual = {"remove one", "choose two", "rock", "paper", "scissors"},
+        World = {"rps", "minus one"},
+        Groups = {{"minus one", "remove one"}, {"rock", "paper", "scissors"}},
+        Minimum = 42,
+    },
+    {
+        Name = "Sky Squid",
+        Aliases = {"sky squid", "sky squid game"},
+        Visual = {"push a player off", "floating platform", "stay on the platform", "last platform"},
+        World = {"sky squid", "floating platform", "sky platform"},
+        Groups = {{"sky squid", "floating platform"}, {"push", "platform"}},
+        Minimum = 40,
+    },
+    {
+        Name = "Squid Game",
+        Aliases = {"squid game final", "final squid game", "squid court"},
+        Visual = {"attack the goal", "defend the goal", "offense team", "defense team", "cross the squid"},
+        World = {"squid court", "squid game court", "offense spawn", "defense spawn"},
+        Groups = {{"squid court", "attack the goal", "defend the goal", "offense team", "defense team"}},
+        Negative = {"sky squid", "squidnomo", "squid game x"},
+        Minimum = 42,
+    },
+    {
+        Name = "Tug of War",
+        Aliases = {"tug of war", "tugofwar"},
+        Visual = {"pull meter", "keep the marker", "team rope", "tap to pull", "pull now"},
+        World = {"tug of war", "tugofwar", "rope team", "pull station"},
+        Groups = {{"tug of war", "tugofwar"}, {"pull", "rope", "meter"}},
+        Minimum = 40,
+    },
+    {
+        Name = "Escape",
+        Aliases = {"island escape", "escape the island", "escape route"},
+        Visual = {"extraction boat", "return to the boat", "leave the island", "reach the dock"},
+        World = {"extraction boat", "escape island", "escape dock"},
+        Groups = {{"escape", "extraction"}, {"island", "boat", "dock"}},
+        Minimum = 44,
+    },
+}
+
+local ProfileByName = {}
+for _, profile in ipairs(Profiles) do ProfileByName[profile.Name] = profile end
+GameRuntime.Profiles = Profiles
+
+local function addEvidence(list, text, weight, source)
+    text = lower(text)
+    if text == "" then return end
+    table.insert(list, {Text = text, Weight = tonumber(weight) or 1, Source = source or "unknown"})
+end
+
+local function addTableEvidence(list, value, prefix, depth, seen)
+    if depth > 4 or type(value) ~= "table" or seen[value] then return end
+    seen[value] = true
+    for key, item in pairs(value) do
+        local label = tostring(prefix or "") .. " " .. tostring(key)
+        if type(item) == "table" then
+            addTableEvidence(list, item, label, depth + 1, seen)
+        elseif type(item) == "string" or type(item) == "number" or type(item) == "boolean" then
+            addEvidence(list, label .. " " .. tostring(item), 42, "teleport")
+        end
+    end
+end
+
+function GameRuntime:_CollectEvidence()
+    local evidence = {}
+    local snapshot = Shared:GetVisualSnapshot(true)
+    for _, item in ipairs(snapshot.Items or {}) do
+        local weight = item.TextSize and item.TextSize >= 30 and 26 or 18
+        addEvidence(evidence, tostring(item.Text or "") .. " " .. tostring(item.Context or ""), weight, "hud")
+    end
+
+    local player, character, _, root = getCharacter()
+    if player then
+        if player.Team then addEvidence(evidence, player.Team.Name, 8, "team") end
+        for _, object in ipairs({player, character}) do
+            if object then
+                for _, attributeName in ipairs({
+                    "CurrentGame", "Game", "GameName", "SelectedGame", "CurrentRound",
+                    "Round", "RoundName", "Mode", "GameMode", "Minigame", "CurrentMap", "MapName", "Stage"
+                }) do
+                    local ok, value = pcall(object.GetAttribute, object, attributeName)
+                    if ok and value ~= nil then
+                        addEvidence(evidence, attributeName .. " " .. tostring(value), 48, "state")
+                    end
+                end
+            end
+        end
+        pcall(function()
+            addTableEvidence(evidence, player:GetJoinData(), "join", 0, {})
+        end)
+        local backpack = player:FindFirstChildOfClass("Backpack")
+        for _, container in ipairs({character, backpack}) do
+            if container then
+                for _, child in ipairs(container:GetChildren()) do
+                    if child:IsA("Tool") then addEvidence(evidence, child.Name, 9, "tool") end
+                end
+            end
+        end
+    end
+    pcall(function()
+        addTableEvidence(evidence, TeleportService:GetLocalPlayerTeleportData(), "teleport", 0, {})
+    end)
+
+    for _, service in ipairs({Workspace, ReplicatedStorage}) do
+        for attributeName, value in pairs(service:GetAttributes()) do
+            if containsAny(attributeName, {"game", "round", "mode", "stage", "map", "minigame"}) then
+                addEvidence(evidence, attributeName .. " " .. tostring(value), 40, "state")
+            end
+        end
+    end
+
+    local stateObjects = Shared:FindTargets({
+        Scope = "Workspace",
+        TargetClasses = {"ValueBase", "ProximityPrompt", "Sound"},
+        MaxTargets = 260,
+        CacheTTL = 0.7,
+    })
+    for _, object in ipairs(stateObjects) do
+        if object:IsA("ValueBase") then
+            local name = lower(object.Name)
+            if containsAny(name, {"game", "round", "mode", "stage", "map", "state", "minigame"}) then
+                addEvidence(evidence, objectText(object), 38, "state")
+            end
+        elseif object:IsA("ProximityPrompt") and object.Enabled then
+            addEvidence(evidence, objectText(object), 11, "world")
+        elseif object:IsA("Sound") and object.Playing then
+            addEvidence(evidence, objectText(object), 10, "world")
+        end
+    end
+
+    if root then
+        local parts = {}
+        local ok, result = pcall(function()
+            return Workspace:GetPartBoundsInRadius(root.Position, 520)
+        end)
+        if ok and type(result) == "table" then parts = result end
+        local limit = math.min(#parts, 650)
+        for index = 1, limit do
+            local part = parts[index]
+            if part and part.Parent and part.Transparency < 0.995 then
+                local parent = part.Parent
+                local grandparent = parent and parent.Parent
+                addEvidence(evidence, part.Name .. " " .. (parent and parent.Name or "") .. " " .. (grandparent and grandparent.Name or ""), 5, "world")
+            end
+        end
+    end
+    return evidence
+end
+
+local function evidenceHas(evidence, tokens, sources)
+    for _, item in ipairs(evidence) do
+        if (not sources or sources[item.Source]) and containsAny(item.Text, tokens) then return true end
+    end
+    return false
+end
+
+local function profileScore(profile, evidence)
+    local score, hits, strongest = 0, 0, 0
+    for _, item in ipairs(evidence) do
+        local matched = 0
+        if containsAny(item.Text, profile.Aliases) then
+            matched = (item.Source == "state" or item.Source == "teleport") and 95 or 42
+        elseif containsAny(item.Text, profile.Visual) then
+            matched = item.Source == "hud" and item.Weight * 1.25 or item.Weight * 0.75
+        elseif containsAny(item.Text, profile.World) then
+            matched = item.Source == "world" and item.Weight or item.Weight * 0.55
+        end
+        if matched > 0 then
+            score = score + matched
+            hits = hits + 1
+            if matched > strongest then strongest = matched end
+        end
+        if profile.Negative and containsAny(item.Text, profile.Negative) then
+            score = score - math.max(8, item.Weight * 0.9)
+        end
+    end
+    if profile.Groups then
+        local complete = true
+        for _, group in ipairs(profile.Groups) do
+            if not evidenceHas(evidence, group) then complete = false break end
+        end
+        if complete then score, hits = score + 32, hits + #profile.Groups end
+    end
+    return score, hits, strongest
+end
+
+function GameRuntime:DetectGame(force)
+    local now = os.clock()
+    if not force and self.DetectionCache and now - self.DetectionCache.Time < 0.34 then
+        return self.DetectionCache.Name, self.DetectionCache.Score, self.DetectionCache.Detail
+    end
+    local evidence = self:_CollectEvidence()
+    local ranked = {}
+    for _, profile in ipairs(Profiles) do
+        local score, hits, strongest = profileScore(profile, evidence)
+        table.insert(ranked, {Name = profile.Name, Score = score, Hits = hits, Strongest = strongest, Minimum = profile.Minimum or 40})
+    end
+    table.sort(ranked, function(a, b)
+        if a.Score == b.Score then return a.Name < b.Name end
+        return a.Score > b.Score
+    end)
+    local best, second = ranked[1], ranked[2]
+    local candidate = nil
+    if best and best.Score >= best.Minimum and best.Hits >= 2
+        and (best.Strongest >= 34 or best.Hits >= 4)
+        and (not second or best.Score - second.Score >= 8)
+    then
+        candidate = best.Name
+    end
+
+    local hint = Environment.__SquidNoMoManualGameHint
+    if not candidate and type(hint) == "table" and tonumber(hint.ExpiresAt or 0) > now then
+        candidate = hint.Name
+        best = {Name = hint.Name, Score = 31, Hits = 1, Strongest = 31, Minimum = 0}
+    end
+
+    local stable = self.StableDetection
+    if candidate and candidate == stable.Candidate then
+        stable.Count = stable.Count + 1
+    elseif candidate then
+        stable.Candidate = candidate
+        stable.Count = 1
+    else
+        stable.Candidate = nil
+        stable.Count = 0
+    end
+    if candidate and (stable.Count >= 2 or (best and best.Score >= 82)) then
+        stable.Name = candidate
+        stable.ConfirmedAt = now
+    elseif not candidate and stable.Name and now - (stable.ConfirmedAt or 0) > 5.5 then
+        stable.Name = nil
+    end
+
+    if stable.Name then
+        Environment.__SquidNoMoDetectedGame = stable.Name
+        Environment.__SquidNoMoDetectedGameAt = now
+    end
+    local detail = best and string.format("%s score %.0f", tostring(best.Name), tonumber(best.Score) or 0) or "no game evidence"
+    self.DetectionCache = {Time = now, Name = stable.Name, Score = best and best.Score or 0, Detail = detail, Evidence = evidence}
+    return stable.Name, best and best.Score or 0, detail
+end
+
+function GameRuntime:IsGameActive(name)
+    local detected, score = self:DetectGame(false)
+    if detected == name then return true, "Detected " .. name end
+    if detected then return false, "Paused: " .. detected .. " is active" end
+
+    local profile = ProfileByName[name]
+    local evidence = self.DetectionCache and self.DetectionCache.Evidence or self:_CollectEvidence()
+    if profile then
+        local localScore, hits, strongest = profileScore(profile, evidence)
+        if localScore >= (profile.Minimum or 40) + 12 and hits >= 3 and strongest >= 24 then
+            return true, "Matched live " .. name .. " cues"
+        end
+    end
+    return false, "Waiting for a confirmed " .. tostring(name) .. " round"
+end
+
+local LegacyDetect = Shared.DetectGameCategory
+Shared.DetectGameCategory = function(_, force)
+    return GameRuntime:DetectGame(force == true)
+end
+Shared.SetManualGameHint = function(_, name, ttl)
+    if type(name) ~= "string" or name == "" then return false end
+    Environment.__SquidNoMoManualGameHint = {Name = name, ExpiresAt = os.clock() + math.max(tonumber(ttl) or 14, 3)}
+    GameRuntime.DetectionCache = nil
+    return true
+end
+
+local Feature = {}
+Feature.__index = Feature
+
+function Feature:_SetStatus(state, detail)
+    state, detail = tostring(state or "Unknown"), tostring(detail or "")
+    if self.Status == state and self.StatusDetail == detail then return end
+    self.Status, self.StatusDetail = state, detail
+    for id, callback in pairs(self.StatusListeners) do
+        local ok = pcall(callback, state, detail, self)
+        if not ok then self.StatusListeners[id] = nil end
+    end
+end
+
+function Feature:GetStatus() return self.Status, self.StatusDetail end
+function Feature:GetLastError() return self.LastError end
+function Feature:IsEnabled() return self.Enabled == true end
+function Feature:GetState() return self.Enabled and "on" or "off" end
+function Feature:Enable() return self:Toggle(true) end
+function Feature:Disable() return self:Toggle(false) end
+
+function Feature:SubscribeStatus(callback)
+    self.NextListenerId = self.NextListenerId + 1
+    local id = self.NextListenerId
+    self.StatusListeners[id] = callback
+    local disconnected = false
+    return {Disconnect = function()
+        if disconnected then return end
+        disconnected = true
+        self.StatusListeners[id] = nil
+    end}
+end
+
+function Feature:_TrackInstance(instance)
+    if instance then table.insert(self.Instances, instance) end
+    return instance
+end
+
+function Feature:_TrackConnection(connection)
+    if connection then table.insert(self.Connections, connection) end
+    return connection
+end
+
+function Feature:_SetPresentationEnabled(state)
+    state = state == true
+    for _, instance in ipairs(self.Instances) do
+        pcall(function()
+            if instance:IsA("Highlight") or instance:IsA("UIStroke") then
+                instance.Enabled = state
+            elseif instance:IsA("ScreenGui") or instance:IsA("BillboardGui") then
+                instance.Enabled = state
+            end
+        end)
+    end
+end
+
+function Feature:_Pause(detail)
+    pcall(function() Shared:StopMovement(self) end)
+    pcall(function() Shared:ReleaseActions(self) end)
+    if type(self.OnInactive) == "function" then pcall(self.OnInactive, self) end
+    self:_SetPresentationEnabled(false)
+    self:_SetStatus("Waiting", detail)
+    return false
+end
+
+function Feature:_Cleanup()
+    Shared.Scheduler:Remove(self)
+    pcall(function() Shared:StopMovement(self) end)
+    pcall(function() Shared:ReleaseActions(self) end)
+    if type(self.Cleanup) == "function" then pcall(self.Cleanup, self) end
+    for _, connection in ipairs(self.Connections) do pcall(function() connection:Disconnect() end) end
+    for _, instance in ipairs(self.Instances) do pcall(function() instance:Destroy() end) end
+    self.Connections, self.Instances = {}, {}
+    self.Cleanup = nil
+    self.OnInactive = nil
+end
+
+local Handlers = {}
+
+local function findTarget(config, rootPosition)
+    return Shared:FindBestTarget({
+        Scope = config.Scope or "Workspace",
+        TargetTokens = config.TargetTokens or {},
+        TargetNames = config.TargetNames or {},
+        RequiredTokens = config.RequiredTokens or {},
+        ExcludeTokens = config.ExcludeTokens or {},
+        TargetClasses = config.TargetClasses or {"Model", "BasePart", "Tool", "ProximityPrompt"},
+        ReturnAdornee = true,
+        MaxTargets = config.MaxTargets or 120,
+        CacheTTL = config.CacheTTL or 0.55,
+        PreferInteractive = config.PreferInteractive == true,
+        MaxDistance = config.MaxDistance,
+    }, rootPosition)
+end
+
+local function setHighlight(feature, target, color, label)
+    target = adorneeOf(target)
+    if not target or not target.Parent then return nil end
+    feature.HighlightMap = feature.HighlightMap or setmetatable({}, {__mode = "k"})
+    local existing = feature.HighlightMap[target]
+    if existing and existing.Parent then
+        existing.Enabled = true
+        existing.FillColor = color
+        existing.OutlineColor = color
+        return existing
+    end
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "SquidNoMo_" .. feature.Id
+    highlight.Adornee = target
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.FillColor = color
+    highlight.OutlineColor = color
+    highlight.FillTransparency = 0.72
+    highlight.OutlineTransparency = 0.04
+    highlight.Parent = target
+    feature.HighlightMap[target] = highlight
+    feature:_TrackInstance(highlight)
+    if label then
+        local part = target:IsA("BasePart") and target or target:FindFirstChildWhichIsA("BasePart", true)
+        if part then
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "SquidNoMoLabel"
+            billboard.Size = UDim2.fromOffset(190, 32)
+            billboard.StudsOffset = Vector3.new(0, 4, 0)
+            billboard.AlwaysOnTop = true
+            billboard.Adornee = part
+            billboard.Parent = part
+            local text = Instance.new("TextLabel")
+            text.Size = UDim2.fromScale(1, 1)
+            text.BackgroundTransparency = 1
+            text.Font = Enum.Font.GothamBold
+            text.TextSize = 14
+            text.TextColor3 = color
+            text.TextStrokeTransparency = 0.25
+            text.Text = label
+            text.Parent = billboard
+            feature:_TrackInstance(billboard)
+        end
+    end
+    return highlight
+end
+
+local function localRoleAllowed(config)
+    if not config.Role then return true end
+    if config.Role == "Hider" or config.Role == "Seeker" then
+        local role = Shared:GetHideSeekRole()
+        if not role then return false, "Waiting for a confirmed Hide & Seek role" end
+        if role ~= config.Role then return false, "Waiting for " .. config.Role .. " role" end
+    end
+    return true
+end
+
+Handlers.Highlight = function(feature)
+    local config = feature.Config
+    local seen, count = {}, 0
+    if config.PlayerMode then
+        local localPlayer = Players.LocalPlayer
+        local localRole = config.Game == "Hide & Seek" and Shared:GetHideSeekRole() or nil
+        for _, player in ipairs(Players:GetPlayers()) do
+            local character = player.Character
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            if player ~= localPlayer and character and humanoid and humanoid.Health > 0 then
+                local include = true
+                if config.PlayerTokens and #config.PlayerTokens > 0 then
+                    include = containsAny(player.Name .. " " .. player.DisplayName .. " " .. (player.Team and player.Team.Name or "") .. " " .. objectText(character), config.PlayerTokens)
+                elseif config.Game == "Hide & Seek" and localRole then
+                    local text = lower(player.Name .. " " .. player.DisplayName .. " " .. (player.Team and player.Team.Name or "") .. " " .. objectText(character))
+                    if localRole == "Hider" then include = containsAny(text, {"hunter", "seeker", "killer"}) end
+                    if localRole == "Seeker" then include = not containsAny(text, {"hunter", "seeker", "killer"}) end
+                end
+                if include then
+                    setHighlight(feature, character, config.Color or Color3.fromRGB(255, 80, 100), config.Label)
+                    seen[character], count = true, count + 1
+                end
+            end
+        end
+    end
+    for _, target in ipairs(Shared:FindTargets({
+        Scope = config.Scope or "Workspace",
+        TargetTokens = config.TargetTokens or {},
+        ExcludeTokens = config.ExcludeTokens or {},
+        TargetClasses = config.TargetClasses or {"Model", "BasePart", "Tool"},
+        ReturnAdornee = true,
+        MaxTargets = config.MaxTargets or 40,
+        CacheTTL = config.CacheTTL or 0.8,
+    })) do
+        setHighlight(feature, target, config.Color or Color3.fromRGB(60, 220, 255), config.Label)
+        seen[target], count = true, count + 1
+    end
+    if feature.HighlightMap then
+        for target, highlight in pairs(feature.HighlightMap) do
+            if not seen[target] and highlight and highlight.Parent then highlight.Enabled = false end
+        end
+    end
+    return count > 0, count > 0 and ("Tracking " .. count .. " target(s)") or (config.WaitingMessage or "Waiting for matching targets")
+end
+
+Handlers.GuiHighlight = function(feature)
+    local player = Players.LocalPlayer
+    local playerGui = player and player:FindFirstChildOfClass("PlayerGui")
+    if not playerGui then return false, "Waiting for PlayerGui" end
+    local best, bestScore = nil, -math.huge
+    for _, object in ipairs(playerGui:GetDescendants()) do
+        if object:IsA("GuiObject") and guiVisible(object) then
+            local text = objectText(object)
+            if containsAny(text, feature.Config.TargetTokens) then
+                local score = object.AbsoluteSize.X * object.AbsoluteSize.Y + object.ZIndex * 100
+                if score > bestScore then best, bestScore = object, score end
+            end
+        end
+    end
+    if not best then return false, feature.Config.WaitingMessage or "Waiting for the matching game interface" end
+    if feature.GuiTarget ~= best or not feature.GuiStroke or not feature.GuiStroke.Parent then
+        if feature.GuiStroke then pcall(function() feature.GuiStroke:Destroy() end) end
+        local stroke = Instance.new("UIStroke")
+        stroke.Name = "SquidNoMoGameGuide"
+        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        stroke.Color = feature.Config.Color or Color3.fromRGB(60, 220, 255)
+        stroke.Thickness = feature.Config.Thickness or 4
+        stroke.Transparency = 0.02
+        stroke.Parent = best
+        feature.GuiTarget, feature.GuiStroke = best, stroke
+        feature:_TrackInstance(stroke)
+    end
+    return true, "Highlighting " .. tostring(best.Name)
+end
+
+Handlers.StateHUD = function(feature)
+    if not feature.Hud then
+        local parent
+        if type(gethui) == "function" then pcall(function() parent = gethui() end) end
+        if not parent then
+            local player = Players.LocalPlayer
+            parent = player and player:FindFirstChildOfClass("PlayerGui")
+        end
+        if not parent then pcall(function() parent = game:GetService("CoreGui") end) end
+        if not parent then return false, "Waiting for a compatible UI parent" end
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "SquidNoMoGameState"
+        gui.ResetOnSpawn = false
+        gui.IgnoreGuiInset = true
+        gui.DisplayOrder = 999985
+        gui.Parent = parent
+        local label = Instance.new("TextLabel")
+        label.AnchorPoint = Vector2.new(0.5, 0)
+        label.Position = UDim2.new(0.5, 0, 0, 72)
+        label.Size = UDim2.fromOffset(260, 48)
+        label.BackgroundColor3 = Color3.fromRGB(12, 14, 20)
+        label.BackgroundTransparency = 0.08
+        label.BorderSizePixel = 0
+        label.Font = Enum.Font.GothamBlack
+        label.TextSize = 18
+        label.TextStrokeTransparency = 0.55
+        label.Parent = gui
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 12)
+        corner.Parent = label
+        feature.Hud = label
+        feature:_TrackInstance(gui)
+    end
+    local state = Shared:GetRLGLState()
+    if state == "Green" then
+        feature.Hud.Text = "GREEN LIGHT — MOVE"
+        feature.Hud.TextColor3 = Color3.fromRGB(80, 255, 130)
+        return true, "Green light confirmed"
+    elseif state == "Red" then
+        feature.Hud.Text = "RED LIGHT — STOP"
+        feature.Hud.TextColor3 = Color3.fromRGB(255, 78, 90)
+        return true, "Red light confirmed"
+    end
+    feature.Hud.Text = "SIGNAL UNCERTAIN — WAIT"
+    feature.Hud.TextColor3 = Color3.fromRGB(255, 215, 85)
+    return false, "Waiting for an unambiguous light signal"
+end
+
+Handlers.RLGLMove = function(feature)
+    local _, _, humanoid, root = getCharacter()
+    if not humanoid or not root then return false, "Waiting for the local character" end
+    local state = Shared:GetRLGLState()
+    if state ~= "Green" then
+        Shared:StopMovement(feature)
+        return false, state == "Red" and "Red light — movement stopped" or "Signal uncertain — movement stopped"
+    end
+    local target = findTarget(feature.Config, root.Position)
+    local position = positionOf(target)
+    if not position then return false, "Waiting for the RLGL finish zone" end
+    local moved, detail = Shared:MoveTo(position, feature, {
+        Direct = true,
+        StopDistance = feature.Config.StopDistance or 8,
+        MovementPriority = feature.Config.MovementPriority or 95,
+        CommandInterval = 0.22,
+        LeaseDuration = 0.34,
+    })
+    return moved, moved and "Moving during confirmed green light" or detail
+end
+
+Handlers.AntiStuck = function(feature)
+    local _, _, humanoid, root = getCharacter()
+    if not humanoid or not root then return false, "Waiting for the local character" end
+    if Shared:GetRLGLState() ~= "Green" then
+        feature.LastPosition, feature.LastProgressAt = root.Position, os.clock()
+        return false, "Recovery waits for green light"
+    end
+    if humanoid.MoveDirection.Magnitude < 0.05 then
+        feature.LastPosition, feature.LastProgressAt = root.Position, os.clock()
+        return true, "No movement command to recover"
+    end
+    if not feature.LastPosition or (root.Position - feature.LastPosition).Magnitude >= (feature.Config.MinimumMovement or 0.4) then
+        feature.LastPosition, feature.LastProgressAt = root.Position, os.clock()
+        return true, "Movement progress detected"
+    end
+    if os.clock() - (feature.LastProgressAt or 0) >= (feature.Config.StuckSeconds or 2.1) then
+        humanoid.Jump = true
+        pcall(humanoid.ChangeState, humanoid, Enum.HumanoidStateType.Jumping)
+        feature.LastPosition, feature.LastProgressAt = root.Position, os.clock()
+        return true, "Applied one jump recovery"
+    end
+    return true, "Checking movement progress"
+end
+
+Handlers.JumpBoost = function(feature)
+    local _, _, humanoid = getCharacter()
+    if not humanoid then return false, "Waiting for the local character" end
+    if feature.OriginalJumpPower == nil then
+        feature.OriginalJumpPower = humanoid.JumpPower
+        feature.OriginalJumpHeight = humanoid.JumpHeight
+        feature.OriginalUseJumpPower = humanoid.UseJumpPower
+        feature.TrackedHumanoid = humanoid
+    end
+    local function restore(owner)
+        local tracked = owner.TrackedHumanoid
+        if tracked and tracked.Parent then
+            pcall(function()
+                tracked.UseJumpPower = owner.OriginalUseJumpPower
+                tracked.JumpPower = owner.OriginalJumpPower
+                tracked.JumpHeight = owner.OriginalJumpHeight
+            end)
+        end
+        owner.OriginalJumpPower = nil
+        owner.OriginalJumpHeight = nil
+        owner.OriginalUseJumpPower = nil
+        owner.TrackedHumanoid = nil
+    end
+    feature.OnInactive = restore
+    feature.Cleanup = restore
+    if humanoid.UseJumpPower then
+        humanoid.JumpPower = math.max(feature.OriginalJumpPower or 50, feature.Config.JumpPower or 62)
+    else
+        humanoid.JumpHeight = math.max(feature.OriginalJumpHeight or 7.2, feature.Config.JumpHeight or 10.5)
+    end
+    return true, "Jump boost is active only during Jump Rope"
+end
+
+Handlers.RopeJump = function(feature)
+    local _, _, humanoid, root = getCharacter()
+    if not humanoid or not root then return false, "Waiting for the local character" end
+    local rope = Shared:ObserveRope(feature, root, feature.Config.TargetTokens or {"rope", "swing", "bar"})
+    if not rope then return false, "Waiting for the moving rope" end
+    if humanoid.FloorMaterial ~= Enum.Material.Air
+        and os.clock() - (feature.LastAction or 0) >= (feature.Config.Cooldown or 0.62)
+        and rope.Distance <= (feature.Config.TriggerDistance or 17)
+        and math.abs(rope.Vertical or 0) <= 11
+        and (rope.Approaching or rope.Distance <= 5)
+    then
+        humanoid.Jump = true
+        pcall(humanoid.ChangeState, humanoid, Enum.HumanoidStateType.Jumping)
+        feature.LastAction = os.clock()
+        return true, string.format("Jumped approaching rope at %.1f studs", rope.Distance)
+    end
+    return true, string.format("Tracking rope at %.1f studs", rope.Distance)
+end
+
+Handlers.RopeCourse = function(feature)
+    local _, character, humanoid, root = getCharacter()
+    if not character or not humanoid or not root then return false, "Waiting for the local character" end
+    local finish = findTarget(feature.Config, root.Position)
+    local finishPosition = positionOf(finish)
+    if not finishPosition then return false, "Waiting for the course finish" end
+    local rope = Shared:ObserveRope(feature, root, feature.Config.ObstacleTokens or {"rope", "swing", "bar"})
+    if rope and rope.Approaching and rope.Distance <= (feature.Config.JumpDistance or 17) then
+        Shared:StopMovement(feature)
+        if humanoid.FloorMaterial ~= Enum.Material.Air and os.clock() - (feature.LastAction or 0) >= 0.62 then
+            humanoid.Jump = true
+            pcall(humanoid.ChangeState, humanoid, Enum.HumanoidStateType.Jumping)
+            feature.LastAction = os.clock()
+            return true, "Jumping the approaching rope"
+        end
+        return true, "Holding for the rope window"
+    end
+    local direction = Vector3.new(finishPosition.X - root.Position.X, 0, finishPosition.Z - root.Position.Z)
+    if direction.Magnitude > 1 and humanoid.FloorMaterial ~= Enum.Material.Air then
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = {character}
+        local ahead = root.Position + direction.Unit * 5
+        if not Workspace:Raycast(ahead + Vector3.new(0, 2, 0), Vector3.new(0, -9, 0), params)
+            and os.clock() - (feature.LastAction or 0) >= 0.62
+        then
+            humanoid.Jump = true
+            feature.LastAction = os.clock()
+        end
+    end
+    local moved, detail = Shared:MoveTo(finishPosition, feature, {
+        Direct = true,
+        StopDistance = feature.Config.StopDistance or 7,
+        MovementPriority = feature.Config.MovementPriority or 70,
+        CommandInterval = 0.34,
+        LeaseDuration = 0.46,
+    })
+    return moved, moved and "Advancing during a safe rope window" or detail
+end
+
+Handlers.LaneKeeper = function(feature)
+    local _, _, _, root = getCharacter()
+    if not root then return false, "Waiting for the local character" end
+    if not feature.Anchor then feature.Anchor = root.Position return true, "Saved current lane" end
+    local target = findTarget(feature.Config, root.Position)
+    local finish = positionOf(target)
+    if not finish then return false, "Waiting for the finish direction" end
+    local direction = Vector3.new(finish.X - feature.Anchor.X, 0, finish.Z - feature.Anchor.Z)
+    if direction.Magnitude < 1 then return false, "Finish direction is not ready" end
+    direction = direction.Unit
+    local displacement = Vector3.new(root.Position.X - feature.Anchor.X, 0, root.Position.Z - feature.Anchor.Z)
+    local desired = feature.Anchor + direction * displacement:Dot(direction)
+    desired = Vector3.new(desired.X, root.Position.Y, desired.Z)
+    local errorDistance = (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(desired.X, 0, desired.Z)).Magnitude
+    if errorDistance > (feature.Config.MaxDistance or 7) then
+        local moved, detail = Shared:MoveTo(desired, feature, {
+            Direct = true,
+            StopDistance = 1.5,
+            MovementPriority = feature.Config.MovementPriority or 25,
+            CommandInterval = 0.48,
+        })
+        return moved, moved and "Recentering in the lane" or detail
+    end
+    return true, string.format("Lane offset %.1f studs", errorDistance)
+end
+
+Handlers.PathTo = function(feature)
+    local roleOk, roleDetail = localRoleAllowed(feature.Config)
+    if not roleOk then return false, roleDetail end
+    local _, _, _, root = getCharacter()
+    if not root then return false, "Waiting for the local character" end
+    if feature.Config.SkipIfToolTokens and Shared:FindTool(feature.Config.SkipIfToolTokens) then
+        return true, "Required item already collected"
+    end
+    if feature.Config.RequireToolTokens and not Shared:FindTool(feature.Config.RequireToolTokens) then
+        return false, "Waiting for the required key or tool"
+    end
+    local target, distance = findTarget(feature.Config, root.Position)
+    local position = positionOf(target)
+    if not position then return false, feature.Config.WaitingMessage or "Waiting for a target" end
+    if distance <= (feature.Config.InteractDistance or 11) and feature.Config.Interact then
+        local interacted, detail = Shared:Interact(target, feature, {Priority = feature.Config.ActionPriority or 70, Duration = 0.4})
+        if interacted then return true, "Interacted with " .. tostring(target.Name) end
+        if distance <= (feature.Config.StopDistance or 6) then return false, detail end
+    end
+    local moved, detail = Shared:MoveTo(position, feature, {
+        Direct = feature.Config.Direct == true,
+        StopDistance = feature.Config.StopDistance or 6,
+        MovementPriority = feature.Config.MovementPriority or 70,
+        CommandInterval = 0.42,
+        LeaseDuration = 0.55,
+    })
+    return moved, moved and ("Moving toward " .. tostring(target.Name)) or detail
+end
+
+Handlers.Interact = function(feature)
+    local _, _, _, root = getCharacter()
+    if not root then return false, "Waiting for the local character" end
+    local target, distance = findTarget(feature.Config, root.Position)
+    if not target then return false, feature.Config.WaitingMessage or "Waiting for an interactable target" end
+    if distance > (feature.Config.InteractDistance or 11) then
+        if not feature.Config.Walk then return false, string.format("Target is %.1f studs away", distance) end
+        local position = positionOf(target)
+        local moved, detail = Shared:MoveTo(position, feature, {
+            StopDistance = feature.Config.InteractDistance or 11,
+            MovementPriority = feature.Config.MovementPriority or 55,
+            CommandInterval = 0.5,
+        })
+        return moved, moved and "Moving into interaction range" or detail
+    end
+    local ok, detail = Shared:Interact(target, feature, {Priority = feature.Config.ActionPriority or 65, Duration = feature.Config.ActionCooldown or 0.45})
+    return ok, ok and ("Interacted with " .. tostring(target.Name)) or detail
+end
+
+local function nearestOpponent(config, root)
+    local best, distance = nil, math.huge
+    local localPlayer = Players.LocalPlayer
+    for _, player in ipairs(Players:GetPlayers()) do
+        local character = player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        local targetRoot = character and character:FindFirstChild("HumanoidRootPart")
+        if player ~= localPlayer and humanoid and humanoid.Health > 0 and targetRoot then
+            local include = true
+            if config.PlayerTokens and #config.PlayerTokens > 0 then
+                include = containsAny(player.Name .. " " .. player.DisplayName .. " " .. (player.Team and player.Team.Name or "") .. " " .. objectText(character), config.PlayerTokens)
+            end
+            local d = (targetRoot.Position - root.Position).Magnitude
+            if include and d < distance then best, distance = character, d end
+        end
+    end
+    if config.IncludeNPCs then
+        local npc, npcDistance = findTarget({
+            TargetTokens = config.TargetTokens or {},
+            ExcludeTokens = config.ExcludeTokens or {},
+            TargetClasses = {"Model"},
+            MaxDistance = config.Range or 16,
+            MaxTargets = 80,
+        }, root.Position)
+        if npc and npcDistance < distance then best, distance = npc, npcDistance end
+    end
+    return best, distance
+end
+
+Handlers.ToolPulse = function(feature)
+    local tool = Shared:FindTool(feature.Config.ToolTokens or {})
+    if not tool then return false, feature.Config.WaitingMessage or "Waiting for the required tool" end
+    if os.clock() - (feature.LastAction or 0) < (feature.Config.ActionCooldown or 0.35) then
+        return true, "Tool ready"
+    end
+    local ok, detail = Shared:ActivateTool(feature.Config.ToolTokens or {}, feature, {
+        Priority = feature.Config.ActionPriority or 55,
+        Duration = feature.Config.ActionCooldown or 0.35,
+    })
+    if ok then feature.LastAction = os.clock() end
+    return ok, ok and ("Activated " .. tostring(tool.Name)) or detail
+end
+
+Handlers.ToolAura = function(feature)
+    local _, _, _, root = getCharacter()
+    if not root then return false, "Waiting for the local character" end
+    local target, distance = nearestOpponent(feature.Config, root)
+    if not target or distance > (feature.Config.Range or 11) then return false, feature.Config.WaitingMessage or "Waiting for a nearby valid target" end
+    local targetPosition = positionOf(target)
+    if feature.Config.FaceTarget and targetPosition then
+        root.CFrame = CFrame.lookAt(root.Position, Vector3.new(targetPosition.X, root.Position.Y, targetPosition.Z))
+    end
+    if os.clock() - (feature.LastAction or 0) < (feature.Config.ActionCooldown or 0.24) then
+        return true, string.format("Target in range (%.1f studs)", distance)
+    end
+    local ok, detail = Shared:ActivateTool(feature.Config.ToolTokens or {}, feature, {
+        Priority = feature.Config.ActionPriority or 65,
+        Duration = feature.Config.ActionCooldown or 0.24,
+    })
+    if ok then feature.LastAction = os.clock() end
+    return ok, ok and ("Activated tool near " .. tostring(target.Name)) or detail
+end
+
+local function bestVisibleButton(tokens, excludeTokens)
+    local player = Players.LocalPlayer
+    local playerGui = player and player:FindFirstChildOfClass("PlayerGui")
+    if not playerGui then return nil end
+    local best, bestScore = nil, -math.huge
+    for _, object in ipairs(playerGui:GetDescendants()) do
+        if object:IsA("GuiButton") and guiVisible(object) then
+            local text = objectText(object)
+            if containsAny(text, tokens) and not containsAny(text, excludeTokens or {"shop", "buy", "reward", "settings", "close", "donate"}) then
+                local score = object.AbsoluteSize.X * object.AbsoluteSize.Y + object.ZIndex * 500
+                if object:IsA("TextButton") and object.Text ~= "" then score = score + 5000 end
+                if isGreen(object.BackgroundColor3) then score = score + 4000 end
+                if score > bestScore then best, bestScore = object, score end
+            end
+        end
+    end
+    return best
+end
+
+Handlers.GuiPulse = function(feature)
+    local button = bestVisibleButton(feature.Config.ActionTokens or feature.Config.TargetTokens or {}, feature.Config.ExcludeTokens)
+    if not button then return false, feature.Config.WaitingMessage or "Waiting for the matching action control" end
+    if os.clock() - (feature.LastAction or 0) < (feature.Config.ActionCooldown or 0.16) then return true, "Action control ready" end
+    local ok, detail = Shared:ClickGui(button, feature, {
+        Priority = feature.Config.ActionPriority or 65,
+        Duration = feature.Config.ActionCooldown or 0.16,
+    })
+    if ok then feature.LastAction = os.clock() end
+    return ok, ok and ("Pressed " .. tostring(button.Name)) or detail
+end
+
+local function guiColor(object, propertyName)
+    local ok, value = pcall(function() return object[propertyName] end)
+    if ok and typeof(value) == "Color3" then return value end
+    return nil
+end
+
+Handlers.TimingPulse = function(feature)
+    local player = Players.LocalPlayer
+    local playerGui = player and player:FindFirstChildOfClass("PlayerGui")
+    if not playerGui then return false, "Waiting for PlayerGui" end
+    local ready = false
+    for _, object in ipairs(playerGui:GetDescendants()) do
+        if object:IsA("GuiObject") and guiVisible(object) then
+            local text = objectText(object)
+            if containsAny(text, feature.Config.ZoneTokens or {"perfect", "green", "target", "sweet spot"}) then
+                ready = ready or isGreen(guiColor(object, "BackgroundColor3")) or isGreen(guiColor(object, "ImageColor3")) or containsAny(text, {"perfect", "hit", "now"})
+            end
+            if containsAny(text, feature.Config.IndicatorTokens or {"cursor", "needle", "indicator"}) and isGreen(object.BackgroundColor3) then
+                ready = true
+            end
+        end
+    end
+    local button = bestVisibleButton(feature.Config.ActionTokens or {"tap", "pull", "play"}, feature.Config.ExcludeTokens)
+    if not button then return false, feature.Config.WaitingMessage or "Waiting for the timing interface" end
+    if not ready and feature.Config.RequireReady ~= false then return true, "Waiting for the timing zone" end
+    if os.clock() - (feature.LastAction or 0) < (feature.Config.ActionCooldown or 0.18) then return true, "Timing action cooling down" end
+    local ok, detail = Shared:ClickGui(button, feature, {Priority = feature.Config.ActionPriority or 85, Duration = feature.Config.ActionCooldown or 0.18})
+    if ok then feature.LastAction = os.clock() end
+    return ok, ok and "Triggered the visible timing action" or detail
+end
+
+Handlers.DalgonaCut = function(feature)
+    local player = Players.LocalPlayer
+    local playerGui = player and player:FindFirstChildOfClass("PlayerGui")
+    if not playerGui then return false, "Waiting for PlayerGui" end
+    local nodes = {}
+    for _, object in ipairs(playerGui:GetDescendants()) do
+        if object:IsA("GuiButton") and guiVisible(object) then
+            local text = objectText(object)
+            if containsAny(text, {"trace point", "cut point", "path point", "segment", "node"}) then table.insert(nodes, object) end
+        end
+    end
+    table.sort(nodes, function(a, b)
+        if math.abs(a.AbsolutePosition.Y - b.AbsolutePosition.Y) > 8 then return a.AbsolutePosition.Y < b.AbsolutePosition.Y end
+        return a.AbsolutePosition.X < b.AbsolutePosition.X
+    end)
+    if #nodes == 0 then
+        local button = bestVisibleButton(feature.Config.ActionTokens or {"cut", "carve", "trace", "finish"})
+        if button then
+            local ok, detail = Shared:ClickGui(button, feature, {Priority = 70, Duration = 0.18})
+            return ok, ok and "Pressed the exposed Dalgona action" or detail
+        end
+        return false, "Waiting for client-visible Dalgona trace controls"
+    end
+    feature.NodeIndex = (feature.NodeIndex or 0) + 1
+    if feature.NodeIndex > #nodes then feature.NodeIndex = 1 end
+    local ok, detail = Shared:ClickGui(nodes[feature.NodeIndex], feature, {Priority = 78, Duration = 0.11})
+    return ok, ok and string.format("Tracing point %d/%d", feature.NodeIndex, #nodes) or detail
+end
+
+Handlers.Evasion = function(feature)
+    local _, _, _, root = getCharacter()
+    if not root then return false, "Waiting for the local character" end
+    local threat, distance = nearestOpponent(feature.Config, root)
+    if not threat or distance > (feature.Config.Range or 24) then return true, "No nearby threat" end
+    local threatPosition = positionOf(threat)
+    if not threatPosition then return false, "Threat position unavailable" end
+    local away = Vector3.new(root.Position.X - threatPosition.X, 0, root.Position.Z - threatPosition.Z)
+    if away.Magnitude < 0.5 then away = root.CFrame.RightVector end
+    local destination = root.Position + away.Unit * (feature.Config.EvadeDistance or 20)
+    local moved, detail = Shared:MoveTo(destination, feature, {
+        Direct = true,
+        StopDistance = 2,
+        MovementPriority = feature.Config.MovementPriority or 75,
+        CommandInterval = 0.36,
+    })
+    return moved, moved and ("Evading threat at " .. string.format("%.1f", distance) .. " studs") or detail
+end
+
+Handlers.RoomESP = function(feature)
+    local count, seen = 0, {}
+    for _, room in ipairs(Shared:FindTargets({
+        Scope = "Workspace",
+        TargetTokens = feature.Config.TargetTokens or {"room", "door", "chamber"},
+        ExcludeTokens = {"bathroom", "bedroom", "lobby"},
+        TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
+        ReturnAdornee = true,
+        MaxTargets = 80,
+        CacheTTL = 0.7,
+    })) do
+        local target = adorneeOf(room)
+        setHighlight(feature, target, feature.Config.Color or Color3.fromRGB(60, 220, 255), "ROOM")
+        seen[target] = true
+        count = count + 1
+    end
+    if feature.HighlightMap then
+        for target, highlight in pairs(feature.HighlightMap) do
+            if highlight and highlight.Parent then highlight.Enabled = seen[target] == true end
+        end
+    end
+    return count > 0, count > 0 and ("Tracking " .. count .. " room target(s)") or "Waiting for Mingle rooms"
+end
+
+local function roomOccupancy(room, radius)
+    local position = positionOf(room)
+    if not position then return 0 end
+    local count = 0
+    for _, player in ipairs(Players:GetPlayers()) do
+        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+        if root and humanoid and humanoid.Health > 0 and (root.Position - position).Magnitude <= radius then count = count + 1 end
+    end
+    return count
+end
+
+Handlers.RoomAssist = function(feature)
+    local phase = Shared:GetMinglePhase()
+    if phase == "Locked" then Shared:StopMovement(feature) return true, "Room locked — holding position" end
+    if phase ~= "ChooseRoom" then return false, "Waiting for the room-selection phase" end
+    local required = Shared:GetMingleRequiredCount()
+    if not required then return false, "Waiting for the required player count" end
+    local _, _, _, root = getCharacter()
+    if not root then return false, "Waiting for the local character" end
+    local best, bestScore, bestCount = nil, -math.huge, 0
+    for _, room in ipairs(Shared:FindTargets({
+        Scope = "Workspace",
+        TargetTokens = {"room", "door", "chamber", "enter"},
+        ExcludeTokens = {"bathroom", "bedroom", "lobby"},
+        TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
+        ReturnAdornee = true,
+        MaxTargets = 100,
+        CacheTTL = 0.45,
+    })) do
+        local position = positionOf(room)
+        if position then
+            local count = roomOccupancy(room, feature.Config.RoomRadius or 12)
+            local distance = (position - root.Position).Magnitude
+            local score = -distance - math.abs((required - 1) - count) * 38
+            if count >= required then score = score - 300 end
+            if score > bestScore then best, bestScore, bestCount = room, score, count end
+        end
+    end
+    if not best then return false, "Waiting for an available room" end
+    local position = positionOf(best)
+    local distance = (position - root.Position).Magnitude
+    if distance <= (feature.Config.InteractDistance or 10) then
+        local ok = Shared:Interact(best, feature, {Priority = 80, Duration = 0.5})
+        if ok then return true, string.format("Entering room (%d/%d nearby)", bestCount, required) end
+    end
+    local moved, detail = Shared:MoveTo(position, feature, {
+        StopDistance = feature.Config.StopDistance or 5,
+        MovementPriority = feature.Config.MovementPriority or 75,
+        CommandInterval = 0.4,
+    })
+    return moved, moved and string.format("Moving to room (%d/%d nearby)", bestCount, required) or detail
+end
+
+local ObservedSafeGlass = setmetatable({}, {__mode = "k"})
+local function updateObservedGlass()
+    for _, player in ipairs(Players:GetPlayers()) do
+        local character = player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        if humanoid and root and humanoid.Health > 0 and humanoid.FloorMaterial ~= Enum.Material.Air then
+            local params = RaycastParams.new()
+            params.FilterType = Enum.RaycastFilterType.Exclude
+            params.FilterDescendantsInstances = {character}
+            local result = Workspace:Raycast(root.Position, Vector3.new(0, -8, 0), params)
+            local part = result and result.Instance
+            if part and containsAny(objectText(part), {"glass", "panel", "tile", "bridge"}) then ObservedSafeGlass[part] = os.clock() end
+        end
+    end
+end
+
+local function glassState(part)
+    if not part then return nil end
+    for _, name in ipairs({"Safe", "IsSafe", "Correct", "Real", "CanStand"}) do
+        local ok, value = pcall(part.GetAttribute, part, name)
+        if ok and type(value) == "boolean" then return value end
+    end
+    for _, name in ipairs({"Fake", "Unsafe", "Breakable", "Wrong"}) do
+        local ok, value = pcall(part.GetAttribute, part, name)
+        if ok and value == true then return false end
+    end
+    local parent = part.Parent
+    if parent then
+        for _, child in ipairs(parent:GetChildren()) do
+            if child:IsA("BoolValue") then
+                local name = lower(child.Name)
+                if containsAny(name, {"safe", "correct", "real"}) then return child.Value end
+                if containsAny(name, {"fake", "unsafe", "wrong"}) and child.Value then return false end
+            end
+        end
+    end
+    if ObservedSafeGlass[part] then return true end
+    return nil
+end
+
+local function glassPanels()
+    local panels = {}
+    for _, target in ipairs(Shared:FindTargets({
+        Scope = "Workspace",
+        TargetTokens = {"glass", "panel", "tile", "stepping"},
+        ExcludeTokens = {"wall", "window", "decor"},
+        TargetClasses = {"BasePart"},
+        MaxTargets = 180,
+        CacheTTL = 0.65,
+    })) do
+        if target:IsA("BasePart") and target.Size.X >= 2 and target.Size.Z >= 2 then table.insert(panels, target) end
+    end
+    return panels
+end
+
+Handlers.GlassESP = function(feature)
+    updateObservedGlass()
+    local count, known = 0, 0
+    for _, panel in ipairs(glassPanels()) do
+        local state = glassState(panel)
+        local color = feature.Config.UnknownColor or Color3.fromRGB(255, 210, 70)
+        local label = "UNKNOWN"
+        if state == true then color, label, known = feature.Config.SafeColor or Color3.fromRGB(60, 255, 126), "SAFE", known + 1 end
+        if state == false then color, label, known = feature.Config.UnsafeColor or Color3.fromRGB(255, 80, 90), "UNSAFE", known + 1 end
+        setHighlight(feature, panel, color, label)
+        count = count + 1
+    end
+    if count == 0 then return false, "Waiting for Glass Bridge panels" end
+    return true, string.format("Tracking %d panels; %d verified", count, known)
+end
+
+Handlers.GlassWalk = function(feature)
+    updateObservedGlass()
+    local _, _, _, root = getCharacter()
+    if not root then return false, "Waiting for the local character" end
+    local best, bestDistance = nil, math.huge
+    for _, panel in ipairs(glassPanels()) do
+        if glassState(panel) == true then
+            local distance = (panel.Position - root.Position).Magnitude
+            if distance >= (feature.Config.MinimumDistance or 2) and distance <= (feature.Config.MaximumDistance or 55) and distance < bestDistance then
+                best, bestDistance = panel, distance
+            end
+        end
+    end
+    if not best then return false, "Waiting for a verified safe panel; this feature never guesses" end
+    local moved, detail = Shared:MoveTo(best.Position, feature, {
+        Direct = true,
+        StopDistance = 1.8,
+        MovementPriority = feature.Config.MovementPriority or 75,
+        CommandInterval = 0.4,
+    })
+    return moved, moved and ("Moving to verified safe panel " .. best.Name) or detail
+end
+
+Handlers.FallRecovery = function(feature)
+    local _, character, humanoid, root = getCharacter()
+    if not character or not humanoid or not root then return false, "Waiting for the local character" end
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {character}
+    local ground = Workspace:Raycast(root.Position, Vector3.new(0, -10, 0), params)
+    if ground and humanoid.FloorMaterial ~= Enum.Material.Air then
+        feature.LastSafe = root.Position
+        return true, "Safe recovery point updated"
+    end
+    if not feature.LastSafe then return false, "Waiting for a grounded recovery point" end
+    local falling = root.AssemblyLinearVelocity.Y < -(feature.Config.FallVelocity or 45)
+        or root.Position.Y < feature.LastSafe.Y - (feature.Config.DropDistance or 10)
+    if not falling then return true, "Monitoring fall distance" end
+    humanoid.Jump = true
+    local direction = Vector3.new(feature.LastSafe.X - root.Position.X, 0, feature.LastSafe.Z - root.Position.Z)
+    if direction.Magnitude > 0.1 then
+        local velocity = root.AssemblyLinearVelocity
+        root.AssemblyLinearVelocity = Vector3.new(direction.Unit.X * 34, math.max(velocity.Y, 28), direction.Unit.Z * 34)
+    end
+    Shared:MoveTo(feature.LastSafe, feature, {
+        Direct = true,
+        StopDistance = 2,
+        MovementPriority = feature.Config.RecoveryPriority or 85,
+        CommandInterval = 0.18,
+    })
+    return true, "Attempting non-teleport fall recovery"
+end
+
+Handlers.PositionKeeper = function(feature)
+    local _, _, _, root = getCharacter()
+    if not root then return false, "Waiting for the local character" end
+    if not feature.Anchor then feature.Anchor = root.Position return true, "Saved recovery position" end
+    local distance = (root.Position - feature.Anchor).Magnitude
+    if distance <= (feature.Config.MaxDistance or 9) then return true, "Within the recovery area" end
+    local moved, detail = Shared:MoveTo(feature.Anchor, feature, {
+        Direct = true,
+        StopDistance = feature.Config.MaxDistance or 9,
+        MovementPriority = feature.Config.MovementPriority or 30,
+        CommandInterval = 0.55,
+    })
+    return moved, moved and "Returning to the saved position" or detail
+end
+
+Handlers.AimAssist = function(feature)
+    local _, _, _, root = getCharacter()
+    if not root then return false, "Waiting for the local character" end
+    local tool = Shared:FindTool(feature.Config.ToolTokens or {})
+    if not tool then return false, "Waiting for a marble tool" end
+    local target, distance = findTarget(feature.Config, root.Position)
+    local position = positionOf(target)
+    if not target or not position or distance > (feature.Config.Range or 150) then return false, "Waiting for a visible marble target" end
+    local camera = Workspace.CurrentCamera
+    if camera then camera.CFrame = CFrame.lookAt(camera.CFrame.Position, position) end
+    if os.clock() - (feature.LastAction or 0) >= (feature.Config.ActionCooldown or 0.45) then
+        local ok, detail = Shared:ActivateTool(feature.Config.ToolTokens or {}, feature, {Priority = feature.Config.ActionPriority or 70, Duration = 0.35})
+        if ok then feature.LastAction = os.clock() end
+        return ok, ok and ("Aimed and activated toward " .. target.Name) or detail
+    end
+    return true, string.format("Aiming at target %.1f studs away", distance)
+end
+
+Handlers.Boundary = function(feature)
+    local _, _, _, root = getCharacter()
+    if not root then return false, "Waiting for the local character" end
+    local court = findTarget(feature.Config, root.Position)
+    local center = positionOf(court)
+    if not center then return false, feature.Config.WaitingMessage or "Waiting for the active play area" end
+    local flat = Vector3.new(root.Position.X - center.X, 0, root.Position.Z - center.Z)
+    local radius = feature.Config.Radius or 58
+    if flat.Magnitude <= radius then return true, string.format("Inside boundary (%.1f/%.1f)", flat.Magnitude, radius) end
+    local destination = center + flat.Unit * math.max(radius - 5, 2)
+    destination = Vector3.new(destination.X, root.Position.Y, destination.Z)
+    local moved, detail = Shared:MoveTo(destination, feature, {
+        Direct = true,
+        StopDistance = 2,
+        MovementPriority = feature.Config.MovementPriority or 70,
+        CommandInterval = 0.36,
+    })
+    return moved, moved and "Returning inside the active boundary" or detail
+end
+
+Handlers.RPS = function(feature)
+    local snapshot = Shared:GetVisibleText()
+    local wanted = nil
+    if containsAny(snapshot, {"opponent rock", "enemy rock", "picked rock"}) then wanted = "paper" end
+    if containsAny(snapshot, {"opponent paper", "enemy paper", "picked paper"}) then wanted = "scissors" end
+    if containsAny(snapshot, {"opponent scissors", "enemy scissors", "picked scissors"}) then wanted = "rock" end
+    if not wanted then
+        local choices = {"rock", "paper", "scissors"}
+        feature.Choice = (feature.Choice or 0) % #choices + 1
+        wanted = choices[feature.Choice]
+    end
+    local button = bestVisibleButton({wanted})
+    if not button then return false, "Waiting for Rock/Paper/Scissors choices" end
+    local ok, detail = Shared:ClickGui(button, feature, {Priority = 78, Duration = 0.3})
+    if not ok then return false, detail end
+    local submit = bestVisibleButton({"submit", "confirm", "choose", "lock", "play"})
+    if submit then Shared:ClickGui(submit, feature, {Priority = 78, Duration = 0.3}) end
+    return true, "Selected " .. string.upper(wanted)
+end
+
+Handlers.Radar = function(feature)
+    if not feature.RadarGui then
+        local parent
+        if type(gethui) == "function" then pcall(function() parent = gethui() end) end
+        parent = parent or game:GetService("CoreGui")
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "SquidNoMoRadar"
+        gui.ResetOnSpawn = false
+        gui.DisplayOrder = 999980
+        gui.Parent = parent
+        local frame = Instance.new("Frame")
+        frame.AnchorPoint = Vector2.new(1, 0)
+        frame.Position = UDim2.new(1, -18, 0, 126)
+        frame.Size = UDim2.fromOffset(150, 150)
+        frame.BackgroundColor3 = Color3.fromRGB(12, 14, 20)
+        frame.BackgroundTransparency = 0.12
+        frame.BorderSizePixel = 0
+        frame.Parent = gui
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = frame
+        feature.RadarGui, feature.RadarFrame = gui, frame
+        feature.RadarDots = setmetatable({}, {__mode = "k"})
+        feature:_TrackInstance(gui)
+    end
+    feature.RadarGui.Enabled = true
+    local _, _, _, root = getCharacter()
+    if not root then return false, "Waiting for the local character" end
+    local seen, count, range = {}, 0, feature.Config.Range or 180
+    local function dotFor(target, color)
+        local dot = feature.RadarDots[target]
+        if dot and dot.Parent then return dot end
+        dot = Instance.new("Frame")
+        dot.AnchorPoint = Vector2.new(0.5, 0.5)
+        dot.Size = UDim2.fromOffset(7, 7)
+        dot.BackgroundColor3 = color
+        dot.BorderSizePixel = 0
+        dot.Parent = feature.RadarFrame
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(1, 0)
+        corner.Parent = dot
+        feature.RadarDots[target] = dot
+        return dot
+    end
+    for _, player in ipairs(Players:GetPlayers()) do
+        local targetRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if player ~= Players.LocalPlayer and targetRoot then
+            local offset = targetRoot.Position - root.Position
+            if math.abs(offset.X) <= range and math.abs(offset.Z) <= range then
+                local dot = dotFor(player.Character, feature.Config.PlayerColor or Color3.fromRGB(255, 80, 100))
+                dot.Position = UDim2.fromScale(0.5 + math.clamp(offset.X / range, -1, 1) * 0.45, 0.5 + math.clamp(offset.Z / range, -1, 1) * 0.45)
+                dot.Visible = true
+                seen[player.Character], count = true, count + 1
+            end
+        end
+    end
+    for _, target in ipairs(Shared:FindTargets({
+        Scope = "Workspace",
+        TargetTokens = feature.Config.TargetTokens or {},
+        TargetClasses = {"Model", "BasePart", "Tool", "ProximityPrompt"},
+        ReturnAdornee = true,
+        MaxTargets = 35,
+        CacheTTL = 0.7,
+    })) do
+        local position = positionOf(target)
+        if position then
+            local offset = position - root.Position
+            if math.abs(offset.X) <= range and math.abs(offset.Z) <= range then
+                local dot = dotFor(target, feature.Config.TargetColor or Color3.fromRGB(60, 255, 126))
+                dot.Position = UDim2.fromScale(0.5 + math.clamp(offset.X / range, -1, 1) * 0.45, 0.5 + math.clamp(offset.Z / range, -1, 1) * 0.45)
+                dot.Visible = true
+                seen[target], count = true, count + 1
+            end
+        end
+    end
+    for target, dot in pairs(feature.RadarDots) do if not seen[target] then dot.Visible = false end end
+    return count > 0, count > 0 and ("Radar tracking " .. count .. " target(s)") or "Waiting for radar targets"
+end
+
+Handlers.NoGuess = function(feature)
+    return false, feature.Config.WaitingMessage or "This feature needs a client-visible, verifiable game signal"
+end
+
+function Feature:_Tick()
+    if not self.Enabled then return false end
+    local roleOk, roleDetail = localRoleAllowed(self.Config)
+    if not roleOk then return self:_Pause(roleDetail) end
+    local active, gameDetail = GameRuntime:IsGameActive(self.Config.Game)
+    if not active then return self:_Pause(gameDetail) end
+    if self.Config.Stage then
+        local stage = Shared:GetPentathlonStage()
+        if not stage then return self:_Pause("Waiting for the " .. tostring(self.Config.Stage) .. " Pentathlon stage") end
+        if stage ~= self.Config.Stage then
+            return self:_Pause("Paused: " .. tostring(stage) .. " is the active Pentathlon stage")
+        end
+    end
+    self:_SetPresentationEnabled(true)
+    local handler = Handlers[self.Config.Handler]
+    if not handler then
+        self.LastError = "unsupported game handler: " .. tostring(self.Config.Handler)
+        self:_SetStatus("Error", self.LastError)
+        return false
+    end
+    local ok, working, detail = xpcall(function() return handler(self) end, debug.traceback)
+    if not ok then
+        self.LastError = tostring(working)
+        pcall(function() Shared:StopMovement(self) end)
+        pcall(function() Shared:ReleaseActions(self) end)
+        self:_SetPresentationEnabled(false)
+        self:_SetStatus("Error", self.LastError)
+        warn("[SquidNoMo][GameRuntime][" .. self.Name .. "] " .. self.LastError)
+        return false
+    end
+    self:_SetStatus(working and "Active" or "Waiting", detail or gameDetail)
+    return working == true
+end
+
+function Feature:Toggle(state)
+    state = state == true
+    if self.Enabled == state then return true end
+    self:_Cleanup()
+    self.Enabled, self.LastError = state, nil
+    if not state then self:_SetStatus("Off", "Disabled") return true end
+    if type(self.Config.Game) ~= "string" or self.Config.Game == "" then
+        self.Enabled = false
+        self.LastError = "game profile is missing"
+        self:_SetStatus("Error", self.LastError)
+        return false, self.LastError
+    end
+    if not Handlers[self.Config.Handler] then
+        self.Enabled = false
+        self.LastError = "unsupported game handler: " .. tostring(self.Config.Handler)
+        self:_SetStatus("Error", self.LastError)
+        return false, self.LastError
+    end
+    self:_SetStatus("Starting", "Starting " .. self.Name)
+    Shared.Scheduler:Add(self, self.Config.Interval or 0.25, self.Config.IdleInterval or math.max((self.Config.Interval or 0.25) * 4, 0.85), function(owner)
+        return owner:_Tick()
+    end)
+    return true
+end
+
+function GameRuntime:CreateFeature(config)
+    assert(type(config) == "table", "game feature config must be a table")
+    assert(type(config.Id) == "string" and config.Id ~= "", "game feature Id is required")
+    assert(type(config.Handler) == "string" and config.Handler ~= "", "game feature Handler is required")
+    assert(type(config.Game) == "string" and config.Game ~= "", "game feature Game is required")
+    return setmetatable({
+        Id = config.Id,
+        Name = tostring(config.Name or config.Id),
+        Description = tostring(config.Description or ""),
+        Config = config,
+        Enabled = false,
+        Status = "Off",
+        StatusDetail = "Disabled",
+        LastError = nil,
+        LastAction = 0,
+        Instances = {},
+        Connections = {},
+        StatusListeners = {},
+        NextListenerId = 0,
+    }, Feature)
+end
+
+return GameRuntime
+]====],
+        [ [====[Features/Games/GlassBridge/AntiFall.lua]====] ] = [====[local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then Environment = result end
+end
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
+if type(Runtime) ~= "table"
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
+then
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
+end
+
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Glass Bridge",
+    Game = "Glass Bridge",
     Id = "mapped.games.glass_bridge.antifall",
     Name = "Anti Fall",
-    Description = "Stores a recent safe bridge position and recovers after a fall.",
-    Kind = "AntiFall",
+    Description = "Keeps the latest grounded bridge position and attempts a non-teleport recovery when a fall begins.",
+    Handler = "FallRecovery",
     DropDistance = 14,
-    FallVelocity = 65,
-    RecoveryPriority = 85,
+    FallVelocity = 55,
+    RecoveryPriority = 88,
+    Interval = 0.12,
+    IdleInterval = 0.55,
 })
 ]====],
         [ [====[Features/Games/GlassBridge/AutoComplete.lua]====] ] = [====[local Environment = _G
@@ -11893,29 +13462,27 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Glass Bridge",
+    Game = "Glass Bridge",
     Id = "mapped.games.glass_bridge.autocomplete",
     Name = "Auto Complete",
-    Description = "Moves toward detected safe glass tiles in sequence.",
-    Kind = "SafeTileWalk",
+    Description = "Walks only to glass panels verified safe by exposed state or by another living player standing on them; it never guesses.",
+    Handler = "GlassWalk",
     MinimumDistance = 2,
     MaximumDistance = 55,
-    Interval = 0.32,
-    MovementPriority = 75,
-    WaitingMessage = "Waiting for Glass Bridge panels",
+    MovementPriority = 76,
+    Interval = 0.34,
+    IdleInterval = 0.75,
 })
 ]====],
         [ [====[Features/Games/GlassBridge/AutoReset.lua]====] ] = [====[local Environment = _G
@@ -11923,27 +13490,27 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Glass Bridge",
+    Game = "Glass Bridge",
     Id = "mapped.games.glass_bridge.autoreset",
     Name = "Auto Reset",
-    Description = "Returns the character to a recovery point after falling below the bridge.",
-    Kind = "AntiFall",
+    Description = "Attempts to steer the character back toward the last grounded bridge point without teleporting.",
+    Handler = "FallRecovery",
     DropDistance = 8,
-    FallVelocity = 45,
-    RecoveryPriority = 60,
+    FallVelocity = 38,
+    RecoveryPriority = 72,
+    Interval = 0.12,
+    IdleInterval = 0.55,
 })
 ]====],
         [ [====[Features/Games/GlassBridge/GlassESP.lua]====] ] = [====[local Environment = _G
@@ -11951,28 +13518,27 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Glass Bridge",
+    Game = "Glass Bridge",
     Id = "mapped.games.glass_bridge.glassesp",
     Name = "Glass ESP",
-    Description = "Highlights detected safe and unsafe glass panels.",
-    Kind = "GlassESP",
+    Description = "Labels known safe, known unsafe, and unknown bridge panels; unknown panels remain clearly marked instead of being guessed.",
+    Handler = "GlassESP",
     SafeColor = Color3.fromRGB(60, 255, 126),
     UnsafeColor = Color3.fromRGB(255, 80, 90),
     UnknownColor = Color3.fromRGB(255, 210, 70),
-    Interval = 0.75,
+    Interval = 0.65,
+    IdleInterval = 1.0,
 })
 ]====],
         [ [====[Features/Games/HideSeek/AutoGrabKey.lua]====] ] = [====[local Environment = _G
@@ -11980,33 +13546,33 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Hide & Seek",
+    Game = "Hide & Seek",
     Id = "mapped.games.hide_seek.autograbkey",
     Name = "Auto Grab Key",
-    Description = "Finds the nearest key and moves close enough to collect it.",
-    Kind = "WalkTo",
-    TargetTokens = {"key", "keycard"},
-    ExcludeTokens = {"keyboard", "monkey"},
+    Description = "For Hiders, finds the best interactive key target, walks to it, and uses the available prompt, click, or touch interaction.",
+    Handler = "PathTo",
+    Role = "Hider",
+    TargetTokens = {"key", "keycard", "door key", "exit key"},
+    ExcludeTokens = {"keyboard", "monkey", "shop"},
     TargetClasses = {"Tool", "Model", "BasePart", "ProximityPrompt"},
     Interact = true,
-    StopDistance = 7,
+    StopDistance = 6,
     InteractDistance = 12,
     SkipIfToolTokens = {"key", "keycard"},
-    ExcludeLocalRoleTokens = {"hunter", "seeker", "killer"},
-    MovementPriority = 70,
+    MovementPriority = 72,
+    Interval = 0.38,
+    IdleInterval = 0.85,
     WaitingMessage = "Waiting for an available Hide & Seek key",
 })
 ]====],
@@ -12015,32 +13581,33 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Hide & Seek",
+    Game = "Hide & Seek",
     Id = "mapped.games.hide_seek.autograbknife",
     Name = "Auto Grab Knife",
-    Description = "Finds the nearest knife and moves close enough to collect it.",
-    Kind = "WalkTo",
+    Description = "For Seekers, finds the best interactive knife target, walks to it, and collects it through the supported interaction.",
+    Handler = "PathTo",
+    Role = "Seeker",
     TargetTokens = {"knife", "blade", "weapon"},
+    ExcludeTokens = {"shop", "cosmetic"},
     TargetClasses = {"Tool", "Model", "BasePart", "ProximityPrompt"},
     Interact = true,
-    StopDistance = 7,
+    StopDistance = 6,
     InteractDistance = 12,
-    SkipIfToolTokens = {"knife", "blade", "weapon"},
-    LocalRoleTokens = {"hunter", "seeker", "killer"},
-    MovementPriority = 65,
+    SkipIfToolTokens = {"knife", "blade"},
+    MovementPriority = 70,
+    Interval = 0.38,
+    IdleInterval = 0.85,
     WaitingMessage = "Waiting for an available knife",
 })
 ]====],
@@ -12049,33 +13616,33 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Hide & Seek",
+    Game = "Hide & Seek",
     Id = "mapped.games.hide_seek.autopathtoexit",
     Name = "Auto Path to Exit",
-    Description = "Uses pathfinding to walk toward the nearest detected exit.",
-    Kind = "WalkTo",
-    TargetTokens = {"exit", "escape", "gate", "finish door"},
-    ExcludeTokens = {"emergency light"},
+    Description = "For Hiders carrying a key, pathfinds to a detected exit and uses its visible interaction.",
+    Handler = "PathTo",
+    Role = "Hider",
+    TargetTokens = {"exit", "escape", "gate", "finish door", "unlock"},
+    ExcludeTokens = {"emergency light", "sign"},
     TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
-    StopDistance = 7,
     Interact = true,
+    StopDistance = 6,
     InteractDistance = 12,
     RequireToolTokens = {"key", "keycard"},
-    ExcludeLocalRoleTokens = {"hunter", "seeker", "killer"},
-    MovementPriority = 85,
+    MovementPriority = 86,
+    Interval = 0.36,
+    IdleInterval = 0.9,
     WaitingMessage = "Waiting for a detected exit",
 })
 ]====],
@@ -12084,31 +13651,31 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Hide & Seek",
+    Game = "Hide & Seek",
     Id = "mapped.games.hide_seek.autoswing",
     Name = "Auto Swing",
-    Description = "Automatically activates the equipped melee tool while enabled.",
-    Kind = "ToolAura",
-    ToolTokens = {"knife", "bat", "sword", "weapon", "blade"},
+    Description = "For Seekers, faces a nearby opponent and activates an equipped melee tool at a controlled rate.",
+    Handler = "ToolAura",
+    Role = "Seeker",
+    ToolTokens = {"knife", "blade", "bat", "weapon"},
     Range = 10,
     FaceTarget = true,
-    Interval = 0.24,
-    LocalRoleTokens = {"hunter", "seeker", "killer"},
-    ActionPriority = 70,
-    WaitingMessage = "Waiting for a melee tool and a nearby opponent",
+    ActionCooldown = 0.28,
+    ActionPriority = 72,
+    Interval = 0.18,
+    IdleInterval = 0.7,
+    WaitingMessage = "Waiting for a melee tool and nearby opponent",
 })
 ]====],
         [ [====[Features/Games/HideSeek/EnemyESP.lua]====] ] = [====[local Environment = _G
@@ -12116,26 +13683,26 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Hide & Seek",
+    Game = "Hide & Seek",
     Id = "mapped.games.hide_seek.enemyesp",
     Name = "Enemy ESP",
-    Description = "Highlights opposing players so nearby threats are easier to track.",
-    Kind = "Highlight",
+    Description = "Highlights living opposing players using the confirmed local Hide & Seek role.",
+    Handler = "Highlight",
     PlayerMode = true,
     Color = Color3.fromRGB(255, 82, 100),
+    Interval = 0.55,
+    IdleInterval = 0.9,
     WaitingMessage = "Waiting for opposing players",
 })
 ]====],
@@ -12144,27 +13711,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Hide & Seek",
+    Game = "Hide & Seek",
     Id = "mapped.games.hide_seek.exitesp",
     Name = "Exit ESP",
-    Description = "Marks detected exits and escape points in the map.",
-    Kind = "Highlight",
-    TargetTokens = {"exit", "escape", "gate", "finish door"},
-    TargetClasses = {"Model", "BasePart"},
+    Description = "Highlights detected exits, gates, and escape doors in the active maze.",
+    Handler = "Highlight",
+    TargetTokens = {"exit", "escape", "gate", "finish door", "unlock"},
+    ExcludeTokens = {"emergency light", "sign"},
+    TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
     Color = Color3.fromRGB(60, 255, 126),
+    Label = "EXIT",
+    Interval = 0.65,
+    IdleInterval = 1.0,
     WaitingMessage = "Waiting for detected exits",
 })
 ]====],
@@ -12173,27 +13742,28 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Hide & Seek",
+    Game = "Hide & Seek",
     Id = "mapped.games.hide_seek.huntertracker",
     Name = "Hunter Tracker",
-    Description = "Tracks hunters and keeps their location visible during the round.",
-    Kind = "Highlight",
+    Description = "Highlights living players whose team, role, or character cues identify them as a Hunter or Seeker.",
+    Handler = "Highlight",
     PlayerMode = true,
     PlayerTokens = {"hunter", "seeker", "killer"},
     Color = Color3.fromRGB(255, 70, 70),
+    Label = "HUNTER",
+    Interval = 0.5,
+    IdleInterval = 0.9,
     WaitingMessage = "Waiting for a hunter or seeker role",
 })
 ]====],
@@ -12202,29 +13772,28 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Hide & Seek",
+    Game = "Hide & Seek",
     Id = "mapped.games.hide_seek.mapradar",
     Name = "Map Radar",
-    Description = "Shows nearby players and important map objects in a compact radar view.",
-    Kind = "Radar",
-    PlayerColor = Color3.fromRGB(255, 82, 100),
-    TargetColor = Color3.fromRGB(60, 255, 126),
+    Description = "Shows nearby players, exits, keys, knives, and doors in a lightweight local radar.",
+    Handler = "Radar",
     TargetTokens = {"exit", "key", "knife", "door"},
     Range = 180,
-    Title = "HIDE & SEEK RADAR",
+    PlayerColor = Color3.fromRGB(255, 82, 100),
+    TargetColor = Color3.fromRGB(60, 255, 126),
+    Interval = 0.3,
+    IdleInterval = 0.8,
 })
 ]====],
         [ [====[Features/Games/JumpRope/AutoComplete.lua]====] ] = [====[local Environment = _G
@@ -12232,29 +13801,31 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Jump Rope",
+    Game = "Jump Rope",
     Id = "mapped.games.jump_rope.autocomplete",
     Name = "Auto Complete",
-    Description = "Coordinates movement and jumps to progress across the rope course.",
-    Kind = "CourseAssist",
+    Description = "Advances toward the finish only when the moving rope is outside the danger window and jumps detected gaps.",
+    Handler = "RopeCourse",
     TargetTokens = {"finish", "end", "goal", "exit", "other side", "checkpoint"},
+    ExcludeTokens = {"start", "spawn"},
+    TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
     ObstacleTokens = {"rope", "swing", "bar", "spinner", "sweep"},
     JumpDistance = 17,
-    MovementPriority = 70,
-    WaitingMessage = "Waiting for the Jump Rope course",
+    StopDistance = 7,
+    MovementPriority = 72,
+    Interval = 0.1,
+    IdleInterval = 0.65,
 })
 ]====],
         [ [====[Features/Games/JumpRope/AutoJump.lua]====] ] = [====[local Environment = _G
@@ -12262,27 +13833,27 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Jump Rope",
+    Game = "Jump Rope",
     Id = "mapped.games.jump_rope.autojump",
     Name = "Auto Jump",
-    Description = "Triggers jumps automatically as the rope approaches.",
-    Kind = "AutoJump",
+    Description = "Tracks the moving rope and jumps only when it is approaching within the verified trigger window.",
+    Handler = "RopeJump",
     TargetTokens = {"rope", "swing", "bar", "spinner", "sweep"},
     TriggerDistance = 17,
-    Interval = 0.10,
+    Cooldown = 0.62,
+    Interval = 0.08,
+    IdleInterval = 0.55,
 })
 ]====],
         [ [====[Features/Games/JumpRope/AutoPosition.lua]====] ] = [====[local Environment = _G
@@ -12290,27 +13861,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Jump Rope",
+    Game = "Jump Rope",
     Id = "mapped.games.jump_rope.autoposition",
     Name = "Auto Position",
-    Description = "Keeps the character aligned with the preferred jumping position.",
-    Kind = "PositionKeeper",
+    Description = "Keeps the character near the lane established when the feature is enabled while allowing forward progress.",
+    Handler = "LaneKeeper",
+    TargetTokens = {"finish", "end", "goal", "exit", "other side"},
+    ExcludeTokens = {"start", "spawn"},
+    TargetClasses = {"Model", "BasePart"},
     MaxDistance = 7,
-    Interval = 0.22,
-    MovementPriority = 25,
+    MovementPriority = 28,
+    Interval = 0.24,
+    IdleInterval = 0.75,
 })
 ]====],
         [ [====[Features/Games/JumpRope/JumpBoost.lua]====] ] = [====[local Environment = _G
@@ -12318,27 +13891,26 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Jump Rope",
+    Game = "Jump Rope",
     Id = "mapped.games.jump_rope.jumpboost",
     Name = "Jump Boost",
-    Description = "Temporarily increases jump strength for the rope sequence.",
-    Kind = "JumpBoost",
-    JumpPower = 78,
-    JumpHeight = 13,
-    Interval = 0.35,
+    Description = "Temporarily raises jump strength during the confirmed Jump Rope round and restores the original value when disabled.",
+    Handler = "JumpBoost",
+    JumpPower = 72,
+    JumpHeight = 12,
+    Interval = 0.4,
+    IdleInterval = 0.8,
 })
 ]====],
         [ [====[Features/Games/Marbles/MarbleAimer.lua]====] ] = [====[local Environment = _G
@@ -12346,30 +13918,31 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Marbles",
+    Game = "Marbles",
     Id = "mapped.games.marbles.marbleaimer",
     Name = "Marble Aimer",
-    Description = "Adds aiming assistance for more consistent marble throws.",
-    Kind = "AimActivate",
-    TargetTokens = {"ring", "target", "hole", "goal"},
+    Description = "Aims the camera toward the best visible marble target and activates the equipped marble tool at a controlled rate.",
+    Handler = "AimAssist",
+    TargetTokens = {"ring", "target", "hole", "goal", "circle"},
+    ExcludeTokens = {"shop", "icon"},
+    TargetClasses = {"Model", "BasePart"},
     ToolTokens = {"marble", "ball"},
     Range = 140,
-    Interval = 0.20,
-    ActionPriority = 60,
-    WaitingMessage = "Waiting for a marble and a target",
+    ActionCooldown = 0.5,
+    ActionPriority = 62,
+    Interval = 0.22,
+    IdleInterval = 0.8,
 })
 ]====],
         [ [====[Features/Games/Marbles/MarblesESP.lua]====] ] = [====[local Environment = _G
@@ -12377,27 +13950,28 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Marbles",
+    Game = "Marbles",
     Id = "mapped.games.marbles.marblesesp",
     Name = "Marbles ESP",
-    Description = "Highlights marbles, targets, and useful round objects.",
-    Kind = "Highlight",
+    Description = "Highlights visible marbles, rings, holes, and round targets.",
+    Handler = "Highlight",
     TargetTokens = {"marble", "ring", "target", "hole"},
+    ExcludeTokens = {"shop", "icon"},
     TargetClasses = {"Tool", "Model", "BasePart"},
     Color = Color3.fromRGB(60, 220, 255),
+    Interval = 0.6,
+    IdleInterval = 1.0,
     WaitingMessage = "Waiting for marble targets",
 })
 ]====],
@@ -12406,26 +13980,26 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Marbles",
+    Game = "Marbles",
     Id = "mapped.games.marbles.recoveryassist",
     Name = "Recovery Assist",
-    Description = "Helps recover the aiming position after a missed marble throw.",
-    Kind = "PositionKeeper",
+    Description = "Keeps the player near the position where the feature was enabled so missed throws do not pull them away from the aiming area.",
+    Handler = "PositionKeeper",
     MaxDistance = 9,
-    Interval = 0.25,
+    MovementPriority = 28,
+    Interval = 0.3,
+    IdleInterval = 0.8,
 })
 ]====],
         [ [====[Features/Games/Marbles/RingShooter.lua]====] ] = [====[local Environment = _G
@@ -12433,30 +14007,31 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Marbles",
+    Game = "Marbles",
     Id = "mapped.games.marbles.ringshooter",
     Name = "Ring Shooter",
-    Description = "Assists with lining up and firing marbles toward ring targets.",
-    Kind = "AimActivate",
+    Description = "Aims at the nearest visible ring or hole and activates the marble tool without inventing hidden target data.",
+    Handler = "AimAssist",
     TargetTokens = {"ring", "hoop", "hole", "target"},
+    ExcludeTokens = {"shop", "icon"},
+    TargetClasses = {"Model", "BasePart"},
     ToolTokens = {"marble", "ball"},
     Range = 160,
-    Interval = 0.20,
-    ActionPriority = 75,
-    WaitingMessage = "Waiting for a ring target and marble tool",
+    ActionCooldown = 0.45,
+    ActionPriority = 76,
+    Interval = 0.2,
+    IdleInterval = 0.75,
 })
 ]====],
         [ [====[Features/Games/Mingle/AutoRoom.lua]====] ] = [====[local Environment = _G
@@ -12464,27 +14039,28 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Mingle",
+    Game = "Mingle",
     Id = "mapped.games.mingle.autoroom",
     Name = "Auto Room",
-    Description = "Automatically moves toward a room that matches the current player count.",
-    Kind = "RoomAssist",
-    Interact = true,
-    Interval = 0.4,
-    MovementPriority = 55,
+    Description = "Reads the visible required count, chooses a nearby room with available capacity, and enters it during the room phase.",
+    Handler = "RoomAssist",
+    RoomRadius = 12,
+    StopDistance = 5,
+    InteractDistance = 10,
+    MovementPriority = 62,
+    Interval = 0.32,
+    IdleInterval = 0.75,
 })
 ]====],
         [ [====[Features/Games/Mingle/RoomESP.lua]====] ] = [====[local Environment = _G
@@ -12492,28 +14068,26 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Mingle",
+    Game = "Mingle",
     Id = "mapped.games.mingle.roomesp",
     Name = "Room ESP",
-    Description = "Highlights available rooms and displays useful room information.",
-    Kind = "Highlight",
+    Description = "Highlights active room and door targets during the confirmed Mingle round.",
+    Handler = "RoomESP",
     TargetTokens = {"room", "door", "mingle", "enter room", "join room"},
-    TargetClasses = {"Model", "BasePart"},
     Color = Color3.fromRGB(60, 220, 255),
-    WaitingMessage = "Waiting for Mingle rooms",
+    Interval = 0.55,
+    IdleInterval = 0.9,
 })
 ]====],
         [ [====[Features/Games/Mingle/SmartRoom.lua]====] ] = [====[local Environment = _G
@@ -12521,27 +14095,28 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Mingle",
+    Game = "Mingle",
     Id = "mapped.games.mingle.smartroom",
     Name = "Smart Room",
-    Description = "Chooses a suitable room based on occupancy and nearby players.",
-    Kind = "RoomAssist",
-    Interact = true,
-    Interval = 0.32,
-    MovementPriority = 75,
+    Description = "Scores nearby rooms by distance and occupancy, rejects full rooms, and moves toward the best verified option.",
+    Handler = "RoomAssist",
+    RoomRadius = 12,
+    StopDistance = 5,
+    InteractDistance = 10,
+    MovementPriority = 78,
+    Interval = 0.28,
+    IdleInterval = 0.7,
 })
 ]====],
         [ [====[Features/Games/NightBrawls/BrawlESP.lua]====] ] = [====[local Environment = _G
@@ -12549,26 +14124,26 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Fight Nights",
+    Game = "Fight Nights",
     Id = "mapped.games.fight_nights.brawlesp",
     Name = "Brawl ESP",
-    Description = "Highlights nearby opponents during night-fight rounds.",
-    Kind = "Highlight",
+    Description = "Highlights living nearby opponents during confirmed Fight Nights or Lights Out rounds.",
+    Handler = "Highlight",
     PlayerMode = true,
     Color = Color3.fromRGB(255, 70, 92),
+    Interval = 0.5,
+    IdleInterval = 0.9,
     WaitingMessage = "Waiting for night-brawl opponents",
 })
 ]====],
@@ -12577,28 +14152,27 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Fight Nights",
+    Game = "Fight Nights",
     Id = "mapped.games.fight_nights.brawlevasion",
     Name = "Brawl Evasion",
-    Description = "Keeps distance from nearby attackers and dangerous positions.",
-    Kind = "Evasion",
+    Description = "Moves away from the nearest living opponent while preserving shared movement ownership.",
+    Handler = "Evasion",
     Range = 24,
     EvadeDistance = 20,
-    Interval = 0.24,
-    MovementPriority = 75,
+    MovementPriority = 76,
+    Interval = 0.2,
+    IdleInterval = 0.7,
 })
 ]====],
         [ [====[Features/Games/NightBrawls/CombatAura.lua]====] ] = [====[local Environment = _G
@@ -12606,29 +14180,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Fight Nights",
+    Game = "Fight Nights",
     Id = "mapped.games.fight_nights.combataura",
     Name = "Combat Aura",
-    Description = "Automatically uses the equipped combat tool on nearby valid targets.",
-    Kind = "ToolAura",
+    Description = "Faces the nearest living opponent and activates an equipped combat tool at a throttled rate.",
+    Handler = "ToolAura",
     ToolTokens = {"bat", "bottle", "knife", "weapon", "fist"},
     Range = 10,
     FaceTarget = true,
-    Interval = 0.22,
-    ActionPriority = 65,
+    ActionCooldown = 0.26,
+    ActionPriority = 66,
+    Interval = 0.18,
+    IdleInterval = 0.7,
 })
 ]====],
         [ [====[Features/Games/Pentathlon/Biseokchigi.lua]====] ] = [====[local Environment = _G
@@ -12636,31 +14210,31 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Pentathlon",
+    Game = "Pentathlon",
+    Stage = "Biseokchigi",
     Id = "mapped.games.pentathlon.biseokchigi",
     Name = "Biseokchigi Assist",
-    Description = "Automates the timing and interaction used for the Biseokchigi event.",
-    Kind = "Timing",
+    Description = "Acts only on the visible Biseokchigi timing control when its target zone is ready.",
+    Handler = "TimingPulse",
     IndicatorTokens = {"indicator", "power", "cursor", "needle"},
-    ZoneTokens = {"target", "sweet spot", "green", "hit zone"},
+    ZoneTokens = {"target", "sweet spot", "green", "hit zone", "perfect"},
     ActionTokens = {"throw", "hit", "biseok", "play"},
-    ClickActionWhenVisible = true,
-    ActionCooldown = 0.25,
-    ActionPriority = 85,
-    WaitingMessage = "Waiting for the Biseokchigi timing interface",
+    ActionCooldown = 0.24,
+    ActionPriority = 86,
+    RequireReady = true,
+    Interval = 0.1,
+    IdleInterval = 0.65,
 })
 ]====],
         [ [====[Features/Games/Pentathlon/Ddakji.lua]====] ] = [====[local Environment = _G
@@ -12668,31 +14242,31 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Pentathlon",
+    Game = "Pentathlon",
+    Stage = "Ddakji",
     Id = "mapped.games.pentathlon.ddakji",
     Name = "Ddakji Assist",
-    Description = "Helps perform the Ddakji action with consistent timing.",
-    Kind = "Timing",
+    Description = "Acts only on the visible Ddakji timing control when its target zone is ready.",
+    Handler = "TimingPulse",
     IndicatorTokens = {"indicator", "power", "cursor", "needle"},
-    ZoneTokens = {"target", "sweet spot", "green", "flip zone"},
+    ZoneTokens = {"target", "sweet spot", "green", "flip zone", "perfect"},
     ActionTokens = {"throw", "flip", "ddakji", "play"},
-    ClickActionWhenVisible = true,
-    ActionCooldown = 0.25,
-    ActionPriority = 85,
-    WaitingMessage = "Waiting for the Ddakji timing interface",
+    ActionCooldown = 0.24,
+    ActionPriority = 86,
+    RequireReady = true,
+    Interval = 0.1,
+    IdleInterval = 0.65,
 })
 ]====],
         [ [====[Features/Games/Pentathlon/Gonggi.lua]====] ] = [====[local Environment = _G
@@ -12700,29 +14274,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Pentathlon",
+    Game = "Pentathlon",
+    Stage = "Gonggi",
     Id = "mapped.games.pentathlon.gonggi",
     Name = "Gonggi Assist",
-    Description = "Automates the repeated inputs needed for the Gonggi event.",
-    Kind = "GuiAction",
+    Description = "Presses only visible Gonggi catch, throw, or next controls and ignores unrelated interface buttons.",
+    Handler = "GuiPulse",
     ActionTokens = {"catch", "throw", "gonggi", "tap", "next"},
-    ActionCooldown = 0.12,
-    ActionPriority = 65,
-    Interval = 0.12,
-    WaitingMessage = "Waiting for the Gonggi action controls",
+    ExcludeTokens = {"shop", "buy", "reward", "close"},
+    ActionCooldown = 0.13,
+    ActionPriority = 68,
+    Interval = 0.1,
+    IdleInterval = 0.65,
 })
 ]====],
         [ [====[Features/Games/Pentathlon/Jegichagi.lua]====] ] = [====[local Environment = _G
@@ -12730,31 +14304,31 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Pentathlon",
+    Game = "Pentathlon",
+    Stage = "Jegichagi",
     Id = "mapped.games.pentathlon.jegichagi",
     Name = "Jegichagi Assist",
-    Description = "Keeps the Jegichagi sequence going with automatic timed inputs.",
-    Kind = "Timing",
+    Description = "Triggers the visible kick control only during the ready timing zone.",
+    Handler = "TimingPulse",
     IndicatorTokens = {"indicator", "timing", "cursor", "ball"},
-    ZoneTokens = {"target", "sweet spot", "green", "kick zone"},
+    ZoneTokens = {"target", "sweet spot", "green", "kick zone", "perfect"},
     ActionTokens = {"kick", "jegi", "tap"},
-    ClickActionWhenVisible = true,
-    ActionCooldown = 0.18,
-    ActionPriority = 85,
-    WaitingMessage = "Waiting for the Jegichagi timing interface",
+    ActionCooldown = 0.17,
+    ActionPriority = 86,
+    RequireReady = true,
+    Interval = 0.09,
+    IdleInterval = 0.65,
 })
 ]====],
         [ [====[Features/Games/Pentathlon/Paengi.lua]====] ] = [====[local Environment = _G
@@ -12762,31 +14336,31 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Pentathlon",
+    Game = "Pentathlon",
+    Stage = "Paengi",
     Id = "mapped.games.pentathlon.paengi",
     Name = "Paengi Assist",
-    Description = "Automates the spin interaction for the Paengi event.",
-    Kind = "Timing",
+    Description = "Triggers the visible spin or pull control only during the ready timing zone.",
+    Handler = "TimingPulse",
     IndicatorTokens = {"indicator", "power", "cursor", "spin"},
-    ZoneTokens = {"target", "sweet spot", "green", "spin zone"},
+    ZoneTokens = {"target", "sweet spot", "green", "spin zone", "perfect"},
     ActionTokens = {"spin", "pull", "paengi", "play"},
-    ClickActionWhenVisible = true,
-    ActionCooldown = 0.22,
-    ActionPriority = 85,
-    WaitingMessage = "Waiting for the Paengi timing interface",
+    ActionCooldown = 0.21,
+    ActionPriority = 86,
+    RequireReady = true,
+    Interval = 0.1,
+    IdleInterval = 0.65,
 })
 ]====],
         [ [====[Features/Games/RLGL/AntiStuck.lua]====] ] = [====[local Environment = _G
@@ -12794,29 +14368,26 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Red Light, Green Light",
+    Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.antistuck",
     Name = "Anti Stuck",
-    Description = "Detects stalled movement and helps the character recover during the round.",
-    Kind = "AntiStuck",
-    Interval = 0.35,
-    StuckSeconds = 2.2,
-    MinimumMovement = 0.3,
-    RecoveryDistance = 5,
-    IdleInterval = 0.8,
+    Description = "Checks real movement progress and applies one jump recovery only during confirmed green light.",
+    Handler = "AntiStuck",
+    StuckSeconds = 2.1,
+    MinimumMovement = 0.4,
+    Interval = 0.3,
+    IdleInterval = 0.75,
 })
 ]====],
         [ [====[Features/Games/RLGL/AutoMove.lua]====] ] = [====[local Environment = _G
@@ -12824,29 +14395,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Red Light, Green Light",
+    Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.automove",
     Name = "Auto Move",
-    Description = "Moves on green light and stops automatically when the doll changes to red.",
-    Kind = "RLGLAutoMove",
-    TargetTokens = {"finish", "safe zone", "end zone", "goal"},
-    Interval = 0.10,
-    MovementPriority = 95,
-    IdleInterval = 0.65,
-    WaitingMessage = "Waiting for the RLGL status and finish area",
+    Description = "Moves toward the verified finish only during confirmed green light and stops on red or uncertain signals.",
+    Handler = "RLGLMove",
+    TargetTokens = {"finish", "safe zone", "end zone", "goal", "finish line"},
+    ExcludeTokens = {"start", "spawn"},
+    TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
+    StopDistance = 8,
+    MovementPriority = 96,
+    Interval = 0.08,
+    IdleInterval = 0.55,
 })
 ]====],
         [ [====[Features/Games/RLGL/DollESP.lua]====] ] = [====[local Environment = _G
@@ -12854,27 +14425,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Red Light, Green Light",
+    Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.dollesp",
     Name = "Doll ESP",
-    Description = "Highlights the doll so its position stays visible from anywhere on the field.",
-    Kind = "Highlight",
-    TargetTokens = {"doll", "younghee", "young hee", "mugunghwa", "robot"},
+    Description = "Highlights the active Younghee or robot doll model in the RLGL field.",
+    Handler = "Highlight",
+    TargetTokens = {"doll", "younghee", "young hee", "yeonghee", "mugunghwa", "robot"},
+    ExcludeTokens = {"icon", "shop", "image"},
     TargetClasses = {"Model", "BasePart"},
     Color = Color3.fromRGB(255, 80, 110),
+    Label = "DOLL",
+    Interval = 0.65,
+    IdleInterval = 1.0,
     WaitingMessage = "Waiting for the RLGL doll",
 })
 ]====],
@@ -12883,28 +14456,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Red Light, Green Light",
+    Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.safezoneesp",
     Name = "Safe Zone ESP",
-    Description = "Marks safe areas and the finish zone to make the route easier to read.",
-    Kind = "Highlight",
-    TargetTokens = {"safe zone", "finish", "end zone", "goal"},
+    Description = "Highlights the detected finish, goal, or safe zone and excludes start and spawn markers.",
+    Handler = "Highlight",
+    TargetTokens = {"safe zone", "finish", "end zone", "goal", "finish line"},
     ExcludeTokens = {"start", "spawn"},
     TargetClasses = {"Model", "BasePart"},
     Color = Color3.fromRGB(60, 255, 126),
+    Label = "FINISH",
+    Interval = 0.65,
+    IdleInterval = 1.0,
     WaitingMessage = "Waiting for the finish or safe zone",
 })
 ]====],
@@ -12913,26 +14487,24 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Red Light, Green Light",
+    Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.stateesp",
     Name = "State ESP",
-    Description = "Shows the current red-light or green-light state directly on screen.",
-    Kind = "StateHUD",
-    TargetTokens = {"status", "light", "red", "green", "stop", "go"},
-    Interval = 0.12,
+    Description = "Displays a clear local red, green, or uncertain signal without changing movement settings.",
+    Handler = "StateHUD",
+    Interval = 0.1,
+    IdleInterval = 0.55,
 })
 ]====],
         [ [====[Features/Games/Rebellion/FrontmanNavigator.lua]====] ] = [====[local Environment = _G
@@ -12940,28 +14512,31 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Rebellion",
+    Game = "Rebellion",
     Id = "mapped.games.rebellion.frontmannavigator",
     Name = "Frontman Navigator",
-    Description = "Guides the character toward the detected Frontman objective.",
-    Kind = "WalkTo",
-    TargetTokens = {"frontman", "front man", "command", "control room", "host"},
+    Description = "Pathfinds toward the confirmed Frontman, command room, control room, or final Rebellion objective.",
+    Handler = "PathTo",
+    TargetTokens = {"frontman", "front man", "command room", "control room", "host", "office"},
+    ExcludeTokens = {"poster", "icon", "shop"},
     TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
-    StopDistance = 10,
-    MovementPriority = 60,
+    StopDistance = 9,
+    Interact = true,
+    InteractDistance = 12,
+    MovementPriority = 72,
+    Interval = 0.4,
+    IdleInterval = 0.9,
     WaitingMessage = "Waiting for the Frontman objective",
 })
 ]====],
@@ -12970,32 +14545,32 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Rebellion",
+    Game = "Rebellion",
     Id = "mapped.games.rebellion.guardcombat",
     Name = "Guard Combat",
-    Description = "Automatically engages nearby guard targets with the equipped tool.",
-    Kind = "ToolAura",
+    Description = "Targets confirmed guard or soldier characters and activates an equipped combat tool at a controlled rate.",
+    Handler = "ToolAura",
     PlayerTokens = {"guard", "staff", "soldier"},
     TargetTokens = {"guard", "staff", "soldier"},
     IncludeNPCs = true,
     ToolTokens = {"gun", "rifle", "pistol", "bat", "weapon"},
     Range = 16,
     FaceTarget = true,
-    Interval = 0.22,
-    ActionPriority = 70,
+    ActionCooldown = 0.28,
+    ActionPriority = 72,
+    Interval = 0.2,
+    IdleInterval = 0.75,
 })
 ]====],
         [ [====[Features/Games/RockPaperScissors/AutoPlay.lua]====] ] = [====[local Environment = _G
@@ -13003,25 +14578,24 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Rock, Paper, Scissors Minus One",
+    Game = "Rock, Paper, Scissors Minus One",
     Id = "mapped.games.rock_paper_scissors_minus_one.autoplay",
     Name = "Auto Play",
-    Description = "Automatically selects and submits choices for each RPS Minus One round.",
-    Kind = "RPSAutoPlay",
-    Interval = 0.35,
+    Description = "Reads visible opponent choice text when available, chooses a counter, and submits through the visible RPS controls.",
+    Handler = "RPS",
+    Interval = 0.32,
+    IdleInterval = 0.75,
 })
 ]====],
         [ [====[Features/Games/SkySquid/AntiFall.lua]====] ] = [====[local Environment = _G
@@ -13029,27 +14603,27 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Sky Squid",
+    Game = "Sky Squid",
     Id = "mapped.games.sky_squid.antifall",
     Name = "Anti Fall",
-    Description = "Attempts to recover the character before a fall eliminates them.",
-    Kind = "AntiFall",
+    Description = "Keeps the latest grounded platform position and attempts a non-teleport recovery when a fall begins.",
+    Handler = "FallRecovery",
     DropDistance = 12,
-    FallVelocity = 60,
-    RecoveryPriority = 75,
+    FallVelocity = 52,
+    RecoveryPriority = 82,
+    Interval = 0.12,
+    IdleInterval = 0.55,
 })
 ]====],
         [ [====[Features/Games/SkySquid/AutoFight.lua]====] ] = [====[local Environment = _G
@@ -13057,29 +14631,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Sky Squid",
+    Game = "Sky Squid",
     Id = "mapped.games.sky_squid.autofight",
     Name = "Auto Fight",
-    Description = "Automatically attacks nearby valid opponents with the equipped tool.",
-    Kind = "ToolAura",
+    Description = "Faces the nearest living opponent and activates an equipped combat tool at a controlled rate.",
+    Handler = "ToolAura",
     ToolTokens = {"knife", "pole", "bat", "weapon", "push"},
     Range = 11,
     FaceTarget = true,
-    Interval = 0.22,
-    ActionPriority = 60,
+    ActionCooldown = 0.27,
+    ActionPriority = 62,
+    Interval = 0.18,
+    IdleInterval = 0.7,
 })
 ]====],
         [ [====[Features/Games/SkySquid/AutoPush.lua]====] ] = [====[local Environment = _G
@@ -13087,29 +14661,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Sky Squid",
+    Game = "Sky Squid",
     Id = "mapped.games.sky_squid.autopush",
     Name = "Auto Push",
-    Description = "Uses the push action when an opponent enters range.",
-    Kind = "ToolAura",
+    Description = "Uses an equipped push or shove tool only when a living opponent is within range.",
+    Handler = "ToolAura",
     ToolTokens = {"push", "shove"},
     Range = 12,
     FaceTarget = true,
-    Interval = 0.24,
-    ActionPriority = 75,
+    ActionCooldown = 0.3,
+    ActionPriority = 76,
+    Interval = 0.2,
+    IdleInterval = 0.7,
 })
 ]====],
         [ [====[Features/Games/SkySquid/InstantGrab.lua]====] ] = [====[local Environment = _G
@@ -13117,31 +14691,32 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Sky Squid",
+    Game = "Sky Squid",
     Id = "mapped.games.sky_squid.instantgrab",
     Name = "Instant Grab",
-    Description = "Quickly collects nearby weapons, poles, and usable tools.",
-    Kind = "Interact",
+    Description = "Finds the best nearby interactive weapon or pole and uses a supported prompt, click, or touch interaction.",
+    Handler = "Interact",
     TargetTokens = {"weapon", "pole", "knife", "tool", "bat"},
-    ExcludeTokens = {"owned", "inventory"},
+    ExcludeTokens = {"owned", "inventory", "shop", "icon"},
     TargetClasses = {"Tool", "Model", "BasePart", "ProximityPrompt"},
     MaxDistance = 45,
     Walk = true,
     InteractDistance = 11,
+    MovementPriority = 58,
     ActionCooldown = 0.45,
+    Interval = 0.3,
+    IdleInterval = 0.8,
     WaitingMessage = "Waiting for a nearby usable item",
 })
 ]====],
@@ -13150,28 +14725,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Squid Game",
+    Game = "Squid Game",
     Id = "mapped.games.squid_game.courtboundarykeeper",
     Name = "Court Boundary Keeper",
-    Description = "Helps keep the character inside the active Squid Game court.",
-    Kind = "Boundary",
-    TargetTokens = {"court", "squid game", "arena", "play area", "field"},
+    Description = "Detects the active Squid Game court and moves inward only after the character crosses the configured boundary.",
+    Handler = "Boundary",
+    TargetTokens = {"squid court", "court", "play area", "field", "arena"},
+    ExcludeTokens = {"sky", "lobby", "spectator"},
+    TargetClasses = {"Model", "BasePart"},
     Radius = 58,
-    Interval = 0.28,
-    MovementPriority = 70,
+    MovementPriority = 72,
+    Interval = 0.26,
+    IdleInterval = 0.8,
     WaitingMessage = "Waiting for the Squid Game court",
 })
 ]====],
@@ -13180,29 +14756,29 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Squid Game",
+    Game = "Squid Game",
     Id = "mapped.games.squid_game.squidgamepush",
     Name = "Squid Game Push",
-    Description = "Automatically uses the push tool against nearby opponents.",
-    Kind = "ToolAura",
+    Description = "Uses an equipped push or shove tool only when a living opponent is within range.",
+    Handler = "ToolAura",
     ToolTokens = {"push", "shove"},
     Range = 12,
     FaceTarget = true,
-    Interval = 0.24,
-    ActionPriority = 70,
+    ActionCooldown = 0.3,
+    ActionPriority = 72,
+    Interval = 0.2,
+    IdleInterval = 0.7,
 })
 ]====],
         [ [====[Features/Games/TugOfWar/AutoPull.lua]====] ] = [====[local Environment = _G
@@ -13210,28 +14786,28 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Tug of War",
+    Game = "Tug of War",
     Id = "mapped.games.tug_of_war.autopull",
     Name = "Auto Pull",
-    Description = "Repeats the pull input automatically throughout Tug of War.",
-    Kind = "GuiAction",
+    Description = "Presses the visible Tug of War pull control at a throttled rate and ignores unrelated interface buttons.",
+    Handler = "GuiPulse",
     ActionTokens = {"pull", "tug", "tap", "rope"},
-    ActionCooldown = 0.08,
-    ActionPriority = 40,
-    Interval = 0.09,
+    ExcludeTokens = {"shop", "buy", "reward", "close"},
+    ActionCooldown = 0.09,
+    ActionPriority = 55,
+    Interval = 0.08,
+    IdleInterval = 0.55,
     WaitingMessage = "Waiting for the Tug of War pull control",
 })
 ]====],
@@ -13240,29 +14816,30 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local Runtime = Environment.__SquidNoMoFeatureRuntime
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
     or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
 end
 
+
 return Runtime:CreateFeature({
-    ExpectedGame = "Tug of War",
+    Game = "Tug of War",
     Id = "mapped.games.tug_of_war.perfect_timing",
     Name = "Perfect Timing",
-    Description = "Times pull inputs around the strongest part of the tug sequence.",
-    Kind = "Timing",
-    IndicatorTokens = {"indicator", "cursor", "needle", "power"},
-    ZoneTokens = {"sweet spot", "green", "target", "perfect"},
+    Description = "Presses the visible pull control only when the timing meter exposes a ready or green zone.",
+    Handler = "TimingPulse",
+    IndicatorTokens = {"indicator", "cursor", "needle", "power", "marker"},
+    ZoneTokens = {"sweet spot", "green", "target", "perfect", "now"},
     ActionTokens = {"pull", "tug", "tap"},
     ActionCooldown = 0.14,
-    ActionPriority = 90,
+    ActionPriority = 92,
+    RequireReady = true,
+    Interval = 0.08,
+    IdleInterval = 0.55,
     WaitingMessage = "Waiting for the Tug of War timing meter",
 })
 ]====],
@@ -23251,35 +24828,35 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.red_light_green_light.antistuck",
                     Name = "Anti Stuck",
-                    Description = "Detects stalled movement and helps the character recover during the round.",
+                    Description = "Checks real movement progress and applies one jump recovery only during confirmed green light.",
                     Path = "Features/Games/RLGL/AntiStuck.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.red_light_green_light.automove",
                     Name = "Auto Move",
-                    Description = "Moves on green light and stops automatically when the doll changes to red.",
+                    Description = "Moves toward the verified finish only during confirmed green light and stops on red or uncertain signals.",
                     Path = "Features/Games/RLGL/AutoMove.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.red_light_green_light.dollesp",
                     Name = "Doll ESP",
-                    Description = "Highlights the doll so its position stays visible from anywhere on the field.",
+                    Description = "Highlights the active Younghee or robot doll model in the RLGL field.",
                     Path = "Features/Games/RLGL/DollESP.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.red_light_green_light.safezoneesp",
                     Name = "Safe Zone ESP",
-                    Description = "Marks safe areas and the finish zone to make the route easier to read.",
+                    Description = "Highlights the detected finish, goal, or safe zone and excludes start and spawn markers.",
                     Path = "Features/Games/RLGL/SafeZoneESP.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.red_light_green_light.stateesp",
                     Name = "State ESP",
-                    Description = "Shows the current red-light or green-light state directly on screen.",
+                    Description = "Displays a clear local red, green, or uncertain signal without changing movement settings.",
                     Path = "Features/Games/RLGL/StateESP.lua",
                     Category = "Experimental",
                 },
@@ -23293,28 +24870,28 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.dalgona.autocut",
                     Name = "Auto Cut",
-                    Description = "Automates the cookie carving interaction to help complete the selected shape.",
+                    Description = "Uses only client-visible trace nodes or exposed cut controls; it pauses instead of guessing when the interface hides the path.",
                     Path = "Features/Games/Dalgona/AutoCut.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.dalgona.autolighter",
                     Name = "Auto Lighter",
-                    Description = "Finds, equips, and repeatedly activates the lighter while enabled.",
+                    Description = "Equips and activates a visible lighter or flame tool while the Dalgona round is confirmed.",
                     Path = "Features/Games/Dalgona/AutoLighter.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.dalgona.highlightesp",
                     Name = "Shape Highlight",
-                    Description = "Outlines the cookie shape so the tracing boundary is easier to see.",
+                    Description = "Outlines the visible cookie shape or cutting area without sending game actions.",
                     Path = "Features/Games/Dalgona/HighlightESP.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.dalgona.tracehelper",
                     Name = "Trace Helper",
-                    Description = "Adds a visual tracing guide that follows the cursor over the cookie shape.",
+                    Description = "Highlights the visible trace path, needle, or cursor so the cutting route is easier to follow.",
                     Path = "Features/Games/Dalgona/TraceHelper.lua",
                     Category = "Experimental",
                 },
@@ -23328,35 +24905,35 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.pentathlon.biseokchigi",
                     Name = "Biseokchigi Assist",
-                    Description = "Automates the timing and interaction used for the Biseokchigi event.",
+                    Description = "Acts only on the visible Biseokchigi timing control when its target zone is ready.",
                     Path = "Features/Games/Pentathlon/Biseokchigi.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.pentathlon.ddakji",
                     Name = "Ddakji Assist",
-                    Description = "Helps perform the Ddakji action with consistent timing.",
+                    Description = "Acts only on the visible Ddakji timing control when its target zone is ready.",
                     Path = "Features/Games/Pentathlon/Ddakji.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.pentathlon.gonggi",
                     Name = "Gonggi Assist",
-                    Description = "Automates the repeated inputs needed for the Gonggi event.",
+                    Description = "Presses only visible Gonggi catch, throw, or next controls and ignores unrelated interface buttons.",
                     Path = "Features/Games/Pentathlon/Gonggi.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.pentathlon.jegichagi",
                     Name = "Jegichagi Assist",
-                    Description = "Keeps the Jegichagi sequence going with automatic timed inputs.",
+                    Description = "Triggers the visible kick control only during the ready timing zone.",
                     Path = "Features/Games/Pentathlon/Jegichagi.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.pentathlon.paengi",
                     Name = "Paengi Assist",
-                    Description = "Automates the spin interaction for the Paengi event.",
+                    Description = "Triggers the visible spin or pull control only during the ready timing zone.",
                     Path = "Features/Games/Pentathlon/Paengi.lua",
                     Category = "Experimental",
                 },
@@ -23370,56 +24947,56 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.hide_seek.autograbkey",
                     Name = "Auto Grab Key",
-                    Description = "Finds the nearest key and moves close enough to collect it.",
+                    Description = "For Hiders, finds the best interactive key target, walks to it, and uses the available prompt, click, or touch interaction.",
                     Path = "Features/Games/HideSeek/AutoGrabKey.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.hide_seek.autograbknife",
                     Name = "Auto Grab Knife",
-                    Description = "Finds the nearest knife and moves close enough to collect it.",
+                    Description = "For Seekers, finds the best interactive knife target, walks to it, and collects it through the supported interaction.",
                     Path = "Features/Games/HideSeek/AutoGrabKnife.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.hide_seek.autopathtoexit",
                     Name = "Auto Path to Exit",
-                    Description = "Uses pathfinding to walk toward the nearest detected exit.",
+                    Description = "For Hiders carrying a key, pathfinds to a detected exit and uses its visible interaction.",
                     Path = "Features/Games/HideSeek/AutoPathToExit.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.hide_seek.autoswing",
                     Name = "Auto Swing",
-                    Description = "Automatically activates the equipped melee tool while enabled.",
+                    Description = "For Seekers, faces a nearby opponent and activates an equipped melee tool at a controlled rate.",
                     Path = "Features/Games/HideSeek/AutoSwing.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.hide_seek.enemyesp",
                     Name = "Enemy ESP",
-                    Description = "Highlights opposing players so nearby threats are easier to track.",
+                    Description = "Highlights living opposing players using the confirmed local Hide & Seek role.",
                     Path = "Features/Games/HideSeek/EnemyESP.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.hide_seek.exitesp",
                     Name = "Exit ESP",
-                    Description = "Marks detected exits and escape points in the map.",
+                    Description = "Highlights detected exits, gates, and escape doors in the active maze.",
                     Path = "Features/Games/HideSeek/ExitESP.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.hide_seek.huntertracker",
                     Name = "Hunter Tracker",
-                    Description = "Tracks hunters and keeps their location visible during the round.",
+                    Description = "Highlights living players whose team, role, or character cues identify them as a Hunter or Seeker.",
                     Path = "Features/Games/HideSeek/HunterTracker.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.hide_seek.mapradar",
                     Name = "Map Radar",
-                    Description = "Shows nearby players and important map objects in a compact radar view.",
+                    Description = "Shows nearby players, exits, keys, knives, and doors in a lightweight local radar.",
                     Path = "Features/Games/HideSeek/MapRadar.lua",
                     Category = "Experimental",
                 },
@@ -23433,28 +25010,28 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.jump_rope.autocomplete",
                     Name = "Auto Complete",
-                    Description = "Coordinates movement and jumps to progress across the rope course.",
+                    Description = "Advances toward the finish only when the moving rope is outside the danger window and jumps detected gaps.",
                     Path = "Features/Games/JumpRope/AutoComplete.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.jump_rope.autojump",
                     Name = "Auto Jump",
-                    Description = "Triggers jumps automatically as the rope approaches.",
+                    Description = "Tracks the moving rope and jumps only when it is approaching within the verified trigger window.",
                     Path = "Features/Games/JumpRope/AutoJump.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.jump_rope.autoposition",
                     Name = "Auto Position",
-                    Description = "Keeps the character aligned with the preferred jumping position.",
+                    Description = "Keeps the character near the lane established when the feature is enabled while allowing forward progress.",
                     Path = "Features/Games/JumpRope/AutoPosition.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.jump_rope.jumpboost",
                     Name = "Jump Boost",
-                    Description = "Temporarily increases jump strength for the rope sequence.",
+                    Description = "Temporarily raises jump strength during the confirmed Jump Rope round and restores the original value when disabled.",
                     Path = "Features/Games/JumpRope/JumpBoost.lua",
                     Category = "Experimental",
                 },
@@ -23468,21 +25045,21 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.mingle.autoroom",
                     Name = "Auto Room",
-                    Description = "Automatically moves toward a room that matches the current player count.",
+                    Description = "Reads the visible required count, chooses a nearby room with available capacity, and enters it during the room phase.",
                     Path = "Features/Games/Mingle/AutoRoom.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.mingle.roomesp",
                     Name = "Room ESP",
-                    Description = "Highlights available rooms and displays useful room information.",
+                    Description = "Highlights active room and door targets during the confirmed Mingle round.",
                     Path = "Features/Games/Mingle/RoomESP.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.mingle.smartroom",
                     Name = "Smart Room",
-                    Description = "Chooses a suitable room based on occupancy and nearby players.",
+                    Description = "Scores nearby rooms by distance and occupancy, rejects full rooms, and moves toward the best verified option.",
                     Path = "Features/Games/Mingle/SmartRoom.lua",
                     Category = "Experimental",
                 },
@@ -23496,14 +25073,14 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.tug_of_war.autopull",
                     Name = "Auto Pull",
-                    Description = "Repeats the pull input automatically throughout Tug of War.",
+                    Description = "Presses the visible Tug of War pull control at a throttled rate and ignores unrelated interface buttons.",
                     Path = "Features/Games/TugOfWar/AutoPull.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.tug_of_war.perfect_timing",
                     Name = "Perfect Timing",
-                    Description = "Times pull inputs around the strongest part of the tug sequence.",
+                    Description = "Presses the visible pull control only when the timing meter exposes a ready or green zone.",
                     Path = "Features/Games/TugOfWar/PerfectTiming.lua",
                     Category = "Experimental",
                 },
@@ -23517,28 +25094,28 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.marbles.marbleaimer",
                     Name = "Marble Aimer",
-                    Description = "Adds aiming assistance for more consistent marble throws.",
+                    Description = "Aims the camera toward the best visible marble target and activates the equipped marble tool at a controlled rate.",
                     Path = "Features/Games/Marbles/MarbleAimer.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.marbles.marblesesp",
                     Name = "Marbles ESP",
-                    Description = "Highlights marbles, targets, and useful round objects.",
+                    Description = "Highlights visible marbles, rings, holes, and round targets.",
                     Path = "Features/Games/Marbles/MarblesESP.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.marbles.recoveryassist",
                     Name = "Recovery Assist",
-                    Description = "Helps recover the aiming position after a missed marble throw.",
+                    Description = "Keeps the player near the position where the feature was enabled so missed throws do not pull them away from the aiming area.",
                     Path = "Features/Games/Marbles/RecoveryAssist.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.marbles.ringshooter",
                     Name = "Ring Shooter",
-                    Description = "Assists with lining up and firing marbles toward ring targets.",
+                    Description = "Aims at the nearest visible ring or hole and activates the marble tool without inventing hidden target data.",
                     Path = "Features/Games/Marbles/RingShooter.lua",
                     Category = "Experimental",
                 },
@@ -23552,28 +25129,28 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.glass_bridge.antifall",
                     Name = "Anti Fall",
-                    Description = "Stores a recent safe bridge position and recovers after a fall.",
+                    Description = "Keeps the latest grounded bridge position and attempts a non-teleport recovery when a fall begins.",
                     Path = "Features/Games/GlassBridge/AntiFall.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.glass_bridge.autocomplete",
                     Name = "Auto Complete",
-                    Description = "Moves toward detected safe glass tiles in sequence.",
+                    Description = "Walks only to glass panels verified safe by exposed state or by another living player standing on them; it never guesses.",
                     Path = "Features/Games/GlassBridge/AutoComplete.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.glass_bridge.autoreset",
                     Name = "Auto Reset",
-                    Description = "Returns the character to a recovery point after falling below the bridge.",
+                    Description = "Attempts to steer the character back toward the last grounded bridge point without teleporting.",
                     Path = "Features/Games/GlassBridge/AutoReset.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.glass_bridge.glassesp",
                     Name = "Glass ESP",
-                    Description = "Highlights detected safe and unsafe glass panels.",
+                    Description = "Labels known safe, known unsafe, and unknown bridge panels; unknown panels remain clearly marked instead of being guessed.",
                     Path = "Features/Games/GlassBridge/GlassESP.lua",
                     Category = "Experimental",
                 },
@@ -23587,7 +25164,7 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.rock_paper_scissors_minus_one.autoplay",
                     Name = "Auto Play",
-                    Description = "Automatically selects and submits choices for each RPS Minus One round.",
+                    Description = "Reads visible opponent choice text when available, chooses a counter, and submits through the visible RPS controls.",
                     Path = "Features/Games/RockPaperScissors/AutoPlay.lua",
                     Category = "Experimental",
                 },
@@ -23601,21 +25178,21 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.fight_nights.brawlesp",
                     Name = "Brawl ESP",
-                    Description = "Highlights nearby opponents during night-fight rounds.",
+                    Description = "Highlights living nearby opponents during confirmed Fight Nights or Lights Out rounds.",
                     Path = "Features/Games/NightBrawls/BrawlESP.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.fight_nights.brawlevasion",
                     Name = "Brawl Evasion",
-                    Description = "Keeps distance from nearby attackers and dangerous positions.",
+                    Description = "Moves away from the nearest living opponent while preserving shared movement ownership.",
                     Path = "Features/Games/NightBrawls/BrawlEvasion.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.fight_nights.combataura",
                     Name = "Combat Aura",
-                    Description = "Automatically uses the equipped combat tool on nearby valid targets.",
+                    Description = "Faces the nearest living opponent and activates an equipped combat tool at a throttled rate.",
                     Path = "Features/Games/NightBrawls/CombatAura.lua",
                     Category = "Experimental",
                 },
@@ -23629,14 +25206,14 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.rebellion.frontmannavigator",
                     Name = "Frontman Navigator",
-                    Description = "Guides the character toward the detected Frontman objective.",
+                    Description = "Pathfinds toward the confirmed Frontman, command room, control room, or final Rebellion objective.",
                     Path = "Features/Games/Rebellion/FrontmanNavigator.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.rebellion.guardcombat",
                     Name = "Guard Combat",
-                    Description = "Automatically engages nearby guard targets with the equipped tool.",
+                    Description = "Targets confirmed guard or soldier characters and activates an equipped combat tool at a controlled rate.",
                     Path = "Features/Games/Rebellion/GuardCombat.lua",
                     Category = "Experimental",
                 },
@@ -23650,28 +25227,28 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.sky_squid.antifall",
                     Name = "Anti Fall",
-                    Description = "Attempts to recover the character before a fall eliminates them.",
+                    Description = "Keeps the latest grounded platform position and attempts a non-teleport recovery when a fall begins.",
                     Path = "Features/Games/SkySquid/AntiFall.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.sky_squid.autofight",
                     Name = "Auto Fight",
-                    Description = "Automatically attacks nearby valid opponents with the equipped tool.",
+                    Description = "Faces the nearest living opponent and activates an equipped combat tool at a controlled rate.",
                     Path = "Features/Games/SkySquid/AutoFight.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.sky_squid.autopush",
                     Name = "Auto Push",
-                    Description = "Uses the push action when an opponent enters range.",
+                    Description = "Uses an equipped push or shove tool only when a living opponent is within range.",
                     Path = "Features/Games/SkySquid/AutoPush.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.sky_squid.instantgrab",
                     Name = "Instant Grab",
-                    Description = "Quickly collects nearby weapons, poles, and usable tools.",
+                    Description = "Finds the best nearby interactive weapon or pole and uses a supported prompt, click, or touch interaction.",
                     Path = "Features/Games/SkySquid/InstantGrab.lua",
                     Category = "Experimental",
                 },
@@ -23685,14 +25262,14 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.squid_game.courtboundarykeeper",
                     Name = "Court Boundary Keeper",
-                    Description = "Helps keep the character inside the active Squid Game court.",
+                    Description = "Detects the active Squid Game court and moves inward only after the character crosses the configured boundary.",
                     Path = "Features/Games/SquidGame/CourtBoundaryKeeper.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.squid_game.squidgamepush",
                     Name = "Squid Game Push",
-                    Description = "Automatically uses the push tool against nearby opponents.",
+                    Description = "Uses an equipped push or shove tool only when a living opponent is within range.",
                     Path = "Features/Games/SquidGame/SquidGamePush.lua",
                     Category = "Experimental",
                 },
@@ -23706,7 +25283,7 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.escape.islandnav",
                     Name = "Island Extraction Route",
-                    Description = "Walks toward the detected extraction boat or finish point.",
+                    Description = "Uses pathfinding to walk toward a confirmed extraction boat, dock, or escape finish and interacts when close.",
                     Path = "Features/Games/Escape/IslandNav.lua",
                     Category = "Experimental",
                 },
@@ -24440,46 +26017,6 @@ function GuardsPage:Create(Page, App)
 end
 
 return GuardsPage
-]====],
-        [ [====[Modules/Home.lua]====] ] = [====[local Home = {}
-
-function Home:Create(Page, App)
-
-	local Components = App.Components
-
-	local HeroBanner = App.Loader.HeroBanner
-	local FeatureGroups = App.Loader.FeatureGroups
-	local ServerStatus = App.Loader.ServerStatus
-	local NOMOAI = App.Loader.NOMOAI
-	local SupportDevelopment = App.Loader.SupportDevelopment
-	local DevelopmentGoal = App.Loader.DevelopmentGoal
-	local Supporters = App.Loader.Supporters
-	local ImportantNotice = App.Loader.ImportantNotice
-	local Footer = App.Loader.Footer
-
-
-	HeroBanner:Create(Page, App)
-
-	local Row1 = Components:CreateHorizontalContainer(Page)
-	Row1.LayoutOrder = 2
-
-	FeatureGroups:Create(Row1, App)
-	ServerStatus:Create(Row1, App)
-	NOMOAI:Create(Row1, App)
-
-	local Row2 = Components:CreateHorizontalContainer(Page)
-	Row2.LayoutOrder = 3
-
-	SupportDevelopment:Create(Row2, App)
-	DevelopmentGoal:Create(Row2, App)
-	Supporters:Create(Row2, App)
-
-	ImportantNotice:Create(Page, App)
-	Footer:Create(Page, App)
-
-end
-
-return Home
 ]====],
         [ [====[Modules/Home/DevelopmentGoal.lua]====] ] = [====[local DevelopmentGoal = {}
 
@@ -25748,6 +27285,901 @@ end
 
 return Supporters
 ]====],
+        [ [====[Modules/Home.lua]====] ] = [====[local Home = {}
+
+function Home:Create(Page, App)
+
+	local Components = App.Components
+
+	local HeroBanner = App.Loader.HeroBanner
+	local FeatureGroups = App.Loader.FeatureGroups
+	local ServerStatus = App.Loader.ServerStatus
+	local NOMOAI = App.Loader.NOMOAI
+	local SupportDevelopment = App.Loader.SupportDevelopment
+	local DevelopmentGoal = App.Loader.DevelopmentGoal
+	local Supporters = App.Loader.Supporters
+	local ImportantNotice = App.Loader.ImportantNotice
+	local Footer = App.Loader.Footer
+
+
+	HeroBanner:Create(Page, App)
+
+	local Row1 = Components:CreateHorizontalContainer(Page)
+	Row1.LayoutOrder = 2
+
+	FeatureGroups:Create(Row1, App)
+	ServerStatus:Create(Row1, App)
+	NOMOAI:Create(Row1, App)
+
+	local Row2 = Components:CreateHorizontalContainer(Page)
+	Row2.LayoutOrder = 3
+
+	SupportDevelopment:Create(Row2, App)
+	DevelopmentGoal:Create(Row2, App)
+	Supporters:Create(Row2, App)
+
+	ImportantNotice:Create(Page, App)
+	Footer:Create(Page, App)
+
+end
+
+return Home
+]====],
+        [ [====[Modules/Players/ESP.lua]====] ] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// ESP.lua
+--//========================================================--
+
+local ESP = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function ESP:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- ESP Card
+	----------------------------------------------------------
+
+	local Card = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,340)
+
+	)
+
+	Card.LayoutOrder = 1
+
+	Components:CreateTitle(
+
+		Card,
+		Theme,
+		"👁 Role ESP"
+
+	)
+
+	local Holder = Instance.new("Frame")
+
+	Holder.BackgroundTransparency = 1
+
+	Holder.Position = UDim2.fromOffset(20,55)
+
+	Holder.Size = UDim2.new(1,-40,1,-75)
+
+	Holder.Parent = Card
+
+	local HolderLayout = Instance.new("UIListLayout")
+
+	HolderLayout.Padding = UDim.new(0,12)
+
+	HolderLayout.Parent = Holder
+
+  	----------------------------------------------------------
+	-- Player ESP
+	----------------------------------------------------------
+
+	local _, PlayerESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Player ESP"
+
+		)
+
+	PlayerESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.PlayerESP then
+
+			if State then
+				App.Features.Player.PlayerESP:Enable()
+			else
+				App.Features.Player.PlayerESP:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Guard ESP
+	----------------------------------------------------------
+
+	local _, GuardESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Guard ESP"
+
+		)
+
+	GuardESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.GuardESP then
+
+			if State then
+				App.Features.Player.GuardESP:Enable()
+			else
+				App.Features.Player.GuardESP:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Detective ESP
+	----------------------------------------------------------
+
+	local _, DetectiveESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Detective ESP"
+
+		)
+
+	DetectiveESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.DetectiveESP then
+
+			if State then
+				App.Features.Player.DetectiveESP:Enable()
+			else
+				App.Features.Player.DetectiveESP:Disable()
+			end
+
+		end
+
+	end)
+
+  	----------------------------------------------------------
+	-- Frontman ESP
+	----------------------------------------------------------
+
+	local _, FrontmanESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Frontman ESP"
+
+		)
+
+	FrontmanESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.FrontmanESP then
+
+			if State then
+				App.Features.Player.FrontmanESP:Enable()
+			else
+				App.Features.Player.FrontmanESP:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Finished
+	----------------------------------------------------------
+
+end
+
+----------------------------------------------------------
+-- Return Module
+----------------------------------------------------------
+
+return ESP
+]====],
+        [ [====[Modules/Players/Enhancements.lua]====] ] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// Enhancements.lua
+--//========================================================--
+
+local Enhancements = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function Enhancements:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- Enhancement Card
+	----------------------------------------------------------
+
+	local Card = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,340)
+
+	)
+
+	Card.LayoutOrder = 1
+
+	Components:CreateTitle(
+
+		Card,
+		Theme,
+		"✨ Player Enhancements"
+
+	)
+
+	local Holder = Instance.new("Frame")
+
+	Holder.BackgroundTransparency = 1
+
+	Holder.Position = UDim2.fromOffset(20,55)
+
+	Holder.Size = UDim2.new(1,-40,1,-75)
+
+	Holder.Parent = Card
+
+	local HolderLayout = Instance.new("UIListLayout")
+
+	HolderLayout.Padding = UDim.new(0,12)
+
+	HolderLayout.Parent = Holder
+
+  	----------------------------------------------------------
+	-- Walk Speed
+	----------------------------------------------------------
+
+	local _, WalkSpeed =
+		Components:CreateSlider(
+
+			Holder,
+			Theme,
+			"Walk Speed",
+			16,
+			100,
+			16
+
+		)
+
+	WalkSpeed:OnChanged(function(Value)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.WalkSpeed then
+
+			App.Features.Player.WalkSpeed:Set(Value)
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Jump Power
+	----------------------------------------------------------
+
+	local _, JumpPower =
+		Components:CreateSlider(
+
+			Holder,
+			Theme,
+			"Jump Power",
+			50,
+			200,
+			50
+
+		)
+
+	JumpPower:OnChanged(function(Value)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.JumpPower then
+
+			App.Features.Player.JumpPower:Set(Value)
+
+		end
+
+	end)
+
+  	----------------------------------------------------------
+	-- Infinite Jump
+	----------------------------------------------------------
+
+	local _, InfiniteJump =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Infinite Jump"
+
+		)
+
+	InfiniteJump:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.InfiniteJump then
+
+			if State then
+				App.Features.Player.InfiniteJump:Enable()
+			else
+				App.Features.Player.InfiniteJump:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Noclip
+	----------------------------------------------------------
+
+	local _, Noclip =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Noclip"
+
+		)
+
+	Noclip:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.Noclip then
+
+			if State then
+				App.Features.Player.Noclip:Enable()
+			else
+				App.Features.Player.Noclip:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Finished
+	----------------------------------------------------------
+
+end
+
+return Enhancements
+]====],
+        [ [====[Modules/Players/Main.lua]====] ] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// Main.lua
+--//========================================================--
+
+local PlayersMain = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function PlayersMain:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Main Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- Top Navigation Card
+	----------------------------------------------------------
+
+	local NavCard = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,64)
+
+	)
+
+	NavCard.LayoutOrder = 1
+
+	----------------------------------------------------------
+	-- Navigation Container
+	----------------------------------------------------------
+
+	local NavContainer = Instance.new("Frame")
+
+	NavContainer.Name = "Navigation"
+
+	NavContainer.BackgroundTransparency = 1
+
+	NavContainer.Size = UDim2.new(1,-24,1,-16)
+
+	NavContainer.Position = UDim2.fromOffset(12,8)
+
+	NavContainer.Parent = NavCard
+
+	local NavLayout = Instance.new("UIListLayout")
+
+	NavLayout.FillDirection = Enum.FillDirection.Horizontal
+
+	NavLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+
+	NavLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+	NavLayout.Padding = UDim.new(0,14)
+
+	NavLayout.Parent = NavContainer
+
+	----------------------------------------------------------
+	-- Content Area
+	----------------------------------------------------------
+
+	local Content = Instance.new("Frame")
+
+	Content.Name = "Content"
+
+	Content.BackgroundTransparency = 1
+
+	Content.Size = UDim2.new(1,0,1,-80)
+
+	Content.AutomaticSize = Enum.AutomaticSize.Y
+
+	Content.LayoutOrder = 2
+
+	Content.Parent = Page
+
+	self.Content = Content
+	self.NavContainer = NavContainer
+
+  	----------------------------------------------------------
+	-- Navigation Buttons
+	----------------------------------------------------------
+
+	local CurrentTab
+
+	local Buttons = {}
+
+	local function CreateTab(Name, Icon)
+
+		local Button = Instance.new("TextButton")
+
+		Button.Name = Name
+
+		Button.Size = UDim2.fromOffset(170,44)
+
+		Button.BackgroundColor3 = Theme.Card
+
+		Button.BorderSizePixel = 0
+
+		Button.AutoButtonColor = false
+
+		Button.Font = Theme.FontBold
+
+		Button.TextSize = 16
+
+		Button.Text = Icon .. "  " .. Name
+
+		Button.TextColor3 = Theme.Text
+
+		Button.Parent = NavContainer
+
+		local Corner = Instance.new("UICorner")
+
+		Corner.CornerRadius = UDim.new(0,12)
+
+		Corner.Parent = Button
+
+		Buttons[Name] = Button
+
+		return Button
+
+	end
+
+	local EnhancementsButton =
+		CreateTab("Enhancements","✨")
+
+	local ESPButton =
+		CreateTab("ESP","👁")
+
+	local UtilitiesButton =
+		CreateTab("Utilities","🛠")
+
+  	----------------------------------------------------------
+	-- Page Loader
+	----------------------------------------------------------
+
+	local CurrentPage
+
+	local function ClearPage()
+
+		if CurrentPage then
+
+			CurrentPage:Destroy()
+
+			CurrentPage = nil
+
+		end
+
+	end
+
+	local function SelectTab(Name)
+
+		CurrentTab = Name
+
+		for TabName, Button in pairs(Buttons) do
+
+			if TabName == Name then
+
+				Button.BackgroundColor3 = Theme.Accent
+				Button.TextColor3 = Theme.Background
+
+			else
+
+				Button.BackgroundColor3 = Theme.Card
+				Button.TextColor3 = Theme.Text
+
+			end
+
+		end
+
+		ClearPage()
+
+		CurrentPage = Instance.new("Frame")
+
+		CurrentPage.Name = Name
+
+		CurrentPage.BackgroundTransparency = 1
+
+		CurrentPage.Size = UDim2.fromScale(1,1)
+
+		CurrentPage.Parent = Content
+
+		if Name == "Enhancements" then
+
+			local Module = loadstring(game:HttpGet(
+
+				App.Config.Repository ..
+				"Modules/Players/Enhancements.lua"
+
+			))()
+
+			Module:Create(CurrentPage, App)
+
+		elseif Name == "ESP" then
+
+			local Module = loadstring(game:HttpGet(
+
+				App.Config.Repository ..
+				"Modules/Players/ESP.lua"
+
+			))()
+
+			Module:Create(CurrentPage, App)
+
+		elseif Name == "Utilities" then
+
+			local Module = loadstring(game:HttpGet(
+
+				App.Config.Repository ..
+				"Modules/Players/Utilities.lua"
+
+			))()
+
+			Module:Create(CurrentPage, App)
+
+		end
+
+  end
+	----------------------------------------------------------
+	-- Navigation Events
+	----------------------------------------------------------
+
+	EnhancementsButton.MouseButton1Click:Connect(function()
+
+		SelectTab("Enhancements")
+
+	end)
+
+	ESPButton.MouseButton1Click:Connect(function()
+
+		SelectTab("ESP")
+
+	end)
+
+	UtilitiesButton.MouseButton1Click:Connect(function()
+
+		SelectTab("Utilities")
+
+	end)
+
+	----------------------------------------------------------
+	-- Default Page
+	----------------------------------------------------------
+
+	SelectTab("Enhancements")
+
+end
+
+----------------------------------------------------------
+-- Return Module
+----------------------------------------------------------
+
+return PlayersMain
+  
+]====],
+        [ [====[Modules/Players/Utilities.lua]====] ] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// Utilities.lua
+--//========================================================--
+
+local Utilities = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function Utilities:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- Utilities Card
+	----------------------------------------------------------
+
+	local Card = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,340)
+
+	)
+
+	Card.LayoutOrder = 1
+
+	Components:CreateTitle(
+
+		Card,
+		Theme,
+		"🛠 Player Utilities"
+
+	)
+
+	local Holder = Instance.new("Frame")
+
+	Holder.BackgroundTransparency = 1
+
+	Holder.Position = UDim2.fromOffset(20,55)
+
+	Holder.Size = UDim2.new(1,-40,1,-75)
+
+	Holder.Parent = Card
+
+	local HolderLayout = Instance.new("UIListLayout")
+
+	HolderLayout.Padding = UDim.new(0,12)
+
+	HolderLayout.Parent = Holder
+
+  	----------------------------------------------------------
+	-- Anti AFK
+	----------------------------------------------------------
+
+	local _, AntiAFK =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Anti AFK"
+
+		)
+
+	AntiAFK:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.AntiAFK then
+
+			if State then
+				App.Features.Player.AntiAFK:Enable()
+			else
+				App.Features.Player.AntiAFK:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Anti Lag
+	----------------------------------------------------------
+
+	local _, AntiLag =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Anti Lag"
+
+		)
+
+	AntiLag:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.AntiLag then
+
+			if State then
+				App.Features.Player.AntiLag:Enable()
+			else
+				App.Features.Player.AntiLag:Disable()
+			end
+
+		end
+
+	end)
+
+  	----------------------------------------------------------
+	-- Reset Character
+	----------------------------------------------------------
+
+	local ResetButton =
+		Components:CreateButton(
+
+			Holder,
+			Theme,
+			"🔄 Reset Character"
+
+		)
+
+	ResetButton.MouseButton1Click:Connect(function()
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.Reset then
+
+			App.Features.Player.Reset:Execute()
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Rejoin Server
+	----------------------------------------------------------
+
+	local RejoinButton =
+		Components:CreateButton(
+
+			Holder,
+			Theme,
+			"🌐 Rejoin Server"
+
+		)
+
+	RejoinButton.MouseButton1Click:Connect(function()
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.Rejoin then
+
+			App.Features.Player.Rejoin:Execute()
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Finished
+	----------------------------------------------------------
+
+end
+
+----------------------------------------------------------
+-- Return Module
+----------------------------------------------------------
+
+return Utilities
+]====],
         [ [====[Modules/Players.lua]====] ] = [====[local PlayersPage = {}
 
 local CATEGORIES = {
@@ -26758,861 +29190,6 @@ function PlayersPage:Create(Page, App)
 end
 
 return PlayersPage
-]====],
-        [ [====[Modules/Players/ESP.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// ESP.lua
---//========================================================--
-
-local ESP = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function ESP:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- ESP Card
-	----------------------------------------------------------
-
-	local Card = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,340)
-
-	)
-
-	Card.LayoutOrder = 1
-
-	Components:CreateTitle(
-
-		Card,
-		Theme,
-		"👁 Role ESP"
-
-	)
-
-	local Holder = Instance.new("Frame")
-
-	Holder.BackgroundTransparency = 1
-
-	Holder.Position = UDim2.fromOffset(20,55)
-
-	Holder.Size = UDim2.new(1,-40,1,-75)
-
-	Holder.Parent = Card
-
-	local HolderLayout = Instance.new("UIListLayout")
-
-	HolderLayout.Padding = UDim.new(0,12)
-
-	HolderLayout.Parent = Holder
-
-  	----------------------------------------------------------
-	-- Player ESP
-	----------------------------------------------------------
-
-	local _, PlayerESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Player ESP"
-
-		)
-
-	PlayerESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.PlayerESP then
-
-			if State then
-				App.Features.Player.PlayerESP:Enable()
-			else
-				App.Features.Player.PlayerESP:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Guard ESP
-	----------------------------------------------------------
-
-	local _, GuardESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Guard ESP"
-
-		)
-
-	GuardESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.GuardESP then
-
-			if State then
-				App.Features.Player.GuardESP:Enable()
-			else
-				App.Features.Player.GuardESP:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Detective ESP
-	----------------------------------------------------------
-
-	local _, DetectiveESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Detective ESP"
-
-		)
-
-	DetectiveESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.DetectiveESP then
-
-			if State then
-				App.Features.Player.DetectiveESP:Enable()
-			else
-				App.Features.Player.DetectiveESP:Disable()
-			end
-
-		end
-
-	end)
-
-  	----------------------------------------------------------
-	-- Frontman ESP
-	----------------------------------------------------------
-
-	local _, FrontmanESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Frontman ESP"
-
-		)
-
-	FrontmanESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.FrontmanESP then
-
-			if State then
-				App.Features.Player.FrontmanESP:Enable()
-			else
-				App.Features.Player.FrontmanESP:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Finished
-	----------------------------------------------------------
-
-end
-
-----------------------------------------------------------
--- Return Module
-----------------------------------------------------------
-
-return ESP
-]====],
-        [ [====[Modules/Players/Enhancements.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// Enhancements.lua
---//========================================================--
-
-local Enhancements = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function Enhancements:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- Enhancement Card
-	----------------------------------------------------------
-
-	local Card = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,340)
-
-	)
-
-	Card.LayoutOrder = 1
-
-	Components:CreateTitle(
-
-		Card,
-		Theme,
-		"✨ Player Enhancements"
-
-	)
-
-	local Holder = Instance.new("Frame")
-
-	Holder.BackgroundTransparency = 1
-
-	Holder.Position = UDim2.fromOffset(20,55)
-
-	Holder.Size = UDim2.new(1,-40,1,-75)
-
-	Holder.Parent = Card
-
-	local HolderLayout = Instance.new("UIListLayout")
-
-	HolderLayout.Padding = UDim.new(0,12)
-
-	HolderLayout.Parent = Holder
-
-  	----------------------------------------------------------
-	-- Walk Speed
-	----------------------------------------------------------
-
-	local _, WalkSpeed =
-		Components:CreateSlider(
-
-			Holder,
-			Theme,
-			"Walk Speed",
-			16,
-			100,
-			16
-
-		)
-
-	WalkSpeed:OnChanged(function(Value)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.WalkSpeed then
-
-			App.Features.Player.WalkSpeed:Set(Value)
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Jump Power
-	----------------------------------------------------------
-
-	local _, JumpPower =
-		Components:CreateSlider(
-
-			Holder,
-			Theme,
-			"Jump Power",
-			50,
-			200,
-			50
-
-		)
-
-	JumpPower:OnChanged(function(Value)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.JumpPower then
-
-			App.Features.Player.JumpPower:Set(Value)
-
-		end
-
-	end)
-
-  	----------------------------------------------------------
-	-- Infinite Jump
-	----------------------------------------------------------
-
-	local _, InfiniteJump =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Infinite Jump"
-
-		)
-
-	InfiniteJump:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.InfiniteJump then
-
-			if State then
-				App.Features.Player.InfiniteJump:Enable()
-			else
-				App.Features.Player.InfiniteJump:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Noclip
-	----------------------------------------------------------
-
-	local _, Noclip =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Noclip"
-
-		)
-
-	Noclip:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.Noclip then
-
-			if State then
-				App.Features.Player.Noclip:Enable()
-			else
-				App.Features.Player.Noclip:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Finished
-	----------------------------------------------------------
-
-end
-
-return Enhancements
-]====],
-        [ [====[Modules/Players/Main.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// Main.lua
---//========================================================--
-
-local PlayersMain = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function PlayersMain:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Main Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- Top Navigation Card
-	----------------------------------------------------------
-
-	local NavCard = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,64)
-
-	)
-
-	NavCard.LayoutOrder = 1
-
-	----------------------------------------------------------
-	-- Navigation Container
-	----------------------------------------------------------
-
-	local NavContainer = Instance.new("Frame")
-
-	NavContainer.Name = "Navigation"
-
-	NavContainer.BackgroundTransparency = 1
-
-	NavContainer.Size = UDim2.new(1,-24,1,-16)
-
-	NavContainer.Position = UDim2.fromOffset(12,8)
-
-	NavContainer.Parent = NavCard
-
-	local NavLayout = Instance.new("UIListLayout")
-
-	NavLayout.FillDirection = Enum.FillDirection.Horizontal
-
-	NavLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-
-	NavLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-
-	NavLayout.Padding = UDim.new(0,14)
-
-	NavLayout.Parent = NavContainer
-
-	----------------------------------------------------------
-	-- Content Area
-	----------------------------------------------------------
-
-	local Content = Instance.new("Frame")
-
-	Content.Name = "Content"
-
-	Content.BackgroundTransparency = 1
-
-	Content.Size = UDim2.new(1,0,1,-80)
-
-	Content.AutomaticSize = Enum.AutomaticSize.Y
-
-	Content.LayoutOrder = 2
-
-	Content.Parent = Page
-
-	self.Content = Content
-	self.NavContainer = NavContainer
-
-  	----------------------------------------------------------
-	-- Navigation Buttons
-	----------------------------------------------------------
-
-	local CurrentTab
-
-	local Buttons = {}
-
-	local function CreateTab(Name, Icon)
-
-		local Button = Instance.new("TextButton")
-
-		Button.Name = Name
-
-		Button.Size = UDim2.fromOffset(170,44)
-
-		Button.BackgroundColor3 = Theme.Card
-
-		Button.BorderSizePixel = 0
-
-		Button.AutoButtonColor = false
-
-		Button.Font = Theme.FontBold
-
-		Button.TextSize = 16
-
-		Button.Text = Icon .. "  " .. Name
-
-		Button.TextColor3 = Theme.Text
-
-		Button.Parent = NavContainer
-
-		local Corner = Instance.new("UICorner")
-
-		Corner.CornerRadius = UDim.new(0,12)
-
-		Corner.Parent = Button
-
-		Buttons[Name] = Button
-
-		return Button
-
-	end
-
-	local EnhancementsButton =
-		CreateTab("Enhancements","✨")
-
-	local ESPButton =
-		CreateTab("ESP","👁")
-
-	local UtilitiesButton =
-		CreateTab("Utilities","🛠")
-
-  	----------------------------------------------------------
-	-- Page Loader
-	----------------------------------------------------------
-
-	local CurrentPage
-
-	local function ClearPage()
-
-		if CurrentPage then
-
-			CurrentPage:Destroy()
-
-			CurrentPage = nil
-
-		end
-
-	end
-
-	local function SelectTab(Name)
-
-		CurrentTab = Name
-
-		for TabName, Button in pairs(Buttons) do
-
-			if TabName == Name then
-
-				Button.BackgroundColor3 = Theme.Accent
-				Button.TextColor3 = Theme.Background
-
-			else
-
-				Button.BackgroundColor3 = Theme.Card
-				Button.TextColor3 = Theme.Text
-
-			end
-
-		end
-
-		ClearPage()
-
-		CurrentPage = Instance.new("Frame")
-
-		CurrentPage.Name = Name
-
-		CurrentPage.BackgroundTransparency = 1
-
-		CurrentPage.Size = UDim2.fromScale(1,1)
-
-		CurrentPage.Parent = Content
-
-		if Name == "Enhancements" then
-
-			local Module = loadstring(game:HttpGet(
-
-				App.Config.Repository ..
-				"Modules/Players/Enhancements.lua"
-
-			))()
-
-			Module:Create(CurrentPage, App)
-
-		elseif Name == "ESP" then
-
-			local Module = loadstring(game:HttpGet(
-
-				App.Config.Repository ..
-				"Modules/Players/ESP.lua"
-
-			))()
-
-			Module:Create(CurrentPage, App)
-
-		elseif Name == "Utilities" then
-
-			local Module = loadstring(game:HttpGet(
-
-				App.Config.Repository ..
-				"Modules/Players/Utilities.lua"
-
-			))()
-
-			Module:Create(CurrentPage, App)
-
-		end
-
-  end
-	----------------------------------------------------------
-	-- Navigation Events
-	----------------------------------------------------------
-
-	EnhancementsButton.MouseButton1Click:Connect(function()
-
-		SelectTab("Enhancements")
-
-	end)
-
-	ESPButton.MouseButton1Click:Connect(function()
-
-		SelectTab("ESP")
-
-	end)
-
-	UtilitiesButton.MouseButton1Click:Connect(function()
-
-		SelectTab("Utilities")
-
-	end)
-
-	----------------------------------------------------------
-	-- Default Page
-	----------------------------------------------------------
-
-	SelectTab("Enhancements")
-
-end
-
-----------------------------------------------------------
--- Return Module
-----------------------------------------------------------
-
-return PlayersMain
-  
-]====],
-        [ [====[Modules/Players/Utilities.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// Utilities.lua
---//========================================================--
-
-local Utilities = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function Utilities:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- Utilities Card
-	----------------------------------------------------------
-
-	local Card = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,340)
-
-	)
-
-	Card.LayoutOrder = 1
-
-	Components:CreateTitle(
-
-		Card,
-		Theme,
-		"🛠 Player Utilities"
-
-	)
-
-	local Holder = Instance.new("Frame")
-
-	Holder.BackgroundTransparency = 1
-
-	Holder.Position = UDim2.fromOffset(20,55)
-
-	Holder.Size = UDim2.new(1,-40,1,-75)
-
-	Holder.Parent = Card
-
-	local HolderLayout = Instance.new("UIListLayout")
-
-	HolderLayout.Padding = UDim.new(0,12)
-
-	HolderLayout.Parent = Holder
-
-  	----------------------------------------------------------
-	-- Anti AFK
-	----------------------------------------------------------
-
-	local _, AntiAFK =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Anti AFK"
-
-		)
-
-	AntiAFK:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.AntiAFK then
-
-			if State then
-				App.Features.Player.AntiAFK:Enable()
-			else
-				App.Features.Player.AntiAFK:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Anti Lag
-	----------------------------------------------------------
-
-	local _, AntiLag =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Anti Lag"
-
-		)
-
-	AntiLag:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.AntiLag then
-
-			if State then
-				App.Features.Player.AntiLag:Enable()
-			else
-				App.Features.Player.AntiLag:Disable()
-			end
-
-		end
-
-	end)
-
-  	----------------------------------------------------------
-	-- Reset Character
-	----------------------------------------------------------
-
-	local ResetButton =
-		Components:CreateButton(
-
-			Holder,
-			Theme,
-			"🔄 Reset Character"
-
-		)
-
-	ResetButton.MouseButton1Click:Connect(function()
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.Reset then
-
-			App.Features.Player.Reset:Execute()
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Rejoin Server
-	----------------------------------------------------------
-
-	local RejoinButton =
-		Components:CreateButton(
-
-			Holder,
-			Theme,
-			"🌐 Rejoin Server"
-
-		)
-
-	RejoinButton.MouseButton1Click:Connect(function()
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.Rejoin then
-
-			App.Features.Player.Rejoin:Execute()
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Finished
-	----------------------------------------------------------
-
-end
-
-----------------------------------------------------------
--- Return Module
-----------------------------------------------------------
-
-return Utilities
 ]====],
         [ [====[Modules/Settings.lua]====] ] = [====[local Settings = {}
 
