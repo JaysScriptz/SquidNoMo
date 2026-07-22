@@ -108,7 +108,7 @@ Loader.Manifest = BuildManifest
 
 local Bootstrap = Environment.__SquidNoMoBootstrap
 local loadStep = 0
-local estimatedSteps = 72
+local estimatedSteps = 73
 
 local function ReportLoading(message, progress)
     if type(Bootstrap) == "table" and type(Bootstrap.SetStatus) == "function" then

@@ -32,11 +32,24 @@ then
 end
 
 return Runtime:CreateFeature({
-    Id = "player.detective_esp",
-    Name = "Detective ESP",
-    Description = "Highlights players whose team, role, attributes, or character identify them as detectives or investigators.",
-    Kind = "PlayerHighlight",
-    RoleTokens = {"detective", "investigator", "police"},
-    DefaultColor = Color3.fromRGB(0, 230, 150),
-    FillTransparency = 0.48,
+    Id = "player.auto_pickup_baby",
+    Name = "Auto Pick Up Baby",
+    Description = "Automatically collects the nearby Baby objective when a supported pickup prompt, click target, tool, or touch pickup appears.",
+    Kind = "PickupTarget",
+    TargetTokens = {
+        "baby", "newborn", "infant", "player 222", "222 baby",
+        "pick up baby", "pickup baby", "grab baby", "carry baby",
+        "take baby", "baby carrier"
+    },
+    HeldTokens = {
+        "baby", "newborn", "infant", "player 222", "baby carrier"
+    },
+    ExcludeTokens = {
+        "baby shop", "baby skin", "baby icon", "baby reward", "baby pass"
+    },
+    MaxDistance = 30,
+    Interval = 0.35,
+    IdleInterval = 1.1,
+    ActionCooldown = 0.8,
+    WaitingMessage = "Waiting for a nearby Baby pickup",
 })

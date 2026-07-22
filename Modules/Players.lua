@@ -67,6 +67,8 @@ local function createRoot(
     )
     root.BackgroundTransparency = 1
     root.BorderSizePixel = 0
+    root.Active = false
+    root.Selectable = false
     root.Parent = Page
 
     local grid = Instance.new("UIGridLayout")
@@ -89,8 +91,11 @@ local function createRoot(
     Page.ScrollingDirection = Enum.ScrollingDirection.Y
     Page.ScrollingEnabled = true
     Page.Active = true
+    Page.Selectable = false
     Page.ClipsDescendants = true
     Page.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+    Page.AutomaticCanvasSize = Enum.AutomaticSize.None
+    Page.ScrollingDirection = Enum.ScrollingDirection.Y
     Page.ScrollBarThickness = math.max(Page.ScrollBarThickness, App:IsMobile() and 10 or 6)
     Page.ScrollBarImageTransparency = App:IsMobile() and 0.05 or 0.18
     Page.ScrollBarImageColor3 = App:GetPageAccent("Players")
@@ -853,6 +858,16 @@ local function buildUtilities(
             "player.tool_esp",
         },
         {
+            "Auto Pick Up Baby",
+            "Collects the nearby Baby objective when a supported pickup interaction appears.",
+            Color3.fromRGB(
+                255,
+                132,
+                190
+            ),
+            "player.auto_pickup_baby",
+        },
+        {
             "Mute Character Sounds",
             "Mutes character sounds locally.",
             Color3.fromRGB(
@@ -931,9 +946,10 @@ local function installTouchScrollFallback(Page, App)
         local delta = input.Position - startPosition
         if not dragging and math.abs(delta.Y) >= 7 and math.abs(delta.Y) > math.abs(delta.X) * 1.08 then
             dragging = true
-            -- Once the gesture is clearly vertical, the fallback owns it. This
-            -- prevents a slider or card button from swallowing the phone scroll.
-            Page.ScrollingEnabled = false
+            -- Keep native scrolling enabled. Disabling it mid-gesture can leave
+            -- Roblox mobile ScrollingFrames permanently stuck after a child control
+            -- consumes the touch. The fallback only mirrors CanvasPosition.
+            Page.ScrollingEnabled = true
         end
         if dragging then
             Page.CanvasPosition = Vector2.new(

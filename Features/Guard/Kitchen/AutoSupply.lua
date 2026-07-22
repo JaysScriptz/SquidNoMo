@@ -11,7 +11,7 @@ local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     or {}
 local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
 local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "visual-gameplay-runtime-r2")
+local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r3")
 
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
@@ -36,7 +36,7 @@ return Runtime:CreateFeature({
     Name = "Auto Supply",
     Description = "Collects nearby kitchen supplies when inventory space is available.",
     Kind = "Interact",
-    TargetTokens = {"supply", "ingredient", "raw", "food", "crate", "collect", "pick up", "take supply"},
+    TargetTokens = {"supply", "ingredient", "raw", "food", "crate", "collect", "pick up", "take supply", "grab", "take", "pickup", "pick up ingredient"},
     ExcludeTokens = {"cooked", "empty"},
     TargetClasses = {"Tool", "Model", "BasePart", "ProximityPrompt"},
     MaxDistance = 50,

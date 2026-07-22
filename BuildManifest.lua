@@ -4,20 +4,21 @@
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 2,
-    Revision = "visual-gameplay-logic-r2",
-    FeatureRuntimeRevision = "visual-gameplay-runtime-r2",
-    PlayerRuntimeRevision = "player-runtime-r1",
+    BuildNumber = 3,
+    Revision = "deep-compatibility-baby-r3",
+    FeatureRuntimeRevision = "compatibility-runtime-r3",
+    PlayerRuntimeRevision = "player-runtime-r2",
     FarmingRuntimeRevision = "farming-runtime-r1",
     CatalogFeatureCount = 69,
-    PlayerFeatureCount = 25,
+    PlayerFeatureCount = 26,
     UIFeatureCount = 23,
-    ExpectedRegistryTotal = 117,
+    ExpectedRegistryTotal = 118,
     RequiredSharedFiles = {
         "Features/Shared/Runtime.lua",
         "Features/Shared/PlayerRuntime.lua",
         "Features/Shared/RoleService.lua",
         "Features/Farming/FarmingRuntime.lua",
+        "Features/Player/AutoPickUpBaby.lua",
     },
 }
 

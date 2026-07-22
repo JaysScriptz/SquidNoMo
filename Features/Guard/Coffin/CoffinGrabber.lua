@@ -11,7 +11,7 @@ local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     or {}
 local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
 local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "visual-gameplay-runtime-r2")
+local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r3")
 
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
@@ -36,7 +36,7 @@ return Runtime:CreateFeature({
     Name = "Coffin Grabber",
     Description = "Finds and collects the nearest available coffin or body target.",
     Kind = "Interact",
-    TargetTokens = {"coffin", "body", "corpse", "grab coffin", "pick up body", "collect body"},
+    TargetTokens = {"coffin", "body", "corpse", "grab coffin", "pick up body", "collect body", "grab", "take", "carry", "pickup"},
     ExcludeTokens = {"disposal", "incinerator"},
     TargetClasses = {"Tool", "Model", "BasePart", "ProximityPrompt"},
     MaxDistance = 55,

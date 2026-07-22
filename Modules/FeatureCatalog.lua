@@ -99,7 +99,7 @@ FeatureCatalog.Pages = {
                     Category = "Experimental",
                 },
                 {
-                    Id = "mapped.games.dalgona.tacehelper",
+                    Id = "mapped.games.dalgona.tracehelper",
                     Name = "Trace Helper",
                     Description = "Adds a visual tracing guide that follows the cursor over the cookie shape.",
                     Path = "Features/Games/Dalgona/TraceHelper.lua",

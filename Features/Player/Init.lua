@@ -46,6 +46,7 @@ function Player:Initialize(Loader)
     self.HideOthers = Load("HideOthers")
     self.HideSelf = Load("HideSelf")
     self.ToolESP = Load("ToolESP")
+    self.AutoPickUpBaby = Load("AutoPickUpBaby")
     self.MuteCharacterSounds = Load("MuteCharacterSounds")
     self.Reset = Load("Reset")
     self.Rejoin = Load("Rejoin")
@@ -134,6 +135,9 @@ function Player:Initialize(Loader)
     })
     Register("player.tool_esp", self.ToolESP, {
         Name = "Tool ESP", Category = "Safe", DefaultColor = Color3.fromRGB(255, 210, 60),
+    })
+    Register("player.auto_pickup_baby", self.AutoPickUpBaby, {
+        Name = "Auto Pick Up Baby", Category = "SemiSafe",
     })
     Register("player.mute_character_sounds", self.MuteCharacterSounds, {
         Name = "Mute Character Sounds", Category = "Safe",

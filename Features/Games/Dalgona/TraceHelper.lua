@@ -11,7 +11,7 @@ local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     or {}
 local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
 local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "visual-gameplay-runtime-r2")
+local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r3")
 
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
@@ -32,7 +32,7 @@ then
 end
 
 return Runtime:CreateFeature({
-    Id = "mapped.games.dalgona.tacehelper",
+    Id = "mapped.games.dalgona.tracehelper",
     Name = "Trace Helper",
     Description = "Adds a visual tracing guide that follows the cursor over the cookie shape.",
     Kind = "GuiHighlight",

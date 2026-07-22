@@ -906,6 +906,92 @@ local function startToolESP(feature)
     end)
 end
 
+local function playerHasHeldTarget(tokens)
+    local character = LocalPlayer and LocalPlayer.Character
+    local backpack = LocalPlayer and LocalPlayer:FindFirstChildOfClass("Backpack")
+    for _, container in ipairs({character, backpack}) do
+        if container then
+            for _, child in ipairs(container:GetChildren()) do
+                if containsAny(child.Name, tokens) then
+                    return true, child
+                end
+            end
+        end
+    end
+    if LocalPlayer then
+        for _, attributeName in ipairs({"HasBaby", "CarryingBaby", "Baby", "HoldingBaby"}) do
+            local ok, value = pcall(LocalPlayer.GetAttribute, LocalPlayer, attributeName)
+            if ok and (value == true or containsAny(value, tokens)) then
+                return true, attributeName
+            end
+        end
+    end
+    if character then
+        for _, attributeName in ipairs({"HasBaby", "CarryingBaby", "Baby", "HoldingBaby"}) do
+            local ok, value = pcall(character.GetAttribute, character, attributeName)
+            if ok and (value == true or containsAny(value, tokens)) then
+                return true, attributeName
+            end
+        end
+    end
+    return false
+end
+
+local function startPickupTarget(feature)
+    local shared = Environment.__SquidNoMoFeatureRuntime
+    if type(shared) ~= "table"
+        or tonumber(shared.BuildNumber) ~= BUILD_NUMBER
+        or type(shared.FindBestTarget) ~= "function"
+        or type(shared.Interact) ~= "function"
+    then
+        feature:_SetStatus("Error", "Compatible shared interaction runtime is not loaded")
+        error("compatible shared interaction runtime is not loaded")
+    end
+
+    feature:_Loop(feature.Config.Interval or 0.35, function(self)
+        local character, _, root = getCharacter()
+        if not character or not root then
+            return false, "Waiting for the local character"
+        end
+
+        local held, heldObject = playerHasHeldTarget(self.Config.HeldTokens or self.Config.TargetTokens or {})
+        if held then
+            return true, "Baby is already being carried"
+        end
+
+        local target, distance = shared:FindBestTarget({
+            Scope = "Workspace",
+            TargetTokens = self.Config.TargetTokens,
+            ExcludeTokens = self.Config.ExcludeTokens,
+            TargetClasses = {"ProximityPrompt", "ClickDetector", "Tool", "Model", "BasePart"},
+            MaxTargets = 160,
+            MaxDistance = self.Config.MaxDistance or 30,
+            PreferInteractive = true,
+            CacheTTL = 0.22,
+        }, root.Position)
+        if not target then
+            return false, self.Config.WaitingMessage or "Waiting for a nearby pickup"
+        end
+        if distance > (self.Config.MaxDistance or 30) then
+            return false, "Baby pickup is " .. tostring(math.floor(distance + 0.5)) .. " studs away"
+        end
+        if os.clock() - (self.LastAction or 0) < (self.Config.ActionCooldown or 0.8) then
+            return true, "Baby pickup detected — interaction cooling down"
+        end
+
+        local ok, detail = shared:Interact(target, self, {
+            Resource = "PickupInteraction",
+            Priority = 82,
+            Duration = self.Config.ActionCooldown or 0.8,
+        })
+        if ok then
+            self.LastAction = os.clock()
+            return true, "Baby pickup interaction sent"
+        end
+        return false, detail or "The Baby target could not be picked up"
+    end)
+end
+
 local function startAntiAFK(feature)
     local virtualUser
     pcall(function() virtualUser = game:GetService("VirtualUser") end)
@@ -1044,6 +1130,7 @@ local starters = {
     PlayerBillboard = startPlayerBillboard,
     HideCharacters = startHideCharacters,
     ToolESP = startToolESP,
+    PickupTarget = startPickupTarget,
     AntiAFK = startAntiAFK,
     AntiLag = startAntiLag,
     MuteSounds = startMuteSounds,

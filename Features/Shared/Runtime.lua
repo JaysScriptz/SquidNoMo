@@ -1028,6 +1028,91 @@ function Runtime:FindNearest(config, origin)
     return nearest, nearestDistance
 end
 
+local function resolveInteractionObjects(target)
+    if not target then return nil, nil, nil end
+    local prompt = target:IsA("ProximityPrompt") and target
+        or target:FindFirstChildWhichIsA("ProximityPrompt", true)
+    local detector = target:IsA("ClickDetector") and target
+        or target:FindFirstChildWhichIsA("ClickDetector", true)
+    local touchPart
+    if target:IsA("Tool") then
+        touchPart = target:FindFirstChild("Handle") or target:FindFirstChildWhichIsA("BasePart", true)
+    elseif target:IsA("BasePart") then
+        touchPart = target
+    else
+        touchPart = target:FindFirstChildWhichIsA("BasePart", true)
+    end
+    return prompt, detector, touchPart
+end
+
+function Runtime:ScoreTarget(target, origin, config)
+    config = config or {}
+    local position = getPosition(target)
+    if not position then return nil, math.huge end
+    local distance = origin and (position - origin).Magnitude or 0
+    if config.MaxDistance and distance > config.MaxDistance then
+        return nil, distance
+    end
+
+    local score = -distance
+    local text = instanceText(target)
+    local name = lower(target.Name)
+    for _, token in ipairs(config.TargetTokens or {}) do
+        token = lower(token)
+        if token ~= "" then
+            if name == token then
+                score = score + 90
+            elseif string.find(name, token, 1, true) then
+                score = score + 36
+            elseif string.find(text, token, 1, true) then
+                score = score + 14
+            end
+        end
+    end
+    for _, exactName in ipairs(config.TargetNames or {}) do
+        if name == lower(exactName) then score = score + 120 end
+    end
+
+    local prompt, detector, touchPart = resolveInteractionObjects(target)
+    if prompt and prompt.Enabled then
+        score = score + 145
+        local actionText = lower(prompt.ActionText)
+        local objectText = lower(prompt.ObjectText)
+        for _, token in ipairs(config.TargetTokens or {}) do
+            token = lower(token)
+            if token ~= "" and (string.find(actionText, token, 1, true) or string.find(objectText, token, 1, true)) then
+                score = score + 48
+            end
+        end
+        if distance <= math.max(4, tonumber(prompt.MaxActivationDistance) or 0) then
+            score = score + 28
+        end
+    end
+    if detector then score = score + 90 end
+    if target:IsA("Tool") then score = score + 70 end
+    if touchPart then
+        score = score + 18
+        local transmitter = touchPart:FindFirstChildOfClass("TouchTransmitter")
+        if transmitter then score = score + 42 end
+    end
+    if config.PreferInteractive and not prompt and not detector and not touchPart then
+        score = score - 150
+    end
+    return score, distance
+end
+
+function Runtime:FindBestTarget(config, origin)
+    config = config or {}
+    local best, bestDistance, bestScore = nil, math.huge, -math.huge
+    for _, target in ipairs(self:FindTargets(config)) do
+        local score, distance = self:ScoreTarget(target, origin, config)
+        if score and score > bestScore then
+            best, bestDistance, bestScore = target, distance, score
+        end
+    end
+    return best, bestDistance, bestScore
+end
+
 function Runtime:FindTool(tokens)
     local player, character = getCharacter()
     local containers = {}
@@ -1076,21 +1161,17 @@ function Runtime:Interact(target, feature, options)
     if not target then return false, "target not found" end
     options = options or {}
 
-    -- Resolve a supported interaction before reserving the shared interaction
-    -- channel. A decorative object must not block a valid collector feature.
-    local prompt = target:IsA("ProximityPrompt") and target
-        or target:FindFirstChildWhichIsA("ProximityPrompt", true)
-    local detector = target:IsA("ClickDetector") and target
-        or target:FindFirstChildWhichIsA("ClickDetector", true)
-    local touchPart = target:IsA("BasePart") and target
-        or target:FindFirstChildWhichIsA("BasePart", true)
+    local prompt, detector, touchPart = resolveInteractionObjects(target)
     local _, _, _, root = getCharacter()
+    local virtualInput
+    pcall(function() virtualInput = game:GetService("VirtualInputManager") end)
 
-    local supportedPrompt = prompt and prompt.Enabled and prompt.MaxActivationDistance >= 0
-    local supportedDetector = detector and type(fireclickdetector) == "function"
-    local supportedTouch = touchPart and root and type(firetouchinterest) == "function"
-    if not supportedPrompt and not supportedDetector and not supportedTouch then
-        return false, "no supported prompt, click detector, or touch target"
+    local promptSupported = prompt and prompt.Enabled
+        and (type(fireproximityprompt) == "function" or virtualInput ~= nil)
+    local detectorSupported = detector and type(fireclickdetector) == "function"
+    local touchSupported = touchPart and root and type(firetouchinterest) == "function"
+    if not promptSupported and not detectorSupported and not touchSupported then
+        return false, "no supported prompt, click, or touch interaction is available"
     end
 
     local claimed, ownerName = self:ClaimAction(
@@ -1101,30 +1182,50 @@ function Runtime:Interact(target, feature, options)
     )
     if not claimed then return false, "interaction is currently controlled by " .. tostring(ownerName) end
 
-    if supportedPrompt then
+    local errors = {}
+    if promptSupported then
         if type(fireproximityprompt) == "function" then
-            local ok, err = pcall(fireproximityprompt, prompt)
-            return ok, ok and nil or tostring(err)
+            local ok, err = pcall(function()
+                -- Some executors accept the hold duration argument and others do not.
+                local hold = math.max(0, tonumber(prompt.HoldDuration) or 0)
+                local worked = pcall(fireproximityprompt, prompt, hold)
+                if not worked then
+                    fireproximityprompt(prompt)
+                end
+            end)
+            if ok then return true end
+            table.insert(errors, "prompt helper: " .. tostring(err))
         end
-        local ok, err = pcall(function()
-            prompt:InputHoldBegin()
-            task.wait(math.max(0.03, math.min(prompt.HoldDuration, 0.18)))
-            prompt:InputHoldEnd()
-        end)
-        return ok, ok and nil or tostring(err or "executor cannot trigger ProximityPrompt")
+        if virtualInput then
+            local key = prompt.KeyboardKeyCode
+            if key == Enum.KeyCode.Unknown then key = Enum.KeyCode.E end
+            local ok, err = pcall(function()
+                virtualInput:SendKeyEvent(true, key, false, game)
+                task.wait(math.max(0.06, math.min(tonumber(prompt.HoldDuration) or 0.08, 0.35)))
+                virtualInput:SendKeyEvent(false, key, false, game)
+            end)
+            if ok then return true end
+            table.insert(errors, "prompt key input: " .. tostring(err))
+        end
     end
 
-    if supportedDetector then
+    if detectorSupported then
         local ok, err = pcall(fireclickdetector, detector)
-        return ok, ok and nil or tostring(err)
+        if ok then return true end
+        table.insert(errors, "click detector: " .. tostring(err))
     end
 
-    local ok, err = pcall(function()
-        firetouchinterest(root, touchPart, 0)
-        task.wait()
-        firetouchinterest(root, touchPart, 1)
-    end)
-    return ok, ok and nil or tostring(err)
+    if touchSupported then
+        local ok, err = pcall(function()
+            firetouchinterest(root, touchPart, 0)
+            task.wait()
+            firetouchinterest(root, touchPart, 1)
+        end)
+        if ok then return true end
+        table.insert(errors, "touch pickup: " .. tostring(err))
+    end
+
+    return false, #errors > 0 and table.concat(errors, " | ") or "interaction attempt failed"
 end
 
 function Runtime:ClaimAction(feature, resource, priority, duration)
@@ -1565,16 +1666,23 @@ local function startWalkTo(feature)
             end
         end
 
-        local target, distance = Runtime:FindNearest({
+        local targetQuery = {
             Scope = self.Config.Scope or "Workspace",
             TargetNames = targetNames,
             TargetTokens = targetTokens,
             RequiredTokens = self.Config.RequiredTokens,
             ExcludeTokens = excludeTokens,
-            TargetClasses = self.Config.TargetClasses or {"Model", "BasePart", "ProximityPrompt"},
+            TargetClasses = self.Config.TargetClasses or {"Model", "BasePart", "ProximityPrompt", "ClickDetector", "Tool"},
             ReturnAdornee = self.Config.ReturnAdornee,
             MaxTargets = self.Config.MaxTargets or 120,
-        }, root.Position)
+            PreferInteractive = self.Config.Interact == true,
+        }
+        local target, distance
+        if self.Config.Interact then
+            target, distance = Runtime:FindBestTarget(targetQuery, root.Position)
+        else
+            target, distance = Runtime:FindNearest(targetQuery, root.Position)
+        end
         if not target then return false, waitingMessage end
         local position = getPosition(target)
         local moved, moveDetail = Runtime:MoveTo(position, self, self.Config)
@@ -1634,21 +1742,9 @@ local function startInteract(feature)
             TargetClasses = self.Config.TargetClasses or {"Model", "BasePart", "ProximityPrompt", "ClickDetector"},
             MaxTargets = self.Config.MaxTargets or 140,
         }
-        local targets = Runtime:FindTargets(query)
-        local target, distance, bestScore = nil, math.huge, -math.huge
-        for _, candidate in ipairs(targets) do
-            local position = getPosition(candidate)
-            if position then
-                local candidateDistance = (position - root.Position).Magnitude
-                local score = -candidateDistance
-                local prompt = candidate:IsA("ProximityPrompt") and candidate or candidate:FindFirstChildWhichIsA("ProximityPrompt", true)
-                local detector = candidate:IsA("ClickDetector") and candidate or candidate:FindFirstChildWhichIsA("ClickDetector", true)
-                if prompt and prompt.Enabled then score = score + 35 end
-                if detector then score = score + 20 end
-                if candidate:IsA("Tool") then score = score + 12 end
-                if score > bestScore then target, distance, bestScore = candidate, candidateDistance, score end
-            end
-        end
+        query.PreferInteractive = true
+        query.MaxDistance = self.Config.Walk and nil or self.Config.MaxDistance
+        local target, distance = Runtime:FindBestTarget(query, root.Position)
 
         if not target then return false, self.Config.WaitingMessage end
         if self.Config.MaxDistance and distance > self.Config.MaxDistance then
@@ -3011,28 +3107,16 @@ local function startTaskChain(feature)
             if heldTool then Runtime:EquipTool(heldTool) end
         end
 
-        local candidates = Runtime:FindTargets({
+        local target, distance = Runtime:FindBestTarget({
             Scope = self.Config.Scope or "Workspace",
             TargetTokens = targetConfig.TargetTokens,
             TargetNames = targetConfig.TargetNames,
             ExcludeTokens = targetConfig.ExcludeTokens,
-            TargetClasses = {"Model", "BasePart", "ProximityPrompt", "ClickDetector"},
+            TargetClasses = {"Model", "BasePart", "ProximityPrompt", "ClickDetector", "Tool"},
             MaxTargets = 180,
             CacheTTL = 0.30,
-        })
-        local target, distance, bestScore = nil, math.huge, -math.huge
-        for _, candidate in ipairs(candidates) do
-            local position = getPosition(candidate)
-            if position then
-                local d = (position - root.Position).Magnitude
-                local score = -d
-                local prompt = candidate:IsA("ProximityPrompt") and candidate or candidate:FindFirstChildWhichIsA("ProximityPrompt", true)
-                local detector = candidate:IsA("ClickDetector") and candidate or candidate:FindFirstChildWhichIsA("ClickDetector", true)
-                if prompt and prompt.Enabled then score = score + 35 end
-                if detector then score = score + 20 end
-                if score > bestScore then target, distance, bestScore = candidate, d, score end
-            end
-        end
+            PreferInteractive = true,
+        }, root.Position)
 
         if not target then return false, "Waiting for " .. stageName end
         if distance > (self.Config.InteractDistance or 12) then
@@ -3391,6 +3475,43 @@ function Runtime:GetFeatureVisualHint(feature)
     return detected and ("visual cue " .. detected) or nil
 end
 
+function Runtime:GetCompatibilitySummary()
+    local virtualInput
+    pcall(function() virtualInput = game:GetService("VirtualInputManager") end)
+    return {
+        Prompt = type(fireproximityprompt) == "function" or virtualInput ~= nil,
+        Click = type(fireclickdetector) == "function",
+        Touch = type(firetouchinterest) == "function",
+        Gui = type(firesignal) == "function" or type(getconnections) == "function" or virtualInput ~= nil,
+        Pathfinding = PathfindingService ~= nil,
+    }
+end
+
+function Runtime:ValidateFeatureConfig(config)
+    if type(config) ~= "table" then return false, "feature config is missing" end
+    if type(config.Kind) ~= "string" or config.Kind == "" then return false, "feature Kind is missing" end
+    local targetKinds = {
+        Highlight = true, ToolActivate = true, GuiHighlight = true, WalkTo = true,
+        Interact = true, ToolAura = true, Timing = true, GuiAction = true,
+        AutoJump = true, RopeBypass = true, Boundary = true, RoomAssist = true,
+        AimActivate = true, Radar = true, CourseAssist = true, SafeTileWalk = true,
+        GlassESP = true, TaskChain = true,
+    }
+    if targetKinds[config.Kind] then
+        local hasSelector = (type(config.TargetTokens) == "table" and #config.TargetTokens > 0)
+            or (type(config.TargetNames) == "table" and #config.TargetNames > 0)
+            or (type(config.ActionTokens) == "table" and #config.ActionTokens > 0)
+            or (type(config.ToolTokens) == "table" and #config.ToolTokens > 0)
+            or config.Kind == "RoomAssist" or config.Kind == "SafeTileWalk"
+            or config.Kind == "GlassESP" or config.Kind == "Radar"
+            or config.Kind == "TaskChain" or config.PlayerMode == true
+        if not hasSelector then
+            return false, "feature has no target, action, or tool selector"
+        end
+    end
+    return true
+end
+
 local starters = {
     Highlight = startHighlight,
     ToolActivate = startToolActivate,
@@ -3433,6 +3554,13 @@ function FeatureMethods:Toggle(state)
     end
 
     self:_SetStatus("Starting", "Initializing " .. self.Name)
+    local configOk, configDetail = Runtime:ValidateFeatureConfig(self.Config)
+    if not configOk then
+        self.Enabled = false
+        self.LastError = configDetail
+        self:_SetStatus("Error", configDetail)
+        return false, configDetail
+    end
     local starter = starters[self.Config.Kind]
     if not starter then
         self.Enabled = false
