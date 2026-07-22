@@ -3,10 +3,41 @@
 local REPOSITORY = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
 local BANNER_PATH = "Images/BannerGuards.png"
 
+local function HttpGetWithTimeout(url, timeoutSeconds)
+    local finished = false
+    local success = false
+    local result = nil
+
+    task.spawn(function()
+        success, result = pcall(function()
+            return game:HttpGet(url)
+        end)
+        finished = true
+    end)
+
+    local started = os.clock()
+    local timeout = tonumber(timeoutSeconds) or 20
+    while not finished and os.clock() - started < timeout do
+        task.wait(0.05)
+    end
+
+    if not finished then
+        error("HTTP request timed out after " .. tostring(timeout) .. " seconds: " .. tostring(url))
+    end
+    if not success then
+        error("HTTP request failed: " .. tostring(result))
+    end
+    if type(result) ~= "string" or #result == 0 then
+        error("HTTP request returned an empty response: " .. tostring(url))
+    end
+    return result
+end
+
 local function LoadBuildManifest()
     local nonce = tostring(math.floor(os.clock() * 1000000))
-    local source = game:HttpGet(
-        REPOSITORY .. "BuildManifest.lua?squidnomo_manifest=" .. nonce
+    local source = HttpGetWithTimeout(
+        REPOSITORY .. "BuildManifest.lua?squidnomo_manifest=" .. nonce,
+        18
     )
     local chunk, compileError = loadstring(source)
     if not chunk then
@@ -68,15 +99,25 @@ queueSelfForTeleport()
 
 local previous = Environment.__SquidNoMoBootstrap
 if type(previous) == "table" and previous.Loading == true then
-    if type(previous.SetStatus) == "function" then
-        previous:SetStatus("Already loading — please do not execute again.", previous.Progress or 0.08)
+    local age = os.clock() - tonumber(previous.StartedAt or os.clock())
+    local staleAfter = tonumber(BuildManifest.StartupTimeoutSeconds) or 30
+    if age < staleAfter then
+        if type(previous.SetStatus) == "function" then
+            previous:SetStatus("Already loading — please do not execute again.", previous.Progress or 0.08)
+        end
+        if previous.Gui and previous.Gui.Parent then
+            previous.Gui.Enabled = true
+            previous.Gui.DisplayOrder = 1000000
+        end
+        warn("[SquidNoMo] A load is already in progress; duplicate execution ignored.")
+        return previous.Loader
     end
-    if previous.Gui and previous.Gui.Parent then
-        previous.Gui.Enabled = true
-        previous.Gui.DisplayOrder = 1000000
-    end
-    warn("[SquidNoMo] A load is already in progress; duplicate execution ignored.")
-    return previous.Loader
+
+    warn("[SquidNoMo] Replacing a stale loader session after " .. tostring(math.floor(age)) .. " seconds.")
+    pcall(function()
+        if previous.Gui then previous.Gui:Destroy() end
+    end)
+    Environment.__SquidNoMoBootstrap = nil
 end
 
 local bootstrap = {
@@ -461,7 +502,7 @@ local function resolveBanner()
 
     if shouldDownload then
         local ok, data = pcall(function()
-            return game:HttpGet(REPOSITORY .. BANNER_PATH .. "?squidnomo_build=" .. BUILD_TOKEN)
+            return HttpGetWithTimeout(REPOSITORY .. BANNER_PATH .. "?squidnomo_build=" .. BUILD_TOKEN, 12)
         end)
         if not ok or type(data) ~= "string" or #data == 0 then
             return
@@ -552,22 +593,61 @@ function bootstrap:Fail(message)
     end)
 end
 
+task.delay(tonumber(BuildManifest.StartupTimeoutSeconds) or 30, function()
+    if bootstrap.Loading == true then
+        bootstrap:Fail(
+            "Startup timed out. The repository may be partially uploaded or the executor HTTP request stalled. "
+            .. "Re-upload the complete build and execute once more."
+        )
+    end
+end)
+
 bootstrap:SetStatus("Connecting to the SquidNoMo repository...", 0.05)
 print("[SquidNoMo] Starting " .. BUILD_VERSION .. " (build " .. BUILD_NUMBER .. ", " .. BUILD_REVISION .. ")")
 
 local success, result = pcall(function()
-    bootstrap:SetStatus("Downloading the main loader...", 0.14)
-    local LoaderSource = game:HttpGet(
-        REPOSITORY .. "Loader.lua?squidnomo_build=" .. BUILD_TOKEN
+    local bundlePath = tostring(BuildManifest.StartupBundle or "SourceBundle.lua")
+    bootstrap:SetStatus("Downloading the verified startup bundle...", 0.14)
+    local bundleSource = HttpGetWithTimeout(
+        REPOSITORY .. bundlePath .. "?squidnomo_build=" .. BUILD_TOKEN,
+        tonumber(BuildManifest.StartupTimeoutSeconds) or 30
     )
 
-    bootstrap:SetStatus("Compiling the main loader...", 0.20)
+    bootstrap:SetStatus("Verifying the startup bundle...", 0.19)
+    local bundleChunk, bundleCompileError = loadstring(bundleSource)
+    if not bundleChunk then
+        error("Startup bundle compile failed: " .. tostring(bundleCompileError))
+    end
+    local bundleOk, bundle = pcall(bundleChunk)
+    if not bundleOk or type(bundle) ~= "table" then
+        error("Startup bundle load failed: " .. tostring(bundle))
+    end
+    if tostring(bundle.BuildToken or "") ~= BUILD_TOKEN then
+        error(
+            "Repository build mismatch: BuildManifest is " .. BUILD_TOKEN
+            .. " but SourceBundle is " .. tostring(bundle.BuildToken or "missing")
+            .. ". Upload the complete project together."
+        )
+    end
+    if type(bundle.Sources) ~= "table" then
+        error("Startup bundle is missing its Sources table")
+    end
+
+    Environment.__SquidNoMoSourceBundle = bundle.Sources
+    Environment.__SquidNoMoSourceBundleToken = bundle.BuildToken
+
+    local LoaderSource = bundle.Sources["Loader.lua"]
+    if type(LoaderSource) ~= "string" or #LoaderSource == 0 then
+        error("Startup bundle does not contain Loader.lua")
+    end
+
+    bootstrap:SetStatus("Compiling the verified main loader...", 0.22)
     local chunk, compileError = loadstring(LoaderSource)
     if not chunk then
         error("Loader compile failed: " .. tostring(compileError))
     end
 
-    bootstrap:SetStatus("Starting core systems...", 0.24)
+    bootstrap:SetStatus("Starting bundled core systems...", 0.24)
     return chunk()
 end)
 

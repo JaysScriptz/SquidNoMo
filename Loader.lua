@@ -1,4 +1,5 @@
 --// SquidNoMo loader
+-- BUNDLE_COMPATIBLE_LOADER: bundled-startup-recovery-r5
 
 local REPOSITORY = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
 
@@ -10,6 +11,27 @@ if type(getgenv) == "function" then
     end
 end
 
+local function HttpGetWithTimeout(url, timeoutSeconds)
+    local finished = false
+    local success = false
+    local result = nil
+    task.spawn(function()
+        success, result = pcall(function() return game:HttpGet(url) end)
+        finished = true
+    end)
+    local started = os.clock()
+    local timeout = tonumber(timeoutSeconds) or 20
+    while not finished and os.clock() - started < timeout do
+        task.wait(0.05)
+    end
+    if not finished then error("HTTP request timed out: " .. tostring(url)) end
+    if not success then error("HTTP request failed: " .. tostring(result)) end
+    if type(result) ~= "string" or #result == 0 then error("HTTP response was empty: " .. tostring(url)) end
+    return result
+end
+
+local SourceBundle = Environment.__SquidNoMoSourceBundle
+
 local function LoadBuildManifest()
     local cached = Environment.__SquidNoMoBuildManifest
     if type(cached) == "table" and cached.Version and cached.BuildNumber then
@@ -17,8 +39,9 @@ local function LoadBuildManifest()
     end
 
     local nonce = tostring(math.floor(os.clock() * 1000000))
-    local source = game:HttpGet(
-        REPOSITORY .. "BuildManifest.lua?squidnomo_manifest=" .. nonce
+    local source = HttpGetWithTimeout(
+        REPOSITORY .. "BuildManifest.lua?squidnomo_manifest=" .. nonce,
+        18
     )
     local chunk, compileError = loadstring(source)
     if not chunk then
@@ -91,16 +114,32 @@ local BUILD_TOKEN = tostring(BuildManifest.BuildToken or string.gsub(
     "_"
 ))
 
+if type(SourceBundle) == "table" then
+    local sourceToken = tostring(Environment.__SquidNoMoSourceBundleToken or "")
+    if sourceToken ~= "" and sourceToken ~= BUILD_TOKEN then
+        error("[Loader] Source bundle token mismatch. Upload the complete build together.")
+    end
+end
+
 local function AddVersion(url)
     local separator = string.find(url, "?", 1, true) and "&" or "?"
     return url .. separator .. "squidnomo_build=" .. BUILD_TOKEN
 end
 
-local ConfigSource = game:HttpGet(AddVersion(REPOSITORY .. "Config.lua"))
-local Config = loadstring(ConfigSource)()
+local ConfigSource = type(SourceBundle) == "table" and SourceBundle["Config.lua"] or nil
+if type(ConfigSource) ~= "string" then
+    ConfigSource = HttpGetWithTimeout(AddVersion(REPOSITORY .. "Config.lua"), 18)
+end
+local ConfigChunk, ConfigCompileError = loadstring(ConfigSource)
+if not ConfigChunk then
+    error("[Loader] Config compile failed: " .. tostring(ConfigCompileError))
+end
+local Config = ConfigChunk()
 
 local Loader = {}
 Loader.Config = Config
+Loader.ModuleCache = {}
+Loader.ModuleNilSentinel = {}
 Loader.BuildVersion = BUILD_VERSION
 Loader.BuildNumber = BUILD_NUMBER
 Loader.BuildRevision = BUILD_REVISION
@@ -179,10 +218,23 @@ function Loader:GetRemoteUrl(path)
 end
 
 function Loader:FetchSource(path)
-    return game:HttpGet(self:GetRemoteUrl(path))
+    local bundled = Environment.__SquidNoMoSourceBundle
+    if type(bundled) == "table" then
+        local source = bundled[path]
+        if type(source) == "string" then
+            return source
+        end
+    end
+    return HttpGetWithTimeout(self:GetRemoteUrl(path), 18)
 end
 
 function Loader:LoadRemote(path)
+    local cached = self.ModuleCache[path]
+    if cached ~= nil then
+        if cached == self.ModuleNilSentinel then return nil end
+        return cached
+    end
+
     print("[Loader] " .. path)
     loadStep = loadStep + 1
     local readable = string.gsub(path, "%.lua$", "")
@@ -211,6 +263,8 @@ function Loader:LoadRemote(path)
         ))
     end
 
+    self.ModuleCache[path] = result == nil and self.ModuleNilSentinel or result
+    if loadStep % 8 == 0 then task.wait() end
     return result
 end
 
