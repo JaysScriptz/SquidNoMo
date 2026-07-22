@@ -1,7 +1,7 @@
 -- Generated SquidNoMo verified source bundle.
 -- Upload this file together with BuildManifest.lua and Main.lua.
 return {
-    BuildToken = [====[1_1_beta_9-adaptive-rlgl-live-signals-r9]====],
+    BuildToken = [====[1_1_beta_10-rlgl-adaptive-signal-learner-r10]====],
     Sources = {
         [ [====[BuildManifest.lua]====] ] = [====[-- SquidNoMo deployment manifest.
 -- BuildNumber is advanced automatically by repository workflows whenever feature code changes.
@@ -9,10 +9,10 @@ return {
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 9,
-    Revision = "adaptive-rlgl-live-signals-r9",
-    FeatureRuntimeRevision = "adaptive-game-runtime-r9",
-    GameRuntimeRevision = "game-modules-live-signals-r9",
+    BuildNumber = 10,
+    Revision = "rlgl-adaptive-signal-learner-r10",
+    FeatureRuntimeRevision = "adaptive-game-runtime-r10",
+    GameRuntimeRevision = "game-modules-rlgl-learner-r10",
     PlayerRuntimeRevision = "player-runtime-r4",
     FarmingRuntimeRevision = "farming-runtime-r2",
     CatalogFeatureCount = 68,
@@ -11858,7 +11858,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for an extraction boat or finish point",
 })
 ]====],
-        [ [====[Features/Games/GameRuntime.lua]====] ] = [====[-- SquidNoMo game feature runtime, rebuilt for beta 8.
+        [ [====[Features/Games/GameRuntime.lua]====] ] = [====[-- SquidNoMo game feature runtime, adaptive RLGL signal learner for beta 10.
 -- All game modules use this single cooperative runtime. No game module starts its
 -- own uncontrolled loop or performs an HTTP request.
 
@@ -11885,7 +11885,7 @@ then
 end
 
 local GameRuntime = {
-    Revision = tostring(Manifest.GameRuntimeRevision or "game-runtime-r8"),
+    Revision = tostring(Manifest.GameRuntimeRevision or "game-runtime-r10"),
     BuildNumber = tonumber(Manifest.BuildNumber) or 0,
     Shared = Shared,
     DetectionCache = nil,
@@ -12599,10 +12599,52 @@ Handlers.StateHUD = function(feature)
         feature.Hud.TextColor3 = Color3.fromRGB(255, 78, 90)
         return true, "Red confirmed via " .. source
     end
-    feature.Hud.Text = "SIGNAL UNCERTAIN — WAIT"
+    feature.Hud.Text = "SAFE STOP — LEARNING SIGNAL"
     feature.Hud.TextColor3 = Color3.fromRGB(255, 215, 85)
     local scores = signal and string.format(" (R:%d G:%d)", signal.RedScore or 0, signal.GreenScore or 0) or ""
-    return false, "Waiting for live signal" .. scores
+    return false, "Learning chant, crowd, and doll cues" .. scores
+end
+
+local function rlglFallbackTarget(feature, root)
+    local player = Players.LocalPlayer
+    local farthestPosition, farthestDistance
+    for _, other in ipairs(Players:GetPlayers()) do
+        if other ~= player then
+            local character = other.Character
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            local otherRoot = character and character:FindFirstChild("HumanoidRootPart")
+            if humanoid and humanoid.Health > 0 and otherRoot then
+                local offset = otherRoot.Position - root.Position
+                local horizontal = Vector3.new(offset.X, 0, offset.Z)
+                local distance = horizontal.Magnitude
+                if distance >= 18 and distance <= 500 and (not farthestDistance or distance > farthestDistance) then
+                    farthestPosition, farthestDistance = otherRoot.Position, distance
+                end
+            end
+        end
+    end
+    if farthestPosition then
+        local direction = Vector3.new(
+            farthestPosition.X - root.Position.X,
+            0,
+            farthestPosition.Z - root.Position.Z
+        )
+        if direction.Magnitude > 0.01 then
+            direction = direction.Unit
+            return farthestPosition + direction * 14, "furthest live contestant"
+        end
+    end
+
+    if not feature.RLGLFieldDirection then
+        local camera = Workspace.CurrentCamera
+        local look = camera and camera.CFrame.LookVector or root.CFrame.LookVector
+        look = Vector3.new(look.X, 0, look.Z)
+        if look.Magnitude < 0.01 then look = Vector3.new(0, 0, -1) end
+        feature.RLGLFieldDirection = look.Unit
+        feature.RLGLFieldOrigin = root.Position
+    end
+    return (feature.RLGLFieldOrigin or root.Position) + feature.RLGLFieldDirection * 220,
+        "captured field heading"
 end
 
 Handlers.RLGLMove = function(feature)
@@ -12628,7 +12670,11 @@ Handlers.RLGLMove = function(feature)
         stopDistance = math.max(stopDistance, 16)
         targetSource = "doll-side finish fallback"
     end
-    if not position then return false, "Green confirmed; waiting for finish or doll target" end
+    if not position then
+        position, targetSource = rlglFallbackTarget(feature, root)
+        stopDistance = math.max(stopDistance, 10)
+    end
+    if not position then return false, "Green confirmed; no safe travel direction available" end
 
     local moved, detail = Shared:MoveTo(position, feature, {
         Direct = true,
@@ -14429,7 +14475,7 @@ return Runtime:CreateFeature({
     Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.automove",
     Name = "Auto Move",
-    Description = "Moves toward the finish during green using live HUD values, doll orientation, doll audio, and crowd movement; stops immediately on red or uncertainty.",
+    Description = "Learns the live chant, crowd movement, and rotating doll state, moves only on confirmed green, and uses a safe red stop while the signal is being learned.",
     Handler = "RLGLMove",
     TargetTokens = {"finish", "safe zone", "end zone", "goal", "finish line"},
     ExcludeTokens = {"start", "spawn"},
@@ -14521,7 +14567,7 @@ return Runtime:CreateFeature({
     Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.stateesp",
     Name = "State ESP",
-    Description = "Shows the detected RLGL state and the live signal source used to confirm red or green.",
+    Description = "Shows the adaptive RLGL state and whether it came from chant audio, crowd consensus, a learned rotating sentinel, or a safe stop fallback.",
     Handler = "StateHUD",
     Interval = 0.1,
     IdleInterval = 0.55,
@@ -19862,7 +19908,14 @@ local RLGL_DOLL_TOKENS = {
     "younghee", "young hee", "yeonghee", "mugunghwa", "robot doll", "doll"
 }
 local RLGL_AMBIENT_SOUND_EXCLUDES = {
-    "gun", "shot", "rifle", "kill", "death", "hit", "impact", "music", "ambient", "lobby"
+    "gun", "shot", "rifle", "kill", "death", "hit", "impact", "footstep",
+    "walk", "run", "jump", "button", "click", "purchase", "reward", "lobby",
+    "background", "ambient", "theme", "emote", "interface"
+}
+local RLGL_GENERIC_MODEL_EXCLUDES = {
+    "tree", "grass", "wall", "floor", "ground", "terrain", "field", "map",
+    "bridge", "door", "cloud", "building", "spawn", "finish", "start", "camera",
+    "light", "lamp", "speaker", "decoration", "prop", "effect", "particle"
 }
 
 local function horizontalUnit(vector)
@@ -19882,63 +19935,116 @@ local function modelSize(instance)
     return Vector3.zero
 end
 
+local function candidateFacingPart(candidate)
+    if not candidate then return nil end
+    if candidate:IsA("BasePart") then return candidate end
+    if not candidate:IsA("Model") then return nil end
+    local part = candidate:FindFirstChild("Head", true)
+        or candidate:FindFirstChild("head", true)
+        or candidate:FindFirstChild("Face", true)
+        or candidate.PrimaryPart
+        or candidate:FindFirstChildWhichIsA("BasePart", true)
+    return part and part:IsA("BasePart") and part or nil
+end
+
+local function updateSentinelRotation(part)
+    if not part or not part.Parent then return 0 end
+    Runtime._RLGLSentinelRotation = Runtime._RLGLSentinelRotation or setmetatable({}, {__mode = "k"})
+    local history = Runtime._RLGLSentinelRotation[part]
+    local look = horizontalUnit(part.CFrame.LookVector)
+    if not look then return 0 end
+    local now = os.clock()
+    if not history then
+        history = {Look = look, Time = now, Turns = 0, LastTurnAt = 0}
+        Runtime._RLGLSentinelRotation[part] = history
+        return 0
+    end
+    local dot = math.clamp(history.Look:Dot(look), -1, 1)
+    if dot <= 0.45 and now - (history.LastTurnAt or 0) >= 0.35 then
+        history.Turns = (history.Turns or 0) + 1
+        history.LastTurnAt = now
+    end
+    history.Look = look
+    history.Time = now
+    return history.Turns or 0
+end
+
 local function findActiveRLGLDoll()
     local now = os.clock()
     local cached = Runtime._RLGLDollCache
-    if cached and now - cached.Time < 0.8 and cached.Instance and cached.Instance.Parent then
-        return cached.Instance, cached.Part
+    if cached and now - cached.Time < 0.45 and cached.Instance and cached.Instance.Parent then
+        updateSentinelRotation(cached.Part)
+        return cached.Instance, cached.Part, cached.Source
     end
 
     local _, character, _, root = getCharacter()
     local origin = root and root.Position
     local seen = setmetatable({}, {__mode = "k"})
-    local best, bestPart, bestScore = nil, nil, -math.huge
+    local best, bestPart, bestScore, bestSource = nil, nil, -math.huge, nil
 
     local function consider(instance)
         if not instance or not instance.Parent then return end
         local candidate = instance:IsA("Model") and instance or instance:FindFirstAncestorOfClass("Model") or instance
         if not candidate or seen[candidate] or (character and candidate == character) then return end
         seen[candidate] = true
-        local text = instanceText(candidate) .. " " .. instanceText(instance)
-        if not containsAny(text, RLGL_DOLL_TOKENS) then return end
-        local position = getPosition(candidate)
-        if not position then return end
-        local score = 0
-        local name = lower(candidate.Name)
-        if containsAny(name, {"younghee", "young hee", "yeonghee", "mugunghwa"}) then score = score + 90 end
-        if containsAny(name, {"robot doll", "doll"}) then score = score + 48 end
-        if containsAny(text, {"younghee", "young hee", "yeonghee", "mugunghwa"}) then score = score + 36 end
-        local size = modelSize(candidate)
-        if size.Y >= 8 then score = score + math.min(size.Y, 40) * 1.5 end
-        if origin then
-            local distance = (position - origin).Magnitude
-            if distance >= 18 and distance <= 900 then score = score + 22 end
-            if distance < 8 then score = score - 50 end
-        end
-        if candidate:IsA("Model") and candidate:FindFirstChildOfClass("Humanoid") then score = score - 25 end
 
-        local part
-        if candidate:IsA("Model") then
-            part = candidate:FindFirstChild("Head", true)
-                or candidate:FindFirstChild("head", true)
-                or candidate.PrimaryPart
-                or candidate:FindFirstChildWhichIsA("BasePart", true)
-        elseif candidate:IsA("BasePart") then
-            part = candidate
+        local text = instanceText(candidate) .. " " .. instanceText(instance)
+        local named = containsAny(text, RLGL_DOLL_TOKENS)
+        if not named and containsAny(candidate.Name, RLGL_GENERIC_MODEL_EXCLUDES) then return end
+
+        local position = getPosition(candidate)
+        local part = candidateFacingPart(candidate)
+        if not position or not part then return end
+        local distance = origin and (position - origin).Magnitude or 0
+        if origin and (distance < 20 or distance > 1200) then return end
+
+        local size = modelSize(candidate)
+        local score = 0
+        if named then
+            score = score + 120
+            if containsAny(text, {"younghee", "young hee", "yeonghee", "mugunghwa"}) then score = score + 45 end
+        else
+            if size.Y < 4 or size.Y > 90 then return end
+            if candidate:IsA("Model") and candidate:FindFirstChildOfClass("Humanoid") then return end
+            if candidate:IsA("Model") and candidate:FindFirstChildWhichIsA("AnimationController", true) then score = score + 34 end
+            if candidate:IsA("Model") and candidate:FindFirstChild("Head", true) then score = score + 24 end
+            if candidate:IsA("Model") and candidate:FindFirstChildWhichIsA("Motor6D", true) then score = score + 20 end
+            score = score + math.min(size.Y, 35)
         end
-        if part and not part:IsA("BasePart") then part = nil end
-        if score > bestScore and part then
-            best, bestPart, bestScore = candidate, part, score
+
+        local turns = updateSentinelRotation(part)
+        if turns > 0 then score = score + 85 + math.min(turns, 4) * 12 end
+        if origin and distance >= 45 and distance <= 900 then score = score + 18 end
+        if part:FindFirstChildWhichIsA("Decal") then score = score + 8 end
+
+        local source = named and "named RLGL doll" or (turns > 0 and "rotating arena sentinel" or "generic arena sentinel")
+        local minimum = named and 80 or 78
+        if score >= minimum and score > bestScore then
+            best, bestPart, bestScore, bestSource = candidate, part, score, source
         end
     end
 
-    forEachIndexed("Workspace", {"Model", "BasePart"}, function(instance)
+    forEachIndexed("Workspace", {"Model"}, function(instance)
         consider(instance)
         return true
     end)
 
-    Runtime._RLGLDollCache = {Time = now, Instance = best, Part = bestPart, Score = bestScore}
-    return best, bestPart
+    -- Some experiences build the doll from loose parts rather than a named model.
+    if not best then
+        forEachIndexed("Workspace", {"BasePart"}, function(instance)
+            if containsAny(instanceText(instance), RLGL_DOLL_TOKENS) then consider(instance) end
+            return true
+        end)
+    end
+
+    Runtime._RLGLDollCache = {
+        Time = now,
+        Instance = best,
+        Part = bestPart,
+        Score = bestScore,
+        Source = bestSource,
+    }
+    return best, bestPart, bestSource
 end
 
 local function faceNormal(part)
@@ -19953,106 +20059,251 @@ local function faceNormal(part)
     return part.CFrame.LookVector
 end
 
-local function dollFacingEvidence()
-    local _, _, _, root = getCharacter()
-    if not root then return nil end
-    local doll, part = findActiveRLGLDoll()
-    if not doll or not part then return nil end
-    local front = horizontalUnit(faceNormal(part))
-    local toPlayer = horizontalUnit(root.Position - part.Position)
-    if not front or not toPlayer then return nil end
-
-    local dot = front:Dot(toPlayer)
-    local now = os.clock()
-    local sample = Runtime._RLGLDollFacingSample
-    if not sample or sample.Part ~= part then
-        sample = {Part = part, Dot = dot, ChangedAt = now, StableAt = now}
-        Runtime._RLGLDollFacingSample = sample
-        return nil
-    end
-    if math.abs(dot - (sample.Dot or dot)) >= 0.20 then
-        sample.ChangedAt = now
-    end
-    sample.Dot = dot
-    if now - (sample.ChangedAt or now) < 0.18 then
-        return nil
-    end
-
-    if dot >= 0.24 then
-        return "Red", 10, doll, string.format("doll facing players (%.2f)", dot)
-    elseif dot <= -0.10 then
-        return "Green", 9, doll, string.format("doll facing away (%.2f)", dot)
-    end
-    return nil
-end
-
-local function dollSoundEvidence()
-    local doll = findActiveRLGLDoll()
-    if not doll then return nil end
-    local now = os.clock()
-    local cache = Runtime._RLGLDollSoundCache
-    if not cache or cache.Doll ~= doll or now - cache.Time > 1.0 then
-        local sounds = {}
-        local descendants = doll:GetDescendants()
-        for i = 1, math.min(#descendants, 180) do
-            local instance = descendants[i]
-            if instance:IsA("Sound") and not containsAny(instanceText(instance), RLGL_AMBIENT_SOUND_EXCLUDES) then
-                table.insert(sounds, instance)
-            end
-        end
-        cache = {Doll = doll, Time = now, Sounds = sounds}
-        Runtime._RLGLDollSoundCache = cache
-    end
-    local playing = false
-    local chosen
-    for _, instance in ipairs(cache.Sounds) do
-        if instance and instance.Parent and instance.Playing and instance.Volume > 0.01 then
-            playing, chosen = true, instance
-            break
-        end
-    end
-    if playing then
-        Runtime._RLGLDollSongSeenAt = now
-        return "Green", 6, chosen, "doll song/audio playing"
-    end
-    if Runtime._RLGLDollSongSeenAt and now - Runtime._RLGLDollSongSeenAt < 0.75 then
-        return nil -- brief turn-around transition; stay conservative
-    end
-    return nil
-end
-
 local function crowdMovementEvidence()
     local now = os.clock()
     local cached = Runtime._RLGLCrowdCache
-    if cached and now - cached.Time < 0.14 then
-        return cached.State, cached.Weight, nil, cached.Source
+    if cached and now - cached.Time < 0.12 then
+        return cached.State, cached.Weight, nil, cached.Source, cached.Ratio, cached.Total
     end
     local player, _, _, root = getCharacter()
     if not player or not root then return nil end
+
     local total, moving = 0, 0
     for _, other in ipairs(Players:GetPlayers()) do
         if other ~= player then
             local character = other.Character
             local humanoid = character and character:FindFirstChildOfClass("Humanoid")
             local otherRoot = character and character:FindFirstChild("HumanoidRootPart")
-            if humanoid and humanoid.Health > 0 and otherRoot and (otherRoot.Position - root.Position).Magnitude <= 360 then
+            if humanoid and humanoid.Health > 0 and otherRoot and (otherRoot.Position - root.Position).Magnitude <= 420 then
                 total = total + 1
                 local velocity = Vector3.new(otherRoot.AssemblyLinearVelocity.X, 0, otherRoot.AssemblyLinearVelocity.Z).Magnitude
-                if velocity >= 2.0 or humanoid.MoveDirection.Magnitude >= 0.22 then moving = moving + 1 end
+                if velocity >= 1.65 or humanoid.MoveDirection.Magnitude >= 0.16 then moving = moving + 1 end
             end
         end
     end
-    if total < 3 then return nil end
+
+    if total < 2 then
+        Runtime._RLGLCrowdCache = {Time = now, State = nil, Weight = 0, Ratio = 0, Total = total}
+        return nil, 0, nil, "not enough nearby players", 0, total
+    end
+
     local ratio = moving / total
     local state, weight, source
-    if moving >= 2 and ratio >= 0.25 then
+    if moving >= 2 and ratio >= 0.20 then
         Runtime._RLGLCrowdMotionSeenAt = now
-        state, weight, source = "Green", 4, string.format("crowd moving (%d/%d)", moving, total)
-    elseif moving == 0 and Runtime._RLGLCrowdMotionSeenAt and now - Runtime._RLGLCrowdMotionSeenAt <= 2.5 then
-        state, weight, source = "Red", 3, string.format("crowd stopped (%d tracked)", total)
+        state, weight, source = "Green", 10, string.format("crowd moving (%d/%d)", moving, total)
+    elseif ratio <= 0.08 and Runtime._RLGLCrowdMotionSeenAt and now - Runtime._RLGLCrowdMotionSeenAt <= 8.0 then
+        state, weight, source = "Red", 10, string.format("crowd stopped (%d tracked)", total)
     end
-    Runtime._RLGLCrowdCache = {Time = now, State = state, Weight = weight, Source = source}
-    return state, weight, nil, source
+
+    Runtime._RLGLCrowdCache = {
+        Time = now,
+        State = state,
+        Weight = weight or 0,
+        Source = source,
+        Ratio = ratio,
+        Total = total,
+    }
+    return state, weight or 0, nil, source, ratio, total
+end
+
+local function soundPlaying(sound)
+    if not sound or not sound.Parent then return false end
+    if sound:IsA("Sound") then
+        local ok, playing = pcall(function() return sound.Playing end)
+        local okVolume, volume = pcall(function() return sound.Volume end)
+        return ok and playing == true and (not okVolume or volume > 0.001)
+    end
+    local ok, playing = pcall(function() return sound.IsPlaying end)
+    return ok and playing == true
+end
+
+local function soundSignature(sound)
+    local id = ""
+    pcall(function()
+        id = tostring(sound.SoundId or sound.Asset or "")
+    end)
+    local parent = sound.Parent
+    return table.concat({id, sound.Name, parent and parent.Name or "", parent and parent.ClassName or ""}, "|")
+end
+
+local function soundDuration(sound)
+    local value = 0
+    pcall(function() value = tonumber(sound.TimeLength) or 0 end)
+    return value
+end
+
+local function collectRLGLAudioInstances()
+    local now = os.clock()
+    local cached = Runtime._RLGLAudioInstances
+    if cached and now - cached.Time < 0.8 then return cached.Items end
+
+    local items, seen = {}, setmetatable({}, {__mode = "k"})
+    local function add(instance)
+        if not instance or not instance.Parent or seen[instance] then return end
+        local isSound = instance:IsA("Sound")
+        local isAudio = false
+        if not isSound then pcall(function() isAudio = instance:IsA("AudioPlayer") end) end
+        if not isSound and not isAudio then return end
+        seen[instance] = true
+        table.insert(items, instance)
+    end
+
+    forEachIndexed("Workspace", {"Sound"}, function(instance) add(instance) return true end)
+    forEachIndexed("Gui", {"Sound"}, function(instance) add(instance) return true end)
+    for _, instance in ipairs(SoundService:GetDescendants()) do add(instance) end
+
+    Runtime._RLGLAudioInstances = {Time = now, Items = items}
+    return items
+end
+
+local function adaptiveAudioEvidence(crowdState)
+    Runtime._RLGLAudioHistory = Runtime._RLGLAudioHistory or {}
+    local now = os.clock()
+    local bestRecord, bestInstance, bestScore = nil, nil, -math.huge
+
+    for _, instance in ipairs(collectRLGLAudioInstances()) do
+        local context = instanceText(instance)
+        if not containsAny(context, RLGL_AMBIENT_SOUND_EXCLUDES) then
+            local duration = soundDuration(instance)
+            local looped = false
+            pcall(function() looped = instance.Looped == true or instance.Looping == true end)
+            if not looped or duration <= 14 or duration == 0 then
+                local signature = soundSignature(instance)
+                local record = Runtime._RLGLAudioHistory[signature]
+                if not record then
+                    record = {
+                        LastPlaying = false,
+                        SeenPlaying = false,
+                        SeenStopped = false,
+                        ToggleCount = 0,
+                        LastChangeAt = now,
+                        LastPlayedAt = 0,
+                        GreenCorrelation = 0,
+                        RedCorrelation = 0,
+                    }
+                    Runtime._RLGLAudioHistory[signature] = record
+                end
+
+                local playing = soundPlaying(instance)
+                if playing ~= record.LastPlaying then
+                    if record.SeenPlaying or playing then record.ToggleCount = record.ToggleCount + 1 end
+                    record.LastChangeAt = now
+                    record.LastPlaying = playing
+                    if not playing and record.SeenPlaying then record.SeenStopped = true end
+                end
+                if playing then
+                    record.SeenPlaying = true
+                    record.LastPlayedAt = now
+                end
+                record.LastSeenAt = now
+                record.Instance = instance
+                record.Duration = duration
+
+                if crowdState == "Green" and playing then
+                    record.GreenCorrelation = math.min((record.GreenCorrelation or 0) + 0.18, 12)
+                elseif crowdState == "Red" and not playing and record.SeenPlaying then
+                    record.RedCorrelation = math.min((record.RedCorrelation or 0) + 0.18, 12)
+                end
+
+                local score = 0
+                if containsAny(context, RLGL_CONTEXT) then score = score + 18 end
+                score = score + math.min(record.ToggleCount, 5) * 5
+                score = score + (record.SeenStopped and 5 or 0)
+                score = score + (record.GreenCorrelation or 0) + (record.RedCorrelation or 0)
+                if duration >= 0.65 and duration <= 12 then score = score + 7 end
+                if not looped then score = score + 3 end
+                local position = getPosition(instance.Parent)
+                local _, _, _, root = getCharacter()
+                if position and root then
+                    local distance = (position - root.Position).Magnitude
+                    if distance >= 25 and distance <= 1000 then score = score + 4 end
+                end
+
+                -- A first-cycle short spatial sound is allowed to bootstrap the
+                -- detector even before it has completed a full play/stop cycle.
+                if playing and duration >= 0.65 and duration <= 12 then score = score + 4 end
+
+                if score > bestScore then
+                    bestRecord, bestInstance, bestScore = record, instance, score
+                end
+            end
+        end
+    end
+
+    -- Keep a recently destroyed/recreated chant signature useful for the red
+    -- transition. Some games clone the sound each time instead of reusing it.
+    for _, record in pairs(Runtime._RLGLAudioHistory) do
+        if record.SeenPlaying and record.LastSeenAt and now - record.LastSeenAt <= 4.0 then
+            local score = math.min(record.ToggleCount or 0, 5) * 5
+                + (record.SeenStopped and 5 or 0)
+                + (record.GreenCorrelation or 0) + (record.RedCorrelation or 0)
+            if score > bestScore then
+                bestRecord, bestInstance, bestScore = record, record.Instance, score
+            end
+        end
+    end
+
+    if not bestRecord or bestScore < 7 then return nil end
+    if bestRecord.LastPlaying then
+        return "Green", math.clamp(math.floor(bestScore), 8, 16), bestInstance,
+            string.format("adaptive chant audio (score %d)", math.floor(bestScore))
+    end
+    if bestRecord.SeenPlaying and now - (bestRecord.LastPlayedAt or 0) <= 12 then
+        return "Red", math.clamp(math.floor(bestScore), 9, 17), bestInstance,
+            string.format("chant audio stopped (score %d)", math.floor(bestScore))
+    end
+    return nil
+end
+
+local function adaptiveDollFacingEvidence(calibrationState)
+    local _, _, _, root = getCharacter()
+    if not root then return nil end
+    local doll, part, dollSource = findActiveRLGLDoll()
+    if not doll or not part then return nil end
+
+    local front = horizontalUnit(faceNormal(part))
+    if not front then return nil end
+    local now = os.clock()
+    Runtime._RLGLFacingCalibration = Runtime._RLGLFacingCalibration or {}
+    local calibration = Runtime._RLGLFacingCalibration
+
+    if calibrationState == "Green" then
+        calibration.Green = front
+        calibration.GreenAt = now
+    elseif calibrationState == "Red" then
+        calibration.Red = front
+        calibration.RedAt = now
+    end
+
+    if calibration.Green then
+        local greenDot = front:Dot(calibration.Green)
+        local redDot = calibration.Red and front:Dot(calibration.Red) or -greenDot
+        if greenDot >= 0.82 and greenDot > redDot + 0.18 then
+            return "Green", 13, doll, (dollSource or "doll") .. " learned green orientation"
+        end
+    end
+    if calibration.Red then
+        local redDot = front:Dot(calibration.Red)
+        local greenDot = calibration.Green and front:Dot(calibration.Green) or -redDot
+        if redDot >= 0.82 and redDot > greenDot + 0.18 then
+            return "Red", 14, doll, (dollSource or "doll") .. " learned red orientation"
+        end
+    end
+
+    -- Named dolls can use a conservative geometric fallback before calibration.
+    if dollSource == "named RLGL doll" then
+        local toPlayer = horizontalUnit(root.Position - part.Position)
+        if toPlayer then
+            local dot = front:Dot(toPlayer)
+            if dot >= 0.35 then
+                return "Red", 9, doll, string.format("named doll facing field (%.2f)", dot)
+            elseif dot <= -0.28 then
+                return "Green", 8, doll, string.format("named doll facing away (%.2f)", dot)
+            end
+        end
+    end
+    return nil
 end
 
 local function discoverRLGLSignals()
@@ -20103,13 +20354,6 @@ local function discoverRLGLSignals()
         return true
     end)
 
-    forEachIndexed("Workspace", {"Sound"}, function(instance)
-        if instance.Playing and containsAny(instanceText(instance), RLGL_CONTEXT) then
-            table.insert(candidates, instance)
-        end
-        return true
-    end)
-
     Runtime._RLGLSignalCandidates = candidates
     Runtime._RLGLSignalsScannedAt = os.clock()
     return candidates
@@ -20129,7 +20373,7 @@ end
 local function findStatusText()
     local now = os.clock()
     local cached = Runtime._StatusTextCache
-    if cached and now - cached.Time < 0.08 then
+    if cached and now - cached.Time < 0.07 then
         return cached.Value, cached.Instance, cached.Detail
     end
 
@@ -20141,7 +20385,7 @@ local function findStatusText()
         Evidence = {},
     }
     local candidates = Runtime._RLGLSignalCandidates
-    if not candidates or now - (Runtime._RLGLSignalsScannedAt or 0) > 0.9 then
+    if not candidates or now - (Runtime._RLGLSignalsScannedAt or 0) > 0.65 then
         candidates = discoverRLGLSignals()
     end
 
@@ -20153,23 +20397,21 @@ local function findStatusText()
             if instance:IsA("ValueBase") then
                 local context = instanceText(instance)
                 state = contextualStatusWord(instance.Value, context)
-                weight = state and (containsAny(context, RLGL_CONTEXT) and 13 or 8) or 0
+                weight = state and (containsAny(context, RLGL_CONTEXT) and 15 or 9) or 0
                 source = "live value: " .. tostring(instance.Name)
                 if instance:IsA("BoolValue") then
                     local name = lower(instance.Name)
                     if string.find(name, "red", 1, true) then
-                        state, weight = instance.Value and "Red" or "Green", 13
+                        state, weight = instance.Value and "Red" or "Green", 15
                     elseif string.find(name, "green", 1, true) or string.find(name, "canmove", 1, true) then
-                        state, weight = instance.Value and "Green" or "Red", 13
+                        state, weight = instance.Value and "Green" or "Red", 15
                     end
                 end
-            elseif instance:IsA("Sound") then
-                state, weight, source = instance.Playing and "Green" or nil, instance.Playing and 5 or 0, "named RLGL audio"
             elseif isVisibleGui(instance) then
                 local rawText = (instance:IsA("TextLabel") or instance:IsA("TextButton")) and instance.Text or ""
                 local context = instanceText(instance)
                 state = contextualStatusWord(rawText, context)
-                weight = state and 11 or 0
+                weight = state and 13 or 0
                 source = state and "visible HUD text" or nil
                 local history = Runtime._RLGLColorHistory and Runtime._RLGLColorHistory[instance]
                 local colorAllowed = containsAny(context, {"light", "signal", "doll", "rlgl", "move"})
@@ -20181,7 +20423,7 @@ local function findStatusText()
                     state = (okText and rlglColorState(textColor))
                         or (okBackground and rlglColorState(backgroundColor))
                         or (okImage and rlglColorState(imageColor))
-                    weight = state and (history and history.SeenRed and history.SeenGreen and 9 or 6) or 0
+                    weight = state and (history and history.SeenRed and history.SeenGreen and 11 or 7) or 0
                     source = state and "switching HUD color" or nil
                 end
             end
@@ -20189,31 +20431,50 @@ local function findStatusText()
         end
     end
 
-    local state, weight, instance, source = dollFacingEvidence()
-    addRLGLScore(result, state, weight, instance, source)
-    state, weight, instance, source = dollSoundEvidence()
-    addRLGLScore(result, state, weight, instance, source)
-    state, weight, instance, source = crowdMovementEvidence()
-    addRLGLScore(result, state, weight, instance, source)
+    local crowdState, crowdWeight, crowdInstance, crowdSource, crowdRatio, crowdTotal = crowdMovementEvidence()
+    local audioState, audioWeight, audioInstance, audioSource = adaptiveAudioEvidence(crowdState)
+    local calibrationState = audioState or crowdState
+    local facingState, facingWeight, facingInstance, facingSource = adaptiveDollFacingEvidence(calibrationState)
 
-    if liveCount == 0 or now - (Runtime._RLGLSignalsScannedAt or 0) > 0.50 then
+    addRLGLScore(result, crowdState, crowdWeight, crowdInstance, crowdSource)
+    addRLGLScore(result, audioState, audioWeight, audioInstance, audioSource)
+    addRLGLScore(result, facingState, facingWeight, facingInstance, facingSource)
+
+    if liveCount == 0 or now - (Runtime._RLGLSignalsScannedAt or 0) > 0.45 then
         Runtime._RLGLSignalCandidates = nil
     end
 
     local value, selectedInstance, selectedSource
-    local margin = math.abs(result.Scores.Red - result.Scores.Green)
-    if result.Scores.Red >= 7 and result.Scores.Red > result.Scores.Green and margin >= 2 then
+    local red, green = result.Scores.Red, result.Scores.Green
+    local margin = math.abs(red - green)
+    if red >= 7 and red >= green and (margin >= 1 or result.BestWeight.Red >= 13) then
         value, selectedInstance, selectedSource = "Red", result.BestInstance.Red, result.BestSource.Red
-    elseif result.Scores.Green >= 7 and result.Scores.Green > result.Scores.Red and margin >= 2 then
+    elseif green >= 7 and green > red and (margin >= 1 or result.BestWeight.Green >= 13) then
         value, selectedInstance, selectedSource = "Green", result.BestInstance.Green, result.BestSource.Green
     end
 
+    -- Never remain permanently uncertain during an active RLGL round. Until a
+    -- reliable green cue is learned, the safe fallback is Red. This makes the
+    -- feature deterministic while the adaptive audio/sentinel learner observes
+    -- its first real play/stop cycle.
+    if not value then
+        value = "Red"
+        selectedSource = "safe stop while learning chant/doll signal"
+        selectedInstance = result.BestInstance.Red or result.BestInstance.Green
+        result.Scores.Red = math.max(result.Scores.Red, 1)
+    end
+
+    local doll, _, dollSource = findActiveRLGLDoll()
     local detail = {
         State = value,
-        Source = selectedSource or "no decisive live signal",
+        Source = selectedSource,
         RedScore = result.Scores.Red,
         GreenScore = result.Scores.Green,
-        Doll = findActiveRLGLDoll(),
+        Doll = doll,
+        DollSource = dollSource,
+        CrowdRatio = crowdRatio or 0,
+        CrowdTotal = crowdTotal or 0,
+        AudioSource = audioSource,
     }
     Runtime._StatusTextCache = {Time = now, Value = value, Instance = selectedInstance, Detail = detail}
     return value, selectedInstance, detail
@@ -20227,20 +20488,23 @@ function Runtime:GetRLGLStateDetail()
         self._RLGLCandidateAt = now
     end
 
-    -- A red signal is safety-critical and is applied immediately. Green needs a
-    -- short confirmation window to avoid moving during the doll's turn animation.
-    local required = candidate == "Red" and 0.02 or 0.13
+    -- Red is applied immediately. Green is confirmed briefly to avoid moving
+    -- during the turn animation. A missing cue falls back to Red in findStatusText.
+    local required = candidate == "Red" and 0.01 or 0.10
     if candidate and now - (self._RLGLCandidateAt or now) >= required then
         self._RLGLStableState = candidate
         self._RLGLStableDetail = detail
-    elseif not candidate and now - (self._RLGLCandidateAt or now) >= 0.60 then
-        self._RLGLStableState = nil
-        self._RLGLStableDetail = detail
+        self._RLGLStableAt = now
     end
 
     local stableDetail = self._RLGLStableDetail or detail or {}
     stableDetail.Instance = instance
-    stableDetail.State = self._RLGLStableState
+    stableDetail.State = self._RLGLStableState or "Red"
+    if not self._RLGLStableState then
+        self._RLGLStableState = "Red"
+        self._RLGLStableDetail = detail
+        self._RLGLStableAt = now
+    end
     return self._RLGLStableState, stableDetail
 end
 

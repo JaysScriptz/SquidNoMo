@@ -1,4 +1,4 @@
--- SquidNoMo game feature runtime, rebuilt for beta 8.
+-- SquidNoMo game feature runtime, adaptive RLGL signal learner for beta 10.
 -- All game modules use this single cooperative runtime. No game module starts its
 -- own uncontrolled loop or performs an HTTP request.
 
@@ -25,7 +25,7 @@ then
 end
 
 local GameRuntime = {
-    Revision = tostring(Manifest.GameRuntimeRevision or "game-runtime-r8"),
+    Revision = tostring(Manifest.GameRuntimeRevision or "game-runtime-r10"),
     BuildNumber = tonumber(Manifest.BuildNumber) or 0,
     Shared = Shared,
     DetectionCache = nil,
@@ -739,10 +739,52 @@ Handlers.StateHUD = function(feature)
         feature.Hud.TextColor3 = Color3.fromRGB(255, 78, 90)
         return true, "Red confirmed via " .. source
     end
-    feature.Hud.Text = "SIGNAL UNCERTAIN — WAIT"
+    feature.Hud.Text = "SAFE STOP — LEARNING SIGNAL"
     feature.Hud.TextColor3 = Color3.fromRGB(255, 215, 85)
     local scores = signal and string.format(" (R:%d G:%d)", signal.RedScore or 0, signal.GreenScore or 0) or ""
-    return false, "Waiting for live signal" .. scores
+    return false, "Learning chant, crowd, and doll cues" .. scores
+end
+
+local function rlglFallbackTarget(feature, root)
+    local player = Players.LocalPlayer
+    local farthestPosition, farthestDistance
+    for _, other in ipairs(Players:GetPlayers()) do
+        if other ~= player then
+            local character = other.Character
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            local otherRoot = character and character:FindFirstChild("HumanoidRootPart")
+            if humanoid and humanoid.Health > 0 and otherRoot then
+                local offset = otherRoot.Position - root.Position
+                local horizontal = Vector3.new(offset.X, 0, offset.Z)
+                local distance = horizontal.Magnitude
+                if distance >= 18 and distance <= 500 and (not farthestDistance or distance > farthestDistance) then
+                    farthestPosition, farthestDistance = otherRoot.Position, distance
+                end
+            end
+        end
+    end
+    if farthestPosition then
+        local direction = Vector3.new(
+            farthestPosition.X - root.Position.X,
+            0,
+            farthestPosition.Z - root.Position.Z
+        )
+        if direction.Magnitude > 0.01 then
+            direction = direction.Unit
+            return farthestPosition + direction * 14, "furthest live contestant"
+        end
+    end
+
+    if not feature.RLGLFieldDirection then
+        local camera = Workspace.CurrentCamera
+        local look = camera and camera.CFrame.LookVector or root.CFrame.LookVector
+        look = Vector3.new(look.X, 0, look.Z)
+        if look.Magnitude < 0.01 then look = Vector3.new(0, 0, -1) end
+        feature.RLGLFieldDirection = look.Unit
+        feature.RLGLFieldOrigin = root.Position
+    end
+    return (feature.RLGLFieldOrigin or root.Position) + feature.RLGLFieldDirection * 220,
+        "captured field heading"
 end
 
 Handlers.RLGLMove = function(feature)
@@ -768,7 +810,11 @@ Handlers.RLGLMove = function(feature)
         stopDistance = math.max(stopDistance, 16)
         targetSource = "doll-side finish fallback"
     end
-    if not position then return false, "Green confirmed; waiting for finish or doll target" end
+    if not position then
+        position, targetSource = rlglFallbackTarget(feature, root)
+        stopDistance = math.max(stopDistance, 10)
+    end
+    if not position then return false, "Green confirmed; no safe travel direction available" end
 
     local moved, detail = Shared:MoveTo(position, feature, {
         Direct = true,

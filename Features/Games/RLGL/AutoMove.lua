@@ -17,7 +17,7 @@ return Runtime:CreateFeature({
     Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.automove",
     Name = "Auto Move",
-    Description = "Moves toward the finish during green using live HUD values, doll orientation, doll audio, and crowd movement; stops immediately on red or uncertainty.",
+    Description = "Learns the live chant, crowd movement, and rotating doll state, moves only on confirmed green, and uses a safe red stop while the signal is being learned.",
     Handler = "RLGLMove",
     TargetTokens = {"finish", "safe zone", "end zone", "goal", "finish line"},
     ExcludeTokens = {"start", "spawn"},
