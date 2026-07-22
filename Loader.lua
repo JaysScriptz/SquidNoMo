@@ -505,6 +505,10 @@ Loader.App.Features = Loader.Features
 ReportLoading("Building the interface...", 0.94)
 Loader.App:Build(Loader)
 Loader.App:AttachFeatureManager(Loader.FeatureManager, Loader.Features)
+if Environment.__SquidNoMoOpenMinimized == true and type(Loader.App.SetMinimized) == "function" then
+    Loader.App:SetMinimized(true)
+    Environment.__SquidNoMoOpenMinimized = nil
+end
 ReportLoading("Finalizing startup...", 0.98)
 
 Session.Version = BUILD_VERSION

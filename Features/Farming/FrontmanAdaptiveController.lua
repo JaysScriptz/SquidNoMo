@@ -3,30 +3,19 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FarmingRuntimeRevision or "farming-runtime-r1")
-
+    and Environment.__SquidNoMoBuildManifest or {}
 local FarmingRuntime = Environment.__SquidNoMoFarmingRuntime
 if type(FarmingRuntime) ~= "table"
-    or FarmingRuntime.Revision ~= expectedRevision
-    or tonumber(FarmingRuntime.BuildNumber) ~= BUILD_NUMBER
+    or FarmingRuntime.Revision ~= tostring(Manifest.FarmingRuntimeRevision or "")
+    or tonumber(FarmingRuntime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local source = game:HttpGet(
-        "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Features/Farming/FarmingRuntime.lua"
-            .. "?squidnomo_build=" .. BUILD_TOKEN
-    )
+    local bundle = Environment.__SquidNoMoSourceBundle
+    local source = type(bundle) == "table" and bundle["Features/Farming/FarmingRuntime.lua"] or nil
+    if type(source) ~= "string" then
+        error("SquidNoMo verified farming runtime is unavailable")
+    end
     FarmingRuntime = loadstring(source)()
-end
-if type(FarmingRuntime) ~= "table"
-    or FarmingRuntime.Revision ~= expectedRevision
-    or tonumber(FarmingRuntime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo farming runtime build mismatch")
 end
 
 local MODE_PATHS = {

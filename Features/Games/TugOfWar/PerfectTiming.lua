@@ -1,37 +1,22 @@
 local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Tug of War",
     Id = "mapped.games.tug_of_war.perfect_timing",
     Name = "Perfect Timing",
     Description = "Times pull inputs around the strongest part of the tug sequence.",

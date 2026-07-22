@@ -2937,18 +2937,19 @@ function App:InstallPageTouchScroll(page)
     if not page or page:GetAttribute("SquidNoMoUniversalScroll") then return end
     page:SetAttribute("SquidNoMoUniversalScroll", true)
 
+    -- Roblox's native ScrollingFrame gesture can fight sliders and nested horizontal
+    -- category bars on some mobile executors. This direction-locked handler only
+    -- takes control after a clear vertical gesture and restores native scrolling at
+    -- the end of the touch.
     local activeTouch = nil
-    local startPosition = nil
-    local startCanvas = nil
+    local touchOrigin = nil
+    local dragOrigin = nil
+    local canvasOrigin = nil
     local vertical = false
-    local lastManualUpdate = 0
-
-    local function vector2(position)
-        return Vector2.new(position.X, position.Y)
-    end
+    local priorScrollingEnabled = true
 
     local function inside(position)
-        local point = vector2(position)
+        local point = Vector2.new(position.X, position.Y)
         local minimum = page.AbsolutePosition
         local maximum = minimum + page.AbsoluteSize
         return point.X >= minimum.X and point.X <= maximum.X
@@ -2956,90 +2957,81 @@ function App:InstallPageTouchScroll(page)
     end
 
     local function maxCanvasY()
-        local canvasHeight = page.AbsoluteCanvasSize.Y
-        if canvasHeight <= 0 then
-            canvasHeight = page.CanvasSize.Y.Offset + page.CanvasSize.Y.Scale * page.AbsoluteSize.Y
-        end
-        local windowHeight = page.AbsoluteWindowSize.Y
-        if windowHeight <= 0 then windowHeight = page.AbsoluteSize.Y end
+        local canvasHeight = math.max(
+            page.AbsoluteCanvasSize.Y,
+            page.CanvasSize.Y.Offset + page.CanvasSize.Y.Scale * page.AbsoluteSize.Y
+        )
+        local windowHeight = page.AbsoluteWindowSize.Y > 0
+            and page.AbsoluteWindowSize.Y
+            or page.AbsoluteSize.Y
         return math.max(0, canvasHeight - windowHeight)
     end
 
     local function beginTouch(input)
-        if input.UserInputType ~= Enum.UserInputType.Touch or not page.Visible then return end
-        if activeTouch or not inside(input.Position) then return end
+        if input.UserInputType ~= Enum.UserInputType.Touch
+            or not page.Visible
+            or activeTouch
+            or not inside(input.Position)
+        then
+            return
+        end
         activeTouch = input
-        startPosition = vector2(input.Position)
-        startCanvas = page.CanvasPosition
+        touchOrigin = input.Position
+        dragOrigin = nil
+        canvasOrigin = nil
         vertical = false
+        priorScrollingEnabled = page.ScrollingEnabled
     end
 
     local function moveTouch(input)
-        if not activeTouch or not startPosition or not startCanvas or not page.Visible then return end
-        if input.UserInputType ~= Enum.UserInputType.Touch then return end
-        local position = vector2(input.Position)
-        local delta = position - startPosition
-        if not vertical and math.abs(delta.Y) >= 8 and math.abs(delta.Y) > math.abs(delta.X) * 1.05 then
+        if not activeTouch or input ~= activeTouch or not page.Visible then return end
+        local delta = input.Position - (touchOrigin or input.Position)
+        if not vertical then
+            if math.abs(delta.Y) < 10 then return end
+            if math.abs(delta.Y) <= math.abs(delta.X) * 1.08 then return end
             vertical = true
+            dragOrigin = input.Position
+            canvasOrigin = page.CanvasPosition
+            page.ScrollingEnabled = false
             page:SetAttribute("SquidNoMoTouchDragging", true)
         end
-        if vertical and os.clock() - lastManualUpdate >= 0.008 then
-            lastManualUpdate = os.clock()
-            page.CanvasPosition = Vector2.new(
-                0,
-                math.clamp(startCanvas.Y - delta.Y, 0, maxCanvasY())
-            )
-        end
+        local travel = input.Position - dragOrigin
+        page.CanvasPosition = Vector2.new(
+            0,
+            math.clamp(canvasOrigin.Y - travel.Y, 0, maxCanvasY())
+        )
     end
 
     local function endTouch(input)
-        if not activeTouch then return end
-        if input == activeTouch or input.UserInputType == Enum.UserInputType.Touch then
-            activeTouch = nil
-            startPosition = nil
-            startCanvas = nil
-            vertical = false
-            task.defer(function()
-                if page and page.Parent then page:SetAttribute("SquidNoMoTouchDragging", false) end
-            end)
-        end
+        if not activeTouch or input ~= activeTouch then return end
+        activeTouch = nil
+        touchOrigin = nil
+        dragOrigin = nil
+        canvasOrigin = nil
+        vertical = false
+        page.ScrollingEnabled = priorScrollingEnabled ~= false
+        task.delay(0.05, function()
+            if page and page.Parent then
+                page:SetAttribute("SquidNoMoTouchDragging", false)
+            end
+        end)
     end
 
     self:Track(UserInputService.InputBegan:Connect(beginTouch))
     self:Track(UserInputService.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch then
             moveTouch(input)
-        elseif input.UserInputType == Enum.UserInputType.MouseWheel and page.Visible and inside(input.Position) then
+        elseif input.UserInputType == Enum.UserInputType.MouseWheel
+            and page.Visible
+            and inside(input.Position)
+        then
             page.CanvasPosition = Vector2.new(
                 0,
-                math.clamp(page.CanvasPosition.Y - input.Position.Z * 56, 0, maxCanvasY())
+                math.clamp(page.CanvasPosition.Y - input.Position.Z * 64, 0, maxCanvasY())
             )
         end
     end))
     self:Track(UserInputService.InputEnded:Connect(endTouch))
-
-    pcall(function()
-        local panStart = nil
-        self:Track(page.TouchPan:Connect(function(_, totalTranslation, _, state)
-            if not page.Visible then return end
-            if state == Enum.UserInputState.Begin then
-                panStart = page.CanvasPosition
-            elseif state == Enum.UserInputState.Change and panStart then
-                if math.abs(totalTranslation.Y) > math.abs(totalTranslation.X) then
-                    page:SetAttribute("SquidNoMoTouchDragging", true)
-                    page.CanvasPosition = Vector2.new(
-                        0,
-                        math.clamp(panStart.Y - totalTranslation.Y, 0, maxCanvasY())
-                    )
-                end
-            elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
-                panStart = nil
-                task.defer(function()
-                    if page and page.Parent then page:SetAttribute("SquidNoMoTouchDragging", false) end
-                end)
-            end
-        end))
-    end)
 end
 
 function App:CreatePage(name)

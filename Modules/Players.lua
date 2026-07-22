@@ -94,8 +94,6 @@ local function createRoot(
     Page.Selectable = false
     Page.ClipsDescendants = true
     Page.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
-    Page.AutomaticCanvasSize = Enum.AutomaticSize.None
-    Page.ScrollingDirection = Enum.ScrollingDirection.Y
     Page.ScrollBarThickness = math.max(Page.ScrollBarThickness, App:IsMobile() and 10 or 6)
     Page.ScrollBarImageTransparency = App:IsMobile() and 0.05 or 0.18
     Page.ScrollBarImageColor3 = App:GetPageAccent("Players")
@@ -111,12 +109,11 @@ local function createRoot(
             0,
             height
         )
-        local viewport = math.max(0, Page.AbsoluteSize.Y)
-        local contentHeight = topY + height + (App:IsMobile() and 72 or 40)
-        Page.CanvasSize = UDim2.fromOffset(
-            0,
-            math.max(contentHeight, viewport + 1)
-        )
+        local viewport = math.max(0, Page.AbsoluteWindowSize.Y, Page.AbsoluteSize.Y)
+        local bottomPadding = App:IsMobile() and 104 or 56
+        local contentHeight = topY + height + bottomPadding
+        Page.CanvasSize = UDim2.fromOffset(0, math.max(contentHeight, viewport + 2))
+        Page.ScrollingEnabled = true
     end
 
     local connections = {}
@@ -139,6 +136,7 @@ local function createRoot(
     task.defer(updateCanvas)
     task.delay(0.08, updateCanvas)
     task.delay(0.25, updateCanvas)
+    task.delay(0.60, updateCanvas)
 
     return root
 end
@@ -250,6 +248,8 @@ local function createToggle(
     end
 
     button.Activated:Connect(function()
+        local page = button:FindFirstAncestorWhichIsA("ScrollingFrame")
+        if page and page:GetAttribute("SquidNoMoTouchDragging") then return end
         feature =
             feature
             or getFeature(App, featureId)
@@ -448,6 +448,8 @@ local function createSliderCard(
         )
 
         quick.Activated:Connect(function()
+            local page = quick:FindFirstAncestorWhichIsA("ScrollingFrame")
+            if page and page:GetAttribute("SquidNoMoTouchDragging") then return end
             applyValue(current + delta)
             controller:SetValue(
                 current,

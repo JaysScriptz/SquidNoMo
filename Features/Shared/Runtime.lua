@@ -2419,29 +2419,6 @@ local function startAutoJump(feature)
     end)
 end
 
-local function startRopeBypass(feature)
-    feature.OriginalCanTouch = {}
-    feature:_Loop(feature.Config.Interval or 0.8, function(self)
-        local parts = Runtime:FindTargets({
-            Scope = "Workspace",
-            TargetTokens = self.Config.TargetTokens or {"rope", "swing", "bar"},
-            TargetClasses = {"BasePart"},
-            MaxTargets = 80,
-        })
-        for _, part in ipairs(parts) do
-            if self.OriginalCanTouch[part] == nil then self.OriginalCanTouch[part] = part.CanTouch end
-            part.CanTouch = false
-        end
-        self.Restore = function(current)
-            for part, value in pairs(current.OriginalCanTouch or {}) do
-                if part.Parent then part.CanTouch = value end
-            end
-            current.OriginalCanTouch = {}
-        end
-        return #parts > 0, #parts > 0 and ("Disabled touch on " .. #parts .. " rope part(s)") or "Waiting for rope collision parts"
-    end)
-end
-
 local function startEvasion(feature)
     feature:_Loop(feature.Config.Interval or 0.2, function(self)
         local _, _, humanoid, root = getCharacter()
@@ -3242,8 +3219,8 @@ local GameProfiles = {
     {Name = "Rebellion", VisualTokens = {"rebellion", "uprising", "take the armory", "fight the guards"}, WorldTokens = {"rebellion", "armory", "uprising"}},
     {Name = "Rock, Paper, Scissors Minus One", VisualTokens = {"rock, paper, scissors", "rock paper scissors", "minus one", "remove one"}, WorldTokens = {"rps", "minus one"}},
     {Name = "Sky Squid", VisualTokens = {"sky squid", "push a player off", "floating platform", "platform round"}, WorldTokens = {"sky squid", "floating platform"}},
-    {Name = "Squid Game", VisualTokens = {"squid game", "attack the goal", "defend the goal", "squid court"}, WorldTokens = {"squid court", "squid game court"}},
-    {Name = "Tug of War", VisualTokens = {"tug of war", "pull", "pull meter", "keep the marker"}, WorldTokens = {"tugofwar", "tug of war", "rope team"}},
+    {Name = "Squid Game", VisualTokens = {"attack the goal", "defend the goal", "squid court", "offense team", "defense team"}, WorldTokens = {"squid court", "squid game court"}},
+    {Name = "Tug of War", VisualTokens = {"tug of war", "pull meter", "keep the marker", "team rope"}, WorldTokens = {"tugofwar", "tug of war", "rope team"}},
     {Name = "Escape", VisualTokens = {"island escape", "escape the island", "extraction boat", "escape route"}, WorldTokens = {"escape island", "extraction boat"}},
 }
 
@@ -3293,49 +3270,55 @@ end
 
 function Runtime:DetectGameCategory()
     local now = os.clock()
-    if self._GameDetectionCache and now - self._GameDetectionCache.Time < 0.35 then
+    if self._GameDetectionCache and now - self._GameDetectionCache.Time < 0.22 then
         return self._GameDetectionCache.Name, self._GameDetectionCache.Score
     end
 
     local evidence = {}
     local function addEvidence(value, weight, source)
-        local valueText = lower(value)
-        if valueText ~= "" then
-            table.insert(evidence, {Text = valueText, Weight = tonumber(weight) or 1, Source = source})
+        local text = lower(value)
+        if text ~= "" then
+            table.insert(evidence, {Text = text, Weight = tonumber(weight) or 1, Source = source})
         end
     end
 
-    -- The visible HUD is the strongest evidence because the experience can keep
-    -- several maps in Workspace simultaneously. SquidNoMo's own GUI is excluded
-    -- by GetVisualSnapshot so category tabs cannot contaminate detection.
-    for _, item in ipairs(self:GetVisualSnapshot().Items) do
+    local snapshot = self:GetVisualSnapshot(true)
+    for _, item in ipairs(snapshot.Items) do
         if item.Text ~= "" then
-            local weight = item.TextSize >= 28 and 11 or (item.TextSize >= 18 and 9 or 7)
+            local weight = item.TextSize >= 30 and 15 or (item.TextSize >= 20 and 12 or 8)
             addEvidence(item.Text .. " " .. item.Context, weight, "HUD")
         end
     end
 
-    for _, root in ipairs({Workspace, ReplicatedStorage}) do
-        for attributeName, attributeValue in pairs(root:GetAttributes()) do
+    local player, character = getCharacter()
+    if player then
+        if player.Team then addEvidence(player.Team.Name, 4, "team") end
+        for _, object in ipairs({player, character}) do
+            if object then
+                for _, attributeName in ipairs({"CurrentGame", "Game", "Round", "RoundName", "Mode", "CurrentRound", "Minigame"}) do
+                    local ok, value = pcall(object.GetAttribute, object, attributeName)
+                    if ok and value ~= nil then addEvidence(attributeName .. " " .. tostring(value), 18, "player attribute") end
+                end
+            end
+        end
+    end
+
+    for _, rootObject in ipairs({Workspace, ReplicatedStorage}) do
+        for attributeName, attributeValue in pairs(rootObject:GetAttributes()) do
             if containsAny(attributeName, {"game", "round", "mode", "phase", "state", "current"}) then
-                addEvidence(attributeName .. " " .. tostring(attributeValue), 8, "root attribute")
+                addEvidence(attributeName .. " " .. tostring(attributeValue), 16, "root attribute")
             end
         end
         local scanned = 0
-        local scope = root == Workspace and "Workspace" or "ReplicatedStorage"
-        forEachIndexed(scope, {"Folder", "Model", "ValueBase"}, function(instance)
-            if scanned >= 220 then return false end
+        local scope = rootObject == Workspace and "Workspace" or "ReplicatedStorage"
+        forEachIndexed(scope, {"ValueBase", "Folder", "Model"}, function(instance)
+            if scanned >= 180 then return false end
+            local context = instanceText(instance)
             if instance:IsA("ValueBase") then
-                local context = instanceText(instance)
-                local weight = containsAny(context, {"current game", "current round", "game mode", "round name", "phase", "round state"}) and 8 or 2
-                addEvidence(context .. " " .. tostring(instance.Value), weight, "value")
-            elseif containsAny(instanceText(instance), {"active", "current", "round", "game"}) then
-                addEvidence(instanceText(instance), 2, "world")
-            end
-            for attributeName, attributeValue in pairs(instance:GetAttributes()) do
-                if containsAny(attributeName, {"game", "round", "mode", "phase", "state", "current"}) then
-                    addEvidence(attributeName .. " " .. tostring(attributeValue), 7, "object attribute")
-                end
+                local strong = containsAny(context, {"current game", "current round", "game mode", "round name", "minigame"})
+                addEvidence(context .. " " .. tostring(instance.Value), strong and 16 or 2, "value")
+            elseif containsAny(context, {"active round", "current game", "current round", "minigame"}) then
+                addEvidence(context, 5, "world")
             end
             scanned = scanned + 1
             return true
@@ -3348,17 +3331,17 @@ function Runtime:DetectGameCategory()
         local function scoreTokens(tokens, visual)
             for _, token in ipairs(tokens) do
                 local best = 0
-                local specificity = string.find(token, " ", 1, true) and 1.6 or 1.0
+                local phraseBonus = string.find(token, " ", 1, true) and 1.55 or 1.0
                 for _, item in ipairs(evidence) do
                     if string.find(item.Text, token, 1, true) then
-                        local sourceMultiplier = visual and item.Source == "HUD" and 1.4 or 1.0
-                        best = math.max(best, item.Weight * specificity * sourceMultiplier)
+                        local sourceMultiplier = visual and item.Source == "HUD" and 1.45 or 1.0
+                        best = math.max(best, item.Weight * phraseBonus * sourceMultiplier)
                     end
                 end
                 if best > 0 then
                     score = score + best
                     hits = hits + 1
-                    if best >= 8 then strong = true end
+                    if best >= 11 then strong = true end
                 end
             end
         end
@@ -3372,20 +3355,46 @@ function Runtime:DetectGameCategory()
     end)
 
     local best, second = ranked[1], ranked[2]
-    local name, score = nil, best and best.Score or 0
-    if best and score >= 8 and best.Strong
-        and (not second or score - second.Score >= 3)
+    local candidate, candidateScore = nil, best and best.Score or 0
+    if best and candidateScore >= 12 and best.Strong
+        and (best.Hits >= 2 or candidateScore >= 24)
+        and (not second or candidateScore - second.Score >= 4)
     then
-        name = best.Name
+        candidate = best.Name
     end
 
+    local state = self._StableGameDetection or {Name = nil, Candidate = nil, Count = 0, ConfirmedAt = 0}
+    if candidate and candidate == state.Candidate then
+        state.Count = state.Count + 1
+    elseif candidate then
+        state.Candidate = candidate
+        state.Count = 1
+    else
+        state.Candidate = nil
+        state.Count = 0
+    end
+
+    if candidate and (state.Count >= 2 or candidateScore >= 30) then
+        state.Name = candidate
+        state.ConfirmedAt = now
+    elseif not candidate and state.Name and now - (state.ConfirmedAt or 0) > 7 then
+        state.Name = nil
+    end
+    self._StableGameDetection = state
+
+    local confirmed = state.Name
+    if confirmed then
+        Environment.__SquidNoMoDetectedGame = confirmed
+        Environment.__SquidNoMoDetectedGameAt = now
+    end
     self._GameDetectionCache = {
         Time = now,
-        Name = name,
-        Score = score,
+        Name = confirmed,
+        Score = candidateScore,
+        Candidate = candidate,
         RunnerUp = second and second.Name or nil,
     }
-    return name, score
+    return confirmed, candidateScore
 end
 
 function Runtime:FeatureContextAllowed(feature)
@@ -3394,7 +3403,7 @@ function Runtime:FeatureContextAllowed(feature)
 
     local expectedGame = self:GetExpectedGame(feature)
     if expectedGame then
-        local detectedGame = self:DetectGameCategory()
+        local detectedGame = Environment.__SquidNoMoDetectedGame or self:DetectGameCategory()
         local phase = self:GetRoundPhase()
         if phase == "Lobby" then
             return false, "Paused: waiting for the round to begin"
@@ -3514,7 +3523,7 @@ function Runtime:ValidateFeatureConfig(config)
     local targetKinds = {
         Highlight = true, ToolActivate = true, GuiHighlight = true, WalkTo = true,
         Interact = true, ToolAura = true, Timing = true, GuiAction = true,
-        AutoJump = true, RopeBypass = true, Boundary = true, RoomAssist = true,
+        AutoJump = true, Boundary = true, RoomAssist = true,
         AimActivate = true, Radar = true, CourseAssist = true, SafeTileWalk = true,
         GlassESP = true, TaskChain = true, StateHUD = true, AntiStuck = true,
         JumpBoost = true, AntiFall = true, RLGLAutoMove = true, Evasion = true,
@@ -3752,7 +3761,6 @@ local starters = {
     AntiFall = startAntiFall,
     RLGLAutoMove = startRLGLAutoMove,
     AutoJump = startAutoJump,
-    RopeBypass = startRopeBypass,
     Evasion = startEvasion,
     Boundary = startBoundary,
     RoomAssist = startRoomAssist,

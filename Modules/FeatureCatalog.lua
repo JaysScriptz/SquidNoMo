@@ -245,13 +245,6 @@ FeatureCatalog.Pages = {
                     Path = "Features/Games/JumpRope/JumpBoost.lua",
                     Category = "Experimental",
                 },
-                {
-                    Id = "mapped.games.jump_rope.ropebypass",
-                    Name = "Rope Bypass",
-                    Description = "Reduces local rope interference to make crossing more forgiving.",
-                    Path = "Features/Games/JumpRope/RopeBypass.lua",
-                    Category = "Experimental",
-                },
             },
         },
         {

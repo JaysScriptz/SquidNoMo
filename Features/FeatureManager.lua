@@ -177,6 +177,61 @@ function FeatureManager:GetDetectedGameCategory()
     return self.DetectedGameCategory
 end
 
+function FeatureManager:_SetDetectedGame(category, score, source)
+    if type(category) ~= "string" or category == "" then return false end
+    local changed = category ~= self.DetectedGameCategory
+    self.DetectedGameCategory = category
+    self.DetectedGameScore = tonumber(score) or 0
+    self.DetectedGameSource = tostring(source or "visual detector")
+    self._lastDetectedAt = os.clock()
+
+    local environment = _G
+    if type(getgenv) == "function" then
+        local ok, result = pcall(getgenv)
+        if ok and type(result) == "table" then environment = result end
+    end
+    environment.__SquidNoMoDetectedGame = category
+    environment.__SquidNoMoDetectedGameAt = os.clock()
+    if changed then self:Notify(true) end
+    return changed
+end
+
+local function hasTransientOwner(entry)
+    return type(entry.TransientOwners) == "table" and next(entry.TransientOwners) ~= nil
+end
+
+function FeatureManager:SetTransientFeature(id, owner, enabled)
+    local entry = self.Registry[id]
+    if not entry or owner == nil then return false, "feature or owner is unavailable" end
+    entry.TransientOwners = entry.TransientOwners or setmetatable({}, {__mode = "k"})
+    if enabled then entry.TransientOwners[owner] = true else entry.TransientOwners[owner] = nil end
+
+    local wanted = entry.DesiredEnabled == true or hasTransientOwner(entry)
+    local environment = _G
+    if type(getgenv) == "function" then
+        local ok, result = pcall(getgenv)
+        if ok and type(result) == "table" then environment = result end
+    end
+    local detectedGame = self.DetectedGameCategory or environment.__SquidNoMoDetectedGame
+    local allowed = entry.PageName ~= "Games"
+        or not self.AutoApplyPerGameEnabled
+        or entry.CategoryName == detectedGame
+    local shouldRun = wanted and allowed
+    local feature = entry.Feature
+    if shouldRun and type(feature) ~= "table" then
+        feature = self:LoadCatalogFeature(id)
+    end
+    if type(feature) == "table" then
+        local ok = setFeatureEnabled(feature, shouldRun)
+        entry.State = ok and (shouldRun and "on" or "off") or safeFeatureState(entry)
+        self:Notify()
+        return ok
+    end
+    entry.State = "off"
+    self:Notify()
+    return not shouldRun, shouldRun and "feature could not be loaded" or nil
+end
+
 function FeatureManager:LoadCatalogFeature(id)
     local entry = self.Registry[id]
     if not entry then return nil, "feature is not registered" end
@@ -195,7 +250,7 @@ function FeatureManager:_ApplyDetectedGame(force)
     local runtime = self.Features and self.Features.Shared and self.Features.Shared.Runtime
     if not runtime or type(runtime.DetectGameCategory) ~= "function" then return 0 end
 
-    local detected = runtime:DetectGameCategory()
+    local detected, detectionScore = runtime:DetectGameCategory()
     local now = os.clock()
     if detected then
         self._lastDetectedAt = now
@@ -213,13 +268,14 @@ function FeatureManager:_ApplyDetectedGame(force)
 
     local categoryChanged = detected ~= self.DetectedGameCategory
     if not force and not categoryChanged then return 0 end
-    self.DetectedGameCategory = detected
+    self:_SetDetectedGame(detected, detectionScore, "runtime")
 
     self.SuppressPersistence = true
     local changed = 0
     for id, entry in pairs(self.Registry) do
         if entry.PageName == "Games" then
-            local shouldEnable = entry.CategoryName == detected and entry.DesiredEnabled == true
+            local profileWanted = entry.DesiredEnabled == true or hasTransientOwner(entry)
+            local shouldEnable = entry.CategoryName == detected and profileWanted
             local feature = entry.Feature
             if shouldEnable and type(feature) ~= "table" then
                 feature = self:LoadCatalogFeature(id)
@@ -241,28 +297,22 @@ function FeatureManager:_ApplyDetectedGame(force)
 end
 
 function FeatureManager:_EnsureGameWatcher()
+    self._gameWatcherGeneration = (self._gameWatcherGeneration or 0) + 1
+    local generation = self._gameWatcherGeneration
     local runtime = self.Features and self.Features.Shared and self.Features.Shared.Runtime
-    local scheduler = runtime and runtime.Scheduler
-    local owner = self._gameWatcherOwner
-    owner.Enabled = true
-    if not scheduler or type(scheduler.Add) ~= "function" then return false end
-    if type(scheduler.Remove) == "function" then scheduler:Remove(owner) end
-    scheduler:Add(owner, 0.65, 0.9, function()
-        local detected = type(runtime.DetectGameCategory) == "function" and runtime:DetectGameCategory() or nil
-        if detected then
-            self._lastDetectedAt = os.clock()
-            local categoryChanged = detected ~= self.DetectedGameCategory
-            if self.AutoApplyPerGameEnabled then
-                -- Reconcile every poll so a newly toggled profile cannot remain
-                -- active under the wrong game while the detected category is stable.
-                self:_ApplyDetectedGame(true)
-            elseif categoryChanged then
-                self.DetectedGameCategory = detected
-                self:Notify(true)
+    if not runtime or type(runtime.DetectGameCategory) ~= "function" then return false end
+
+    task.spawn(function()
+        while generation == self._gameWatcherGeneration do
+            local detected, score = runtime:DetectGameCategory()
+            if detected then
+                local changed = self:_SetDetectedGame(detected, score, "continuous detector")
+                if self.AutoApplyPerGameEnabled then
+                    self:_ApplyDetectedGame(changed)
+                end
             end
-            return true
+            task.wait(0.42)
         end
-        return false
     end)
     return true
 end
@@ -415,9 +465,9 @@ function FeatureManager:AttachCatalogFeature(id, feature)
 
     if entry.PendingEnabled ~= nil then
         entry.DesiredEnabled = entry.PendingEnabled == true
-        local enabled = entry.DesiredEnabled
+        local enabled = entry.DesiredEnabled or hasTransientOwner(entry)
         if self.AutoApplyPerGameEnabled and entry.PageName == "Games" then
-            enabled = entry.CategoryName == self.DetectedGameCategory and entry.DesiredEnabled
+            enabled = entry.CategoryName == self.DetectedGameCategory and enabled
         end
         if setFeatureEnabled(feature, enabled) then
             entry.State = enabled and "on" or "off"

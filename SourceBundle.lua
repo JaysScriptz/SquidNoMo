@@ -1,7 +1,7 @@
 -- Generated SquidNoMo verified source bundle.
 -- Upload this file together with BuildManifest.lua and Main.lua.
 return {
-    BuildToken = [====[1_1_beta_5-bundled-startup-recovery-r5]====],
+    BuildToken = [====[1_1_beta_6-stability-gameplay-rebuild-r6]====],
     Sources = {
         [ [====[BuildManifest.lua]====] ] = [====[-- SquidNoMo deployment manifest.
 -- BuildNumber is advanced automatically by repository workflows whenever feature code changes.
@@ -9,15 +9,15 @@ return {
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 5,
-    Revision = "bundled-startup-recovery-r5",
-    FeatureRuntimeRevision = "compatibility-runtime-r5",
-    PlayerRuntimeRevision = "player-runtime-r3",
-    FarmingRuntimeRevision = "farming-runtime-r1",
-    CatalogFeatureCount = 69,
+    BuildNumber = 6,
+    Revision = "stability-gameplay-rebuild-r6",
+    FeatureRuntimeRevision = "gameplay-runtime-r6",
+    PlayerRuntimeRevision = "player-runtime-r4",
+    FarmingRuntimeRevision = "farming-runtime-r2",
+    CatalogFeatureCount = 68,
     PlayerFeatureCount = 26,
     UIFeatureCount = 23,
-    ExpectedRegistryTotal = 118,
+    ExpectedRegistryTotal = 117,
     StartupBundle = "SourceBundle.lua",
     StartupTimeoutSeconds = 30,
     RequiredSharedFiles = {
@@ -2994,18 +2994,19 @@ function App:InstallPageTouchScroll(page)
     if not page or page:GetAttribute("SquidNoMoUniversalScroll") then return end
     page:SetAttribute("SquidNoMoUniversalScroll", true)
 
+    -- Roblox's native ScrollingFrame gesture can fight sliders and nested horizontal
+    -- category bars on some mobile executors. This direction-locked handler only
+    -- takes control after a clear vertical gesture and restores native scrolling at
+    -- the end of the touch.
     local activeTouch = nil
-    local startPosition = nil
-    local startCanvas = nil
+    local touchOrigin = nil
+    local dragOrigin = nil
+    local canvasOrigin = nil
     local vertical = false
-    local lastManualUpdate = 0
-
-    local function vector2(position)
-        return Vector2.new(position.X, position.Y)
-    end
+    local priorScrollingEnabled = true
 
     local function inside(position)
-        local point = vector2(position)
+        local point = Vector2.new(position.X, position.Y)
         local minimum = page.AbsolutePosition
         local maximum = minimum + page.AbsoluteSize
         return point.X >= minimum.X and point.X <= maximum.X
@@ -3013,90 +3014,81 @@ function App:InstallPageTouchScroll(page)
     end
 
     local function maxCanvasY()
-        local canvasHeight = page.AbsoluteCanvasSize.Y
-        if canvasHeight <= 0 then
-            canvasHeight = page.CanvasSize.Y.Offset + page.CanvasSize.Y.Scale * page.AbsoluteSize.Y
-        end
-        local windowHeight = page.AbsoluteWindowSize.Y
-        if windowHeight <= 0 then windowHeight = page.AbsoluteSize.Y end
+        local canvasHeight = math.max(
+            page.AbsoluteCanvasSize.Y,
+            page.CanvasSize.Y.Offset + page.CanvasSize.Y.Scale * page.AbsoluteSize.Y
+        )
+        local windowHeight = page.AbsoluteWindowSize.Y > 0
+            and page.AbsoluteWindowSize.Y
+            or page.AbsoluteSize.Y
         return math.max(0, canvasHeight - windowHeight)
     end
 
     local function beginTouch(input)
-        if input.UserInputType ~= Enum.UserInputType.Touch or not page.Visible then return end
-        if activeTouch or not inside(input.Position) then return end
+        if input.UserInputType ~= Enum.UserInputType.Touch
+            or not page.Visible
+            or activeTouch
+            or not inside(input.Position)
+        then
+            return
+        end
         activeTouch = input
-        startPosition = vector2(input.Position)
-        startCanvas = page.CanvasPosition
+        touchOrigin = input.Position
+        dragOrigin = nil
+        canvasOrigin = nil
         vertical = false
+        priorScrollingEnabled = page.ScrollingEnabled
     end
 
     local function moveTouch(input)
-        if not activeTouch or not startPosition or not startCanvas or not page.Visible then return end
-        if input.UserInputType ~= Enum.UserInputType.Touch then return end
-        local position = vector2(input.Position)
-        local delta = position - startPosition
-        if not vertical and math.abs(delta.Y) >= 8 and math.abs(delta.Y) > math.abs(delta.X) * 1.05 then
+        if not activeTouch or input ~= activeTouch or not page.Visible then return end
+        local delta = input.Position - (touchOrigin or input.Position)
+        if not vertical then
+            if math.abs(delta.Y) < 10 then return end
+            if math.abs(delta.Y) <= math.abs(delta.X) * 1.08 then return end
             vertical = true
+            dragOrigin = input.Position
+            canvasOrigin = page.CanvasPosition
+            page.ScrollingEnabled = false
             page:SetAttribute("SquidNoMoTouchDragging", true)
         end
-        if vertical and os.clock() - lastManualUpdate >= 0.008 then
-            lastManualUpdate = os.clock()
-            page.CanvasPosition = Vector2.new(
-                0,
-                math.clamp(startCanvas.Y - delta.Y, 0, maxCanvasY())
-            )
-        end
+        local travel = input.Position - dragOrigin
+        page.CanvasPosition = Vector2.new(
+            0,
+            math.clamp(canvasOrigin.Y - travel.Y, 0, maxCanvasY())
+        )
     end
 
     local function endTouch(input)
-        if not activeTouch then return end
-        if input == activeTouch or input.UserInputType == Enum.UserInputType.Touch then
-            activeTouch = nil
-            startPosition = nil
-            startCanvas = nil
-            vertical = false
-            task.defer(function()
-                if page and page.Parent then page:SetAttribute("SquidNoMoTouchDragging", false) end
-            end)
-        end
+        if not activeTouch or input ~= activeTouch then return end
+        activeTouch = nil
+        touchOrigin = nil
+        dragOrigin = nil
+        canvasOrigin = nil
+        vertical = false
+        page.ScrollingEnabled = priorScrollingEnabled ~= false
+        task.delay(0.05, function()
+            if page and page.Parent then
+                page:SetAttribute("SquidNoMoTouchDragging", false)
+            end
+        end)
     end
 
     self:Track(UserInputService.InputBegan:Connect(beginTouch))
     self:Track(UserInputService.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch then
             moveTouch(input)
-        elseif input.UserInputType == Enum.UserInputType.MouseWheel and page.Visible and inside(input.Position) then
+        elseif input.UserInputType == Enum.UserInputType.MouseWheel
+            and page.Visible
+            and inside(input.Position)
+        then
             page.CanvasPosition = Vector2.new(
                 0,
-                math.clamp(page.CanvasPosition.Y - input.Position.Z * 56, 0, maxCanvasY())
+                math.clamp(page.CanvasPosition.Y - input.Position.Z * 64, 0, maxCanvasY())
             )
         end
     end))
     self:Track(UserInputService.InputEnded:Connect(endTouch))
-
-    pcall(function()
-        local panStart = nil
-        self:Track(page.TouchPan:Connect(function(_, totalTranslation, _, state)
-            if not page.Visible then return end
-            if state == Enum.UserInputState.Begin then
-                panStart = page.CanvasPosition
-            elseif state == Enum.UserInputState.Change and panStart then
-                if math.abs(totalTranslation.Y) > math.abs(totalTranslation.X) then
-                    page:SetAttribute("SquidNoMoTouchDragging", true)
-                    page.CanvasPosition = Vector2.new(
-                        0,
-                        math.clamp(panStart.Y - totalTranslation.Y, 0, maxCanvasY())
-                    )
-                end
-            elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
-                panStart = nil
-                task.defer(function()
-                    if page and page.Parent then page:SetAttribute("SquidNoMoTouchDragging", false) end
-                end)
-            end
-        end))
-    end)
 end
 
 function App:CreatePage(name)
@@ -9574,34 +9566,18 @@ return Utilities
         [ [====[Features/Detective/BoatDepositor.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
@@ -9623,34 +9599,18 @@ return Runtime:CreateFeature({
         [ [====[Features/Detective/DisguiseManager.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
@@ -9667,34 +9627,18 @@ return Runtime:CreateFeature({
         [ [====[Features/Detective/EvidenceCollector.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
@@ -9717,34 +9661,18 @@ return Runtime:CreateFeature({
         [ [====[Features/Detective/EvidenceESP.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
@@ -9762,34 +9690,18 @@ return Runtime:CreateFeature({
         [ [====[Features/Detective/IslandNavigator.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
@@ -9812,33 +9724,20 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FarmingRuntimeRevision or "farming-runtime-r1")
-
+    and Environment.__SquidNoMoBuildManifest or {}
 local FarmingRuntime = Environment.__SquidNoMoFarmingRuntime
 if type(FarmingRuntime) ~= "table"
-    or FarmingRuntime.Revision ~= expectedRevision
-    or tonumber(FarmingRuntime.BuildNumber) ~= BUILD_NUMBER
+    or FarmingRuntime.Revision ~= tostring(Manifest.FarmingRuntimeRevision or "")
+    or tonumber(FarmingRuntime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local source = game:HttpGet(
-        "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Features/Farming/FarmingRuntime.lua"
-            .. "?squidnomo_build=" .. BUILD_TOKEN
-    )
+    local bundle = Environment.__SquidNoMoSourceBundle
+    local source = type(bundle) == "table" and bundle["Features/Farming/FarmingRuntime.lua"] or nil
+    if type(source) ~= "string" then
+        error("SquidNoMo verified farming runtime is unavailable")
+    end
     FarmingRuntime = loadstring(source)()
 end
-if type(FarmingRuntime) ~= "table"
-    or FarmingRuntime.Revision ~= expectedRevision
-    or tonumber(FarmingRuntime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo farming runtime build mismatch")
-end
-
-local DISGUISE = "Features/Detective/DisguiseManager.lua"
 
 return FarmingRuntime:CreateController({
     Id = "mapped.farming.detective_master_controller",
@@ -9907,23 +9806,12 @@ local FarmingRuntime = {
 }
 
 local FeatureRuntime = Environment.__SquidNoMoFeatureRuntime
-local expectedFeatureRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
+local expectedFeatureRevision = tostring(Manifest.FeatureRuntimeRevision or "")
 if type(FeatureRuntime) ~= "table"
     or FeatureRuntime.Revision ~= expectedFeatureRevision
     or tonumber(FeatureRuntime.BuildNumber) ~= BUILD_NUMBER
 then
-    local source = game:HttpGet(
-        FarmingRuntime.Repository
-            .. "Features/Shared/Runtime.lua?squidnomo_build="
-            .. BUILD_TOKEN
-    )
-    FeatureRuntime = loadstring(source)()
-end
-if type(FeatureRuntime) ~= "table"
-    or FeatureRuntime.Revision ~= expectedFeatureRevision
-    or tonumber(FeatureRuntime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo farming runtime requires the current feature runtime build")
+    error("SquidNoMo farming requires the verified feature runtime from the current build")
 end
 
 local ModuleCache = Environment.__SquidNoMoFarmingModuleCache
@@ -9973,13 +9861,11 @@ local function loadFeature(path)
     if not feature and loader and type(loader.LoadRemote) == "function" then
         feature = loader:LoadRemote(path)
     elseif not feature then
-        local separator = string.find(path, "?", 1, true) and "&" or "?"
-        local source = game:HttpGet(
-            FarmingRuntime.Repository
-                .. path
-                .. separator
-                .. "squidnomo_build=" .. BUILD_TOKEN
-        )
+        local bundle = Environment.__SquidNoMoSourceBundle
+        local source = type(bundle) == "table" and bundle[path] or nil
+        if type(source) ~= "string" then
+            error("verified bundled source is unavailable for " .. tostring(path))
+        end
         local chunk, compileError = loadstring(source)
         if not chunk then
             error("compile failed for " .. tostring(path) .. ": " .. tostring(compileError))
@@ -10437,10 +10323,25 @@ end
 
 function ControllerMethods:_DisableAll()
     local firstError
+    local loader = getLoader()
+    local manager = loader and loader.FeatureManager
     for path, feature in pairs(self.Children) do
         if self.OwnedPaths[path] then
-            local ok, err = setFeatureEnabled(feature, false)
-            if not ok and not firstError then firstError = err end
+            local released = false
+            if manager and type(manager.Registry) == "table" and type(manager.SetTransientFeature) == "function" then
+                for id, entry in pairs(manager.Registry) do
+                    if entry.Path == path then
+                        local ok, err = manager:SetTransientFeature(id, self, false)
+                        if not ok and not firstError then firstError = err end
+                        released = true
+                        break
+                    end
+                end
+            end
+            if not released then
+                local ok, err = setFeatureEnabled(feature, false)
+                if not ok and not firstError then firstError = err end
+            end
         end
     end
     self.ActivePaths = {}
@@ -10452,12 +10353,22 @@ function ControllerMethods:_SwitchTo(paths)
     paths = normalizePathList(paths)
     local desired = {}
     for _, path in ipairs(paths) do desired[path] = true end
+    local loader = getLoader()
+    local manager = loader and loader.FeatureManager
 
-    -- Stop the old phase before starting the next one so movement and action
-    -- leases cannot fight during a farming transition.
     for path, feature in pairs(self.Children) do
         if self.ActivePaths[path] and not desired[path] then
-            if self.OwnedPaths[path] then
+            local released = false
+            if manager and type(manager.Registry) == "table" and type(manager.SetTransientFeature) == "function" then
+                for id, entry in pairs(manager.Registry) do
+                    if entry.Path == path then
+                        manager:SetTransientFeature(id, self, false)
+                        released = true
+                        break
+                    end
+                end
+            end
+            if not released and self.OwnedPaths[path] then
                 local ok, err = setFeatureEnabled(feature, false)
                 if not ok then return false, "failed to stop " .. tostring(path) .. ": " .. tostring(err) end
             end
@@ -10469,11 +10380,26 @@ function ControllerMethods:_SwitchTo(paths)
     for _, path in ipairs(paths) do
         local feature, loadError = self:_Load(path)
         if not feature then return false, loadError end
-        local alreadyEnabled = featureEnabled(feature)
-        local ok, err = setFeatureEnabled(feature, true)
-        if not ok then return false, "failed to start " .. tostring(path) .. ": " .. tostring(err) end
+        local managed = false
+        if manager and type(manager.Registry) == "table" and type(manager.SetTransientFeature) == "function" then
+            for id, entry in pairs(manager.Registry) do
+                if entry.Path == path then
+                    local ok, err = manager:SetTransientFeature(id, self, true)
+                    if not ok then return false, "failed to start " .. tostring(path) .. ": " .. tostring(err) end
+                    managed = true
+                    break
+                end
+            end
+        end
+        if not managed then
+            local alreadyEnabled = featureEnabled(feature)
+            local ok, err = setFeatureEnabled(feature, true)
+            if not ok then return false, "failed to start " .. tostring(path) .. ": " .. tostring(err) end
+            if not alreadyEnabled then self.OwnedPaths[path] = true end
+        else
+            self.OwnedPaths[path] = true
+        end
         self.ActivePaths[path] = true
-        if not alreadyEnabled then self.OwnedPaths[path] = true end
     end
     return true
 end
@@ -10636,30 +10562,19 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FarmingRuntimeRevision or "farming-runtime-r1")
-
+    and Environment.__SquidNoMoBuildManifest or {}
 local FarmingRuntime = Environment.__SquidNoMoFarmingRuntime
 if type(FarmingRuntime) ~= "table"
-    or FarmingRuntime.Revision ~= expectedRevision
-    or tonumber(FarmingRuntime.BuildNumber) ~= BUILD_NUMBER
+    or FarmingRuntime.Revision ~= tostring(Manifest.FarmingRuntimeRevision or "")
+    or tonumber(FarmingRuntime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local source = game:HttpGet(
-        "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Features/Farming/FarmingRuntime.lua"
-            .. "?squidnomo_build=" .. BUILD_TOKEN
-    )
+    local bundle = Environment.__SquidNoMoSourceBundle
+    local source = type(bundle) == "table" and bundle["Features/Farming/FarmingRuntime.lua"] or nil
+    if type(source) ~= "string" then
+        error("SquidNoMo verified farming runtime is unavailable")
+    end
     FarmingRuntime = loadstring(source)()
-end
-if type(FarmingRuntime) ~= "table"
-    or FarmingRuntime.Revision ~= expectedRevision
-    or tonumber(FarmingRuntime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo farming runtime build mismatch")
 end
 
 local MODE_PATHS = {
@@ -10757,30 +10672,19 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FarmingRuntimeRevision or "farming-runtime-r1")
-
+    and Environment.__SquidNoMoBuildManifest or {}
 local FarmingRuntime = Environment.__SquidNoMoFarmingRuntime
 if type(FarmingRuntime) ~= "table"
-    or FarmingRuntime.Revision ~= expectedRevision
-    or tonumber(FarmingRuntime.BuildNumber) ~= BUILD_NUMBER
+    or FarmingRuntime.Revision ~= tostring(Manifest.FarmingRuntimeRevision or "")
+    or tonumber(FarmingRuntime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local source = game:HttpGet(
-        "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Features/Farming/FarmingRuntime.lua"
-            .. "?squidnomo_build=" .. BUILD_TOKEN
-    )
+    local bundle = Environment.__SquidNoMoSourceBundle
+    local source = type(bundle) == "table" and bundle["Features/Farming/FarmingRuntime.lua"] or nil
+    if type(source) ~= "string" then
+        error("SquidNoMo verified farming runtime is unavailable")
+    end
     FarmingRuntime = loadstring(source)()
-end
-if type(FarmingRuntime) ~= "table"
-    or FarmingRuntime.Revision ~= expectedRevision
-    or tonumber(FarmingRuntime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo farming runtime build mismatch")
 end
 
 local function nearby(helper, root, tokens, maxDistance)
@@ -10873,30 +10777,19 @@ if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
 end
-
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FarmingRuntimeRevision or "farming-runtime-r1")
-
+    and Environment.__SquidNoMoBuildManifest or {}
 local FarmingRuntime = Environment.__SquidNoMoFarmingRuntime
 if type(FarmingRuntime) ~= "table"
-    or FarmingRuntime.Revision ~= expectedRevision
-    or tonumber(FarmingRuntime.BuildNumber) ~= BUILD_NUMBER
+    or FarmingRuntime.Revision ~= tostring(Manifest.FarmingRuntimeRevision or "")
+    or tonumber(FarmingRuntime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local source = game:HttpGet(
-        "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/Features/Farming/FarmingRuntime.lua"
-            .. "?squidnomo_build=" .. BUILD_TOKEN
-    )
+    local bundle = Environment.__SquidNoMoSourceBundle
+    local source = type(bundle) == "table" and bundle["Features/Farming/FarmingRuntime.lua"] or nil
+    if type(source) ~= "string" then
+        error("SquidNoMo verified farming runtime is unavailable")
+    end
     FarmingRuntime = loadstring(source)()
-end
-if type(FarmingRuntime) ~= "table"
-    or FarmingRuntime.Revision ~= expectedRevision
-    or tonumber(FarmingRuntime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo farming runtime build mismatch")
 end
 
 local profiles = {
@@ -10955,12 +10848,14 @@ return FarmingRuntime:CreateController({
     Interval = 0.8,
     IdleInterval = 1.5,
     Select = function(self, helper, runtime)
-        local category = runtime:DetectGameCategory()
+        local category = Environment.__SquidNoMoDetectedGame
+        if not category then category = runtime:DetectGameCategory() end
         if not category then
             self.ActiveCategory = nil
             return {}, "Waiting to identify the active minigame"
         end
 
+        self.ActiveCategory = category
         if category == "Hide & Seek" then
             local hasKey = helper:FindTool({"key", "keycard"}) ~= nil
             if hasKey then
@@ -11163,6 +11058,61 @@ function FeatureManager:GetDetectedGameCategory()
     return self.DetectedGameCategory
 end
 
+function FeatureManager:_SetDetectedGame(category, score, source)
+    if type(category) ~= "string" or category == "" then return false end
+    local changed = category ~= self.DetectedGameCategory
+    self.DetectedGameCategory = category
+    self.DetectedGameScore = tonumber(score) or 0
+    self.DetectedGameSource = tostring(source or "visual detector")
+    self._lastDetectedAt = os.clock()
+
+    local environment = _G
+    if type(getgenv) == "function" then
+        local ok, result = pcall(getgenv)
+        if ok and type(result) == "table" then environment = result end
+    end
+    environment.__SquidNoMoDetectedGame = category
+    environment.__SquidNoMoDetectedGameAt = os.clock()
+    if changed then self:Notify(true) end
+    return changed
+end
+
+local function hasTransientOwner(entry)
+    return type(entry.TransientOwners) == "table" and next(entry.TransientOwners) ~= nil
+end
+
+function FeatureManager:SetTransientFeature(id, owner, enabled)
+    local entry = self.Registry[id]
+    if not entry or owner == nil then return false, "feature or owner is unavailable" end
+    entry.TransientOwners = entry.TransientOwners or setmetatable({}, {__mode = "k"})
+    if enabled then entry.TransientOwners[owner] = true else entry.TransientOwners[owner] = nil end
+
+    local wanted = entry.DesiredEnabled == true or hasTransientOwner(entry)
+    local environment = _G
+    if type(getgenv) == "function" then
+        local ok, result = pcall(getgenv)
+        if ok and type(result) == "table" then environment = result end
+    end
+    local detectedGame = self.DetectedGameCategory or environment.__SquidNoMoDetectedGame
+    local allowed = entry.PageName ~= "Games"
+        or not self.AutoApplyPerGameEnabled
+        or entry.CategoryName == detectedGame
+    local shouldRun = wanted and allowed
+    local feature = entry.Feature
+    if shouldRun and type(feature) ~= "table" then
+        feature = self:LoadCatalogFeature(id)
+    end
+    if type(feature) == "table" then
+        local ok = setFeatureEnabled(feature, shouldRun)
+        entry.State = ok and (shouldRun and "on" or "off") or safeFeatureState(entry)
+        self:Notify()
+        return ok
+    end
+    entry.State = "off"
+    self:Notify()
+    return not shouldRun, shouldRun and "feature could not be loaded" or nil
+end
+
 function FeatureManager:LoadCatalogFeature(id)
     local entry = self.Registry[id]
     if not entry then return nil, "feature is not registered" end
@@ -11181,7 +11131,7 @@ function FeatureManager:_ApplyDetectedGame(force)
     local runtime = self.Features and self.Features.Shared and self.Features.Shared.Runtime
     if not runtime or type(runtime.DetectGameCategory) ~= "function" then return 0 end
 
-    local detected = runtime:DetectGameCategory()
+    local detected, detectionScore = runtime:DetectGameCategory()
     local now = os.clock()
     if detected then
         self._lastDetectedAt = now
@@ -11199,13 +11149,14 @@ function FeatureManager:_ApplyDetectedGame(force)
 
     local categoryChanged = detected ~= self.DetectedGameCategory
     if not force and not categoryChanged then return 0 end
-    self.DetectedGameCategory = detected
+    self:_SetDetectedGame(detected, detectionScore, "runtime")
 
     self.SuppressPersistence = true
     local changed = 0
     for id, entry in pairs(self.Registry) do
         if entry.PageName == "Games" then
-            local shouldEnable = entry.CategoryName == detected and entry.DesiredEnabled == true
+            local profileWanted = entry.DesiredEnabled == true or hasTransientOwner(entry)
+            local shouldEnable = entry.CategoryName == detected and profileWanted
             local feature = entry.Feature
             if shouldEnable and type(feature) ~= "table" then
                 feature = self:LoadCatalogFeature(id)
@@ -11227,28 +11178,22 @@ function FeatureManager:_ApplyDetectedGame(force)
 end
 
 function FeatureManager:_EnsureGameWatcher()
+    self._gameWatcherGeneration = (self._gameWatcherGeneration or 0) + 1
+    local generation = self._gameWatcherGeneration
     local runtime = self.Features and self.Features.Shared and self.Features.Shared.Runtime
-    local scheduler = runtime and runtime.Scheduler
-    local owner = self._gameWatcherOwner
-    owner.Enabled = true
-    if not scheduler or type(scheduler.Add) ~= "function" then return false end
-    if type(scheduler.Remove) == "function" then scheduler:Remove(owner) end
-    scheduler:Add(owner, 0.65, 0.9, function()
-        local detected = type(runtime.DetectGameCategory) == "function" and runtime:DetectGameCategory() or nil
-        if detected then
-            self._lastDetectedAt = os.clock()
-            local categoryChanged = detected ~= self.DetectedGameCategory
-            if self.AutoApplyPerGameEnabled then
-                -- Reconcile every poll so a newly toggled profile cannot remain
-                -- active under the wrong game while the detected category is stable.
-                self:_ApplyDetectedGame(true)
-            elseif categoryChanged then
-                self.DetectedGameCategory = detected
-                self:Notify(true)
+    if not runtime or type(runtime.DetectGameCategory) ~= "function" then return false end
+
+    task.spawn(function()
+        while generation == self._gameWatcherGeneration do
+            local detected, score = runtime:DetectGameCategory()
+            if detected then
+                local changed = self:_SetDetectedGame(detected, score, "continuous detector")
+                if self.AutoApplyPerGameEnabled then
+                    self:_ApplyDetectedGame(changed)
+                end
             end
-            return true
+            task.wait(0.42)
         end
-        return false
     end)
     return true
 end
@@ -11401,9 +11346,9 @@ function FeatureManager:AttachCatalogFeature(id, feature)
 
     if entry.PendingEnabled ~= nil then
         entry.DesiredEnabled = entry.PendingEnabled == true
-        local enabled = entry.DesiredEnabled
+        local enabled = entry.DesiredEnabled or hasTransientOwner(entry)
         if self.AutoApplyPerGameEnabled and entry.PageName == "Games" then
-            enabled = entry.CategoryName == self.DetectedGameCategory and entry.DesiredEnabled
+            enabled = entry.CategoryName == self.DetectedGameCategory and enabled
         end
         if setFeatureEnabled(feature, enabled) then
             entry.State = enabled and "on" or "off"
@@ -11749,37 +11694,22 @@ return FeatureManager
         [ [====[Features/Games/Dalgona/AutoCut.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Dalgona",
     Id = "mapped.games.dalgona.autocut",
     Name = "Auto Cut",
     Description = "Automates the cookie carving interaction to help complete the selected shape.",
@@ -11794,37 +11724,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Dalgona/AutoLighter.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Dalgona",
     Id = "mapped.games.dalgona.autolighter",
     Name = "Auto Lighter",
     Description = "Finds, equips, and repeatedly activates the lighter while enabled.",
@@ -11838,37 +11753,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Dalgona/HighlightESP.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Dalgona",
     Id = "mapped.games.dalgona.highlightesp",
     Name = "Shape Highlight",
     Description = "Outlines the cookie shape so the tracing boundary is easier to see.",
@@ -11882,37 +11782,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Dalgona/TraceHelper.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Dalgona",
     Id = "mapped.games.dalgona.tracehelper",
     Name = "Trace Helper",
     Description = "Adds a visual tracing guide that follows the cursor over the cookie shape.",
@@ -11926,37 +11811,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Escape/IslandNav.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Escape",
     Id = "mapped.games.escape.islandnav",
     Name = "Island Extraction Route",
     Description = "Walks toward the detected extraction boat or finish point.",
@@ -11974,37 +11844,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/GlassBridge/AntiFall.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Glass Bridge",
     Id = "mapped.games.glass_bridge.antifall",
     Name = "Anti Fall",
     Description = "Stores a recent safe bridge position and recovers after a fall.",
@@ -12017,37 +11872,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/GlassBridge/AutoComplete.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Glass Bridge",
     Id = "mapped.games.glass_bridge.autocomplete",
     Name = "Auto Complete",
     Description = "Moves toward detected safe glass tiles in sequence.",
@@ -12062,37 +11902,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/GlassBridge/AutoReset.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Glass Bridge",
     Id = "mapped.games.glass_bridge.autoreset",
     Name = "Auto Reset",
     Description = "Returns the character to a recovery point after falling below the bridge.",
@@ -12105,37 +11930,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/GlassBridge/GlassESP.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Glass Bridge",
     Id = "mapped.games.glass_bridge.glassesp",
     Name = "Glass ESP",
     Description = "Highlights detected safe and unsafe glass panels.",
@@ -12149,37 +11959,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/HideSeek/AutoGrabKey.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Hide & Seek",
     Id = "mapped.games.hide_seek.autograbkey",
     Name = "Auto Grab Key",
     Description = "Finds the nearest key and moves close enough to collect it.",
@@ -12199,37 +11994,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/HideSeek/AutoGrabKnife.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Hide & Seek",
     Id = "mapped.games.hide_seek.autograbknife",
     Name = "Auto Grab Knife",
     Description = "Finds the nearest knife and moves close enough to collect it.",
@@ -12248,37 +12028,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/HideSeek/AutoPathToExit.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Hide & Seek",
     Id = "mapped.games.hide_seek.autopathtoexit",
     Name = "Auto Path to Exit",
     Description = "Uses pathfinding to walk toward the nearest detected exit.",
@@ -12298,37 +12063,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/HideSeek/AutoSwing.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Hide & Seek",
     Id = "mapped.games.hide_seek.autoswing",
     Name = "Auto Swing",
     Description = "Automatically activates the equipped melee tool while enabled.",
@@ -12345,37 +12095,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/HideSeek/EnemyESP.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Hide & Seek",
     Id = "mapped.games.hide_seek.enemyesp",
     Name = "Enemy ESP",
     Description = "Highlights opposing players so nearby threats are easier to track.",
@@ -12388,37 +12123,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/HideSeek/ExitESP.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Hide & Seek",
     Id = "mapped.games.hide_seek.exitesp",
     Name = "Exit ESP",
     Description = "Marks detected exits and escape points in the map.",
@@ -12432,37 +12152,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/HideSeek/HunterTracker.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Hide & Seek",
     Id = "mapped.games.hide_seek.huntertracker",
     Name = "Hunter Tracker",
     Description = "Tracks hunters and keeps their location visible during the round.",
@@ -12476,37 +12181,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/HideSeek/MapRadar.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Hide & Seek",
     Id = "mapped.games.hide_seek.mapradar",
     Name = "Map Radar",
     Description = "Shows nearby players and important map objects in a compact radar view.",
@@ -12521,37 +12211,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/JumpRope/AutoComplete.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Jump Rope",
     Id = "mapped.games.jump_rope.autocomplete",
     Name = "Auto Complete",
     Description = "Coordinates movement and jumps to progress across the rope course.",
@@ -12566,37 +12241,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/JumpRope/AutoJump.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Jump Rope",
     Id = "mapped.games.jump_rope.autojump",
     Name = "Auto Jump",
     Description = "Triggers jumps automatically as the rope approaches.",
@@ -12609,37 +12269,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/JumpRope/AutoPosition.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Jump Rope",
     Id = "mapped.games.jump_rope.autoposition",
     Name = "Auto Position",
     Description = "Keeps the character aligned with the preferred jumping position.",
@@ -12652,37 +12297,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/JumpRope/JumpBoost.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Jump Rope",
     Id = "mapped.games.jump_rope.jumpboost",
     Name = "Jump Boost",
     Description = "Temporarily increases jump strength for the rope sequence.",
@@ -12692,82 +12322,25 @@ return Runtime:CreateFeature({
     Interval = 0.35,
 })
 ]====],
-        [ [====[Features/Games/JumpRope/RopeBypass.lua]====] ] = [====[local Environment = _G
-if type(getgenv) == "function" then
-    local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
-end
-
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
-    and Environment.__SquidNoMoBuildManifest
-    or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
-local Runtime = Environment.__SquidNoMoFeatureRuntime
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
-end
-
-return Runtime:CreateFeature({
-    Id = "mapped.games.jump_rope.ropebypass",
-    Name = "Rope Bypass",
-    Description = "Reduces local rope interference to make crossing more forgiving.",
-    Kind = "RopeBypass",
-    TargetTokens = {"rope", "swing", "bar", "spinner", "sweep"},
-    Interval = 0.8,
-})
-]====],
         [ [====[Features/Games/Marbles/MarbleAimer.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Marbles",
     Id = "mapped.games.marbles.marbleaimer",
     Name = "Marble Aimer",
     Description = "Adds aiming assistance for more consistent marble throws.",
@@ -12783,37 +12356,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Marbles/MarblesESP.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Marbles",
     Id = "mapped.games.marbles.marblesesp",
     Name = "Marbles ESP",
     Description = "Highlights marbles, targets, and useful round objects.",
@@ -12827,37 +12385,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Marbles/RecoveryAssist.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Marbles",
     Id = "mapped.games.marbles.recoveryassist",
     Name = "Recovery Assist",
     Description = "Helps recover the aiming position after a missed marble throw.",
@@ -12869,37 +12412,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Marbles/RingShooter.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Marbles",
     Id = "mapped.games.marbles.ringshooter",
     Name = "Ring Shooter",
     Description = "Assists with lining up and firing marbles toward ring targets.",
@@ -12915,37 +12443,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Mingle/AutoRoom.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Mingle",
     Id = "mapped.games.mingle.autoroom",
     Name = "Auto Room",
     Description = "Automatically moves toward a room that matches the current player count.",
@@ -12958,37 +12471,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Mingle/RoomESP.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Mingle",
     Id = "mapped.games.mingle.roomesp",
     Name = "Room ESP",
     Description = "Highlights available rooms and displays useful room information.",
@@ -13002,37 +12500,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Mingle/SmartRoom.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Mingle",
     Id = "mapped.games.mingle.smartroom",
     Name = "Smart Room",
     Description = "Chooses a suitable room based on occupancy and nearby players.",
@@ -13045,37 +12528,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/NightBrawls/BrawlESP.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Fight Nights",
     Id = "mapped.games.fight_nights.brawlesp",
     Name = "Brawl ESP",
     Description = "Highlights nearby opponents during night-fight rounds.",
@@ -13088,37 +12556,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/NightBrawls/BrawlEvasion.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Fight Nights",
     Id = "mapped.games.fight_nights.brawlevasion",
     Name = "Brawl Evasion",
     Description = "Keeps distance from nearby attackers and dangerous positions.",
@@ -13132,37 +12585,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/NightBrawls/CombatAura.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Fight Nights",
     Id = "mapped.games.fight_nights.combataura",
     Name = "Combat Aura",
     Description = "Automatically uses the equipped combat tool on nearby valid targets.",
@@ -13177,37 +12615,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Pentathlon/Biseokchigi.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Pentathlon",
     Id = "mapped.games.pentathlon.biseokchigi",
     Name = "Biseokchigi Assist",
     Description = "Automates the timing and interaction used for the Biseokchigi event.",
@@ -13224,37 +12647,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Pentathlon/Ddakji.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Pentathlon",
     Id = "mapped.games.pentathlon.ddakji",
     Name = "Ddakji Assist",
     Description = "Helps perform the Ddakji action with consistent timing.",
@@ -13271,37 +12679,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Pentathlon/Gonggi.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Pentathlon",
     Id = "mapped.games.pentathlon.gonggi",
     Name = "Gonggi Assist",
     Description = "Automates the repeated inputs needed for the Gonggi event.",
@@ -13316,37 +12709,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Pentathlon/Jegichagi.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Pentathlon",
     Id = "mapped.games.pentathlon.jegichagi",
     Name = "Jegichagi Assist",
     Description = "Keeps the Jegichagi sequence going with automatic timed inputs.",
@@ -13363,37 +12741,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Pentathlon/Paengi.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Pentathlon",
     Id = "mapped.games.pentathlon.paengi",
     Name = "Paengi Assist",
     Description = "Automates the spin interaction for the Paengi event.",
@@ -13410,37 +12773,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/RLGL/AntiStuck.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.antistuck",
     Name = "Anti Stuck",
     Description = "Detects stalled movement and helps the character recover during the round.",
@@ -13455,37 +12803,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/RLGL/AutoMove.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.automove",
     Name = "Auto Move",
     Description = "Moves on green light and stops automatically when the doll changes to red.",
@@ -13500,37 +12833,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/RLGL/DollESP.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.dollesp",
     Name = "Doll ESP",
     Description = "Highlights the doll so its position stays visible from anywhere on the field.",
@@ -13544,37 +12862,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/RLGL/SafeZoneESP.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.safezoneesp",
     Name = "Safe Zone ESP",
     Description = "Marks safe areas and the finish zone to make the route easier to read.",
@@ -13589,37 +12892,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/RLGL/StateESP.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.stateesp",
     Name = "State ESP",
     Description = "Shows the current red-light or green-light state directly on screen.",
@@ -13631,37 +12919,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Rebellion/FrontmanNavigator.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Rebellion",
     Id = "mapped.games.rebellion.frontmannavigator",
     Name = "Frontman Navigator",
     Description = "Guides the character toward the detected Frontman objective.",
@@ -13676,37 +12949,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/Rebellion/GuardCombat.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Rebellion",
     Id = "mapped.games.rebellion.guardcombat",
     Name = "Guard Combat",
     Description = "Automatically engages nearby guard targets with the equipped tool.",
@@ -13724,37 +12982,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/RockPaperScissors/AutoPlay.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Rock, Paper, Scissors Minus One",
     Id = "mapped.games.rock_paper_scissors_minus_one.autoplay",
     Name = "Auto Play",
     Description = "Automatically selects and submits choices for each RPS Minus One round.",
@@ -13765,37 +13008,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/SkySquid/AntiFall.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Sky Squid",
     Id = "mapped.games.sky_squid.antifall",
     Name = "Anti Fall",
     Description = "Attempts to recover the character before a fall eliminates them.",
@@ -13808,37 +13036,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/SkySquid/AutoFight.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Sky Squid",
     Id = "mapped.games.sky_squid.autofight",
     Name = "Auto Fight",
     Description = "Automatically attacks nearby valid opponents with the equipped tool.",
@@ -13853,37 +13066,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/SkySquid/AutoPush.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Sky Squid",
     Id = "mapped.games.sky_squid.autopush",
     Name = "Auto Push",
     Description = "Uses the push action when an opponent enters range.",
@@ -13898,37 +13096,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/SkySquid/InstantGrab.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Sky Squid",
     Id = "mapped.games.sky_squid.instantgrab",
     Name = "Instant Grab",
     Description = "Quickly collects nearby weapons, poles, and usable tools.",
@@ -13946,37 +13129,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/SquidGame/CourtBoundaryKeeper.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Squid Game",
     Id = "mapped.games.squid_game.courtboundarykeeper",
     Name = "Court Boundary Keeper",
     Description = "Helps keep the character inside the active Squid Game court.",
@@ -13991,37 +13159,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/SquidGame/SquidGamePush.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Squid Game",
     Id = "mapped.games.squid_game.squidgamepush",
     Name = "Squid Game Push",
     Description = "Automatically uses the push tool against nearby opponents.",
@@ -14036,37 +13189,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/TugOfWar/AutoPull.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Tug of War",
     Id = "mapped.games.tug_of_war.autopull",
     Name = "Auto Pull",
     Description = "Repeats the pull input automatically throughout Tug of War.",
@@ -14081,37 +13219,22 @@ return Runtime:CreateFeature({
         [ [====[Features/Games/TugOfWar/PerfectTiming.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
+    ExpectedGame = "Tug of War",
     Id = "mapped.games.tug_of_war.perfect_timing",
     Name = "Perfect Timing",
     Description = "Times pull inputs around the strongest part of the tug sequence.",
@@ -14127,34 +13250,18 @@ return Runtime:CreateFeature({
         [ [====[Features/Guard/Coffin/CoffinDisposal.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
@@ -14176,34 +13283,18 @@ return Runtime:CreateFeature({
         [ [====[Features/Guard/Coffin/CoffinGrabber.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
@@ -14226,34 +13317,18 @@ return Runtime:CreateFeature({
         [ [====[Features/Guard/Kitchen/AutoCooker.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
@@ -14275,34 +13350,18 @@ return Runtime:CreateFeature({
         [ [====[Features/Guard/Kitchen/AutoStorage.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
@@ -14324,34 +13383,18 @@ return Runtime:CreateFeature({
         [ [====[Features/Guard/Kitchen/AutoSupply.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
@@ -14374,34 +13417,18 @@ return Runtime:CreateFeature({
         [ [====[Features/Guard/PlayerModeration/GuardLocalCleanup.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
@@ -14422,34 +13449,18 @@ return Runtime:CreateFeature({
         [ [====[Features/Guard/PlayerModeration/GuardLocalModerator.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then
-        Environment = result
-    end
+    if ok and type(result) == "table" then Environment = result end
 end
 
 local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     and Environment.__SquidNoMoBuildManifest
     or {}
-local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
-local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
-
 local Runtime = Environment.__SquidNoMoFeatureRuntime
 if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
+    or Runtime.Revision ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
 then
-    local repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
-    local source = game:HttpGet(
-        repository .. "Features/Shared/Runtime.lua?squidnomo_build=" .. BUILD_TOKEN
-    )
-    Runtime = loadstring(source)()
-end
-if type(Runtime) ~= "table"
-    or Runtime.Revision ~= expectedRevision
-    or tonumber(Runtime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo feature runtime build mismatch; deploy the complete build")
+    error("SquidNoMo verified feature runtime is unavailable; execute the complete current build")
 end
 
 return Runtime:CreateFeature({
@@ -19498,29 +18509,6 @@ local function startAutoJump(feature)
     end)
 end
 
-local function startRopeBypass(feature)
-    feature.OriginalCanTouch = {}
-    feature:_Loop(feature.Config.Interval or 0.8, function(self)
-        local parts = Runtime:FindTargets({
-            Scope = "Workspace",
-            TargetTokens = self.Config.TargetTokens or {"rope", "swing", "bar"},
-            TargetClasses = {"BasePart"},
-            MaxTargets = 80,
-        })
-        for _, part in ipairs(parts) do
-            if self.OriginalCanTouch[part] == nil then self.OriginalCanTouch[part] = part.CanTouch end
-            part.CanTouch = false
-        end
-        self.Restore = function(current)
-            for part, value in pairs(current.OriginalCanTouch or {}) do
-                if part.Parent then part.CanTouch = value end
-            end
-            current.OriginalCanTouch = {}
-        end
-        return #parts > 0, #parts > 0 and ("Disabled touch on " .. #parts .. " rope part(s)") or "Waiting for rope collision parts"
-    end)
-end
-
 local function startEvasion(feature)
     feature:_Loop(feature.Config.Interval or 0.2, function(self)
         local _, _, humanoid, root = getCharacter()
@@ -20321,8 +19309,8 @@ local GameProfiles = {
     {Name = "Rebellion", VisualTokens = {"rebellion", "uprising", "take the armory", "fight the guards"}, WorldTokens = {"rebellion", "armory", "uprising"}},
     {Name = "Rock, Paper, Scissors Minus One", VisualTokens = {"rock, paper, scissors", "rock paper scissors", "minus one", "remove one"}, WorldTokens = {"rps", "minus one"}},
     {Name = "Sky Squid", VisualTokens = {"sky squid", "push a player off", "floating platform", "platform round"}, WorldTokens = {"sky squid", "floating platform"}},
-    {Name = "Squid Game", VisualTokens = {"squid game", "attack the goal", "defend the goal", "squid court"}, WorldTokens = {"squid court", "squid game court"}},
-    {Name = "Tug of War", VisualTokens = {"tug of war", "pull", "pull meter", "keep the marker"}, WorldTokens = {"tugofwar", "tug of war", "rope team"}},
+    {Name = "Squid Game", VisualTokens = {"attack the goal", "defend the goal", "squid court", "offense team", "defense team"}, WorldTokens = {"squid court", "squid game court"}},
+    {Name = "Tug of War", VisualTokens = {"tug of war", "pull meter", "keep the marker", "team rope"}, WorldTokens = {"tugofwar", "tug of war", "rope team"}},
     {Name = "Escape", VisualTokens = {"island escape", "escape the island", "extraction boat", "escape route"}, WorldTokens = {"escape island", "extraction boat"}},
 }
 
@@ -20372,49 +19360,55 @@ end
 
 function Runtime:DetectGameCategory()
     local now = os.clock()
-    if self._GameDetectionCache and now - self._GameDetectionCache.Time < 0.35 then
+    if self._GameDetectionCache and now - self._GameDetectionCache.Time < 0.22 then
         return self._GameDetectionCache.Name, self._GameDetectionCache.Score
     end
 
     local evidence = {}
     local function addEvidence(value, weight, source)
-        local valueText = lower(value)
-        if valueText ~= "" then
-            table.insert(evidence, {Text = valueText, Weight = tonumber(weight) or 1, Source = source})
+        local text = lower(value)
+        if text ~= "" then
+            table.insert(evidence, {Text = text, Weight = tonumber(weight) or 1, Source = source})
         end
     end
 
-    -- The visible HUD is the strongest evidence because the experience can keep
-    -- several maps in Workspace simultaneously. SquidNoMo's own GUI is excluded
-    -- by GetVisualSnapshot so category tabs cannot contaminate detection.
-    for _, item in ipairs(self:GetVisualSnapshot().Items) do
+    local snapshot = self:GetVisualSnapshot(true)
+    for _, item in ipairs(snapshot.Items) do
         if item.Text ~= "" then
-            local weight = item.TextSize >= 28 and 11 or (item.TextSize >= 18 and 9 or 7)
+            local weight = item.TextSize >= 30 and 15 or (item.TextSize >= 20 and 12 or 8)
             addEvidence(item.Text .. " " .. item.Context, weight, "HUD")
         end
     end
 
-    for _, root in ipairs({Workspace, ReplicatedStorage}) do
-        for attributeName, attributeValue in pairs(root:GetAttributes()) do
+    local player, character = getCharacter()
+    if player then
+        if player.Team then addEvidence(player.Team.Name, 4, "team") end
+        for _, object in ipairs({player, character}) do
+            if object then
+                for _, attributeName in ipairs({"CurrentGame", "Game", "Round", "RoundName", "Mode", "CurrentRound", "Minigame"}) do
+                    local ok, value = pcall(object.GetAttribute, object, attributeName)
+                    if ok and value ~= nil then addEvidence(attributeName .. " " .. tostring(value), 18, "player attribute") end
+                end
+            end
+        end
+    end
+
+    for _, rootObject in ipairs({Workspace, ReplicatedStorage}) do
+        for attributeName, attributeValue in pairs(rootObject:GetAttributes()) do
             if containsAny(attributeName, {"game", "round", "mode", "phase", "state", "current"}) then
-                addEvidence(attributeName .. " " .. tostring(attributeValue), 8, "root attribute")
+                addEvidence(attributeName .. " " .. tostring(attributeValue), 16, "root attribute")
             end
         end
         local scanned = 0
-        local scope = root == Workspace and "Workspace" or "ReplicatedStorage"
-        forEachIndexed(scope, {"Folder", "Model", "ValueBase"}, function(instance)
-            if scanned >= 220 then return false end
+        local scope = rootObject == Workspace and "Workspace" or "ReplicatedStorage"
+        forEachIndexed(scope, {"ValueBase", "Folder", "Model"}, function(instance)
+            if scanned >= 180 then return false end
+            local context = instanceText(instance)
             if instance:IsA("ValueBase") then
-                local context = instanceText(instance)
-                local weight = containsAny(context, {"current game", "current round", "game mode", "round name", "phase", "round state"}) and 8 or 2
-                addEvidence(context .. " " .. tostring(instance.Value), weight, "value")
-            elseif containsAny(instanceText(instance), {"active", "current", "round", "game"}) then
-                addEvidence(instanceText(instance), 2, "world")
-            end
-            for attributeName, attributeValue in pairs(instance:GetAttributes()) do
-                if containsAny(attributeName, {"game", "round", "mode", "phase", "state", "current"}) then
-                    addEvidence(attributeName .. " " .. tostring(attributeValue), 7, "object attribute")
-                end
+                local strong = containsAny(context, {"current game", "current round", "game mode", "round name", "minigame"})
+                addEvidence(context .. " " .. tostring(instance.Value), strong and 16 or 2, "value")
+            elseif containsAny(context, {"active round", "current game", "current round", "minigame"}) then
+                addEvidence(context, 5, "world")
             end
             scanned = scanned + 1
             return true
@@ -20427,17 +19421,17 @@ function Runtime:DetectGameCategory()
         local function scoreTokens(tokens, visual)
             for _, token in ipairs(tokens) do
                 local best = 0
-                local specificity = string.find(token, " ", 1, true) and 1.6 or 1.0
+                local phraseBonus = string.find(token, " ", 1, true) and 1.55 or 1.0
                 for _, item in ipairs(evidence) do
                     if string.find(item.Text, token, 1, true) then
-                        local sourceMultiplier = visual and item.Source == "HUD" and 1.4 or 1.0
-                        best = math.max(best, item.Weight * specificity * sourceMultiplier)
+                        local sourceMultiplier = visual and item.Source == "HUD" and 1.45 or 1.0
+                        best = math.max(best, item.Weight * phraseBonus * sourceMultiplier)
                     end
                 end
                 if best > 0 then
                     score = score + best
                     hits = hits + 1
-                    if best >= 8 then strong = true end
+                    if best >= 11 then strong = true end
                 end
             end
         end
@@ -20451,20 +19445,46 @@ function Runtime:DetectGameCategory()
     end)
 
     local best, second = ranked[1], ranked[2]
-    local name, score = nil, best and best.Score or 0
-    if best and score >= 8 and best.Strong
-        and (not second or score - second.Score >= 3)
+    local candidate, candidateScore = nil, best and best.Score or 0
+    if best and candidateScore >= 12 and best.Strong
+        and (best.Hits >= 2 or candidateScore >= 24)
+        and (not second or candidateScore - second.Score >= 4)
     then
-        name = best.Name
+        candidate = best.Name
     end
 
+    local state = self._StableGameDetection or {Name = nil, Candidate = nil, Count = 0, ConfirmedAt = 0}
+    if candidate and candidate == state.Candidate then
+        state.Count = state.Count + 1
+    elseif candidate then
+        state.Candidate = candidate
+        state.Count = 1
+    else
+        state.Candidate = nil
+        state.Count = 0
+    end
+
+    if candidate and (state.Count >= 2 or candidateScore >= 30) then
+        state.Name = candidate
+        state.ConfirmedAt = now
+    elseif not candidate and state.Name and now - (state.ConfirmedAt or 0) > 7 then
+        state.Name = nil
+    end
+    self._StableGameDetection = state
+
+    local confirmed = state.Name
+    if confirmed then
+        Environment.__SquidNoMoDetectedGame = confirmed
+        Environment.__SquidNoMoDetectedGameAt = now
+    end
     self._GameDetectionCache = {
         Time = now,
-        Name = name,
-        Score = score,
+        Name = confirmed,
+        Score = candidateScore,
+        Candidate = candidate,
         RunnerUp = second and second.Name or nil,
     }
-    return name, score
+    return confirmed, candidateScore
 end
 
 function Runtime:FeatureContextAllowed(feature)
@@ -20473,7 +19493,7 @@ function Runtime:FeatureContextAllowed(feature)
 
     local expectedGame = self:GetExpectedGame(feature)
     if expectedGame then
-        local detectedGame = self:DetectGameCategory()
+        local detectedGame = Environment.__SquidNoMoDetectedGame or self:DetectGameCategory()
         local phase = self:GetRoundPhase()
         if phase == "Lobby" then
             return false, "Paused: waiting for the round to begin"
@@ -20593,7 +19613,7 @@ function Runtime:ValidateFeatureConfig(config)
     local targetKinds = {
         Highlight = true, ToolActivate = true, GuiHighlight = true, WalkTo = true,
         Interact = true, ToolAura = true, Timing = true, GuiAction = true,
-        AutoJump = true, RopeBypass = true, Boundary = true, RoomAssist = true,
+        AutoJump = true, Boundary = true, RoomAssist = true,
         AimActivate = true, Radar = true, CourseAssist = true, SafeTileWalk = true,
         GlassESP = true, TaskChain = true, StateHUD = true, AntiStuck = true,
         JumpBoost = true, AntiFall = true, RLGLAutoMove = true, Evasion = true,
@@ -20831,7 +19851,6 @@ local starters = {
     AntiFall = startAntiFall,
     RLGLAutoMove = startRLGLAutoMove,
     AutoJump = startAutoJump,
-    RopeBypass = startRopeBypass,
     Evasion = startEvasion,
     Boundary = startBoundary,
     RoomAssist = startRoomAssist,
@@ -22851,6 +21870,10 @@ Loader.App.Features = Loader.Features
 ReportLoading("Building the interface...", 0.94)
 Loader.App:Build(Loader)
 Loader.App:AttachFeatureManager(Loader.FeatureManager, Loader.Features)
+if Environment.__SquidNoMoOpenMinimized == true and type(Loader.App.SetMinimized) == "function" then
+    Loader.App:SetMinimized(true)
+    Environment.__SquidNoMoOpenMinimized = nil
+end
 ReportLoading("Finalizing startup...", 0.98)
 
 Session.Version = BUILD_VERSION
@@ -23105,6 +22128,48 @@ local sizeConstraint = Instance.new("UISizeConstraint")
 sizeConstraint.MinSize = Vector2.new(320, 360)
 sizeConstraint.MaxSize = Vector2.new(590, 520)
 sizeConstraint.Parent = panel
+
+local minimizeLoader = Instance.new("TextButton")
+minimizeLoader.Name = "MinimizeLoader"
+minimizeLoader.AnchorPoint = Vector2.new(1, 0)
+minimizeLoader.Position = UDim2.new(1, -10, 0, 10)
+minimizeLoader.Size = UDim2.fromOffset(42, 34)
+minimizeLoader.BackgroundColor3 = Color3.fromRGB(87, 67, 155)
+minimizeLoader.BorderSizePixel = 0
+minimizeLoader.Font = Enum.Font.GothamBlack
+minimizeLoader.Text = "—"
+minimizeLoader.TextColor3 = Color3.new(1, 1, 1)
+minimizeLoader.TextSize = 22
+minimizeLoader.ZIndex = 30
+minimizeLoader.Parent = panel
+addCorner(minimizeLoader, 10)
+
+local loaderBubble = Instance.new("TextButton")
+loaderBubble.Name = "LoaderBubble"
+loaderBubble.AnchorPoint = Vector2.new(1, 0)
+loaderBubble.Position = UDim2.new(1, -18, 0, 72)
+loaderBubble.Size = UDim2.fromOffset(194, 54)
+loaderBubble.BackgroundColor3 = Color3.fromRGB(9, 15, 19)
+loaderBubble.BackgroundTransparency = 0.04
+loaderBubble.BorderSizePixel = 0
+loaderBubble.Font = Enum.Font.GothamBold
+loaderBubble.Text = "SquidNoMo loading • 2%"
+loaderBubble.TextColor3 = Color3.fromRGB(55, 235, 111)
+loaderBubble.TextSize = 14
+loaderBubble.Visible = false
+loaderBubble.ZIndex = 40
+loaderBubble.Parent = shade
+addCorner(loaderBubble, 14)
+addStroke(loaderBubble, Color3.fromRGB(50, 223, 102), 0.12, 2)
+
+local function setLoaderMinimized(state)
+    bootstrap.Minimized = state == true
+    panel.Visible = not bootstrap.Minimized
+    loaderBubble.Visible = bootstrap.Minimized
+    Environment.__SquidNoMoOpenMinimized = bootstrap.Minimized
+end
+minimizeLoader.Activated:Connect(function() setLoaderMinimized(true) end)
+loaderBubble.Activated:Connect(function() setLoaderMinimized(false) end)
 
 local content = Instance.new("Frame")
 content.Size = UDim2.new(1, -24, 0, 495)
@@ -23453,8 +22518,12 @@ function bootstrap:SetStatus(message, progress)
                 true
             )
         end
+        local percentText = tostring(math.floor(amount * 100 + 0.5)) .. "%"
         if percent and percent.Parent then
-            percent.Text = tostring(math.floor(amount * 100 + 0.5)) .. "%"
+            percent.Text = percentText
+        end
+        if loaderBubble and loaderBubble.Parent then
+            loaderBubble.Text = "SquidNoMo loading • " .. percentText
         end
         updateStageRows(amount)
     end
@@ -23463,6 +22532,12 @@ end
 function bootstrap:Finish(loader)
     self.Loader = loader
     self.Loading = false
+    if self.Minimized == true then
+        Environment.__SquidNoMoOpenMinimized = true
+        if loader and loader.App and type(loader.App.SetMinimized) == "function" then
+            pcall(loader.App.SetMinimized, loader.App, true)
+        end
+    end
     self:SetStatus("Ready — opening SquidNoMo...", 1)
     heading.Text = "SQUID NO MO IS READY"
     task.delay(0.55, function()
@@ -24159,13 +23234,6 @@ FeatureCatalog.Pages = {
                     Name = "Jump Boost",
                     Description = "Temporarily increases jump strength for the rope sequence.",
                     Path = "Features/Games/JumpRope/JumpBoost.lua",
-                    Category = "Experimental",
-                },
-                {
-                    Id = "mapped.games.jump_rope.ropebypass",
-                    Name = "Rope Bypass",
-                    Description = "Reduces local rope interference to make crossing more forgiving.",
-                    Path = "Features/Games/JumpRope/RopeBypass.lua",
                     Category = "Experimental",
                 },
             },
@@ -25038,14 +24106,28 @@ function FeatureFolder:Render(Page, App, options)
         render()
     end
 
-    task.defer(function()
-        local rows = math.max(1, math.ceil(#features / 2))
+    local function updateCanvas()
+        local height = math.max(cardHeight, grid.AbsoluteContentSize.Y)
+        content.AutomaticSize = Enum.AutomaticSize.None
+        content.Size = UDim2.new(1, -(padding * 2), 0, height)
         Page.AutomaticCanvasSize = Enum.AutomaticSize.None
+        Page.ScrollingDirection = Enum.ScrollingDirection.Y
+        Page.ScrollingEnabled = true
+        local viewport = math.max(Page.AbsoluteWindowSize.Y, Page.AbsoluteSize.Y)
         Page.CanvasSize = UDim2.fromOffset(
             0,
-            topY + rows * (cardHeight + cellGap) + 36
+            math.max(topY + height + (App:IsMobile() and 92 or 44), viewport + 2)
         )
+    end
+    local gridConnection = grid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
+    local pageConnection = Page:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCanvas)
+    content.Destroying:Connect(function()
+        pcall(function() gridConnection:Disconnect() end)
+        pcall(function() pageConnection:Disconnect() end)
     end)
+    task.defer(updateCanvas)
+    task.delay(0.12, updateCanvas)
+    task.delay(0.45, updateCanvas)
 
     return content
 end
@@ -25058,6 +24140,7 @@ function GamesPage:Create(Page, App)
     local catalog = App.Loader.FeatureCatalog
     local categories = catalog and catalog:GetCategories("Games") or {}
     local manager = App.FeatureManager
+    local alive = true
     local lastDetected = nil
 
     local selector = App.Loader.CategoryStrip:Create(Page, App, {
@@ -25081,18 +24164,30 @@ function GamesPage:Create(Page, App)
         if detected and detected ~= lastDetected then
             lastDetected = detected
             selector.SelectByName(detected)
+            if App.Session then App.Session.SelectedGameCategory = detected end
         end
     end
 
     followDetectedGame()
+    local connection
     if manager and type(manager.Subscribe) == "function" then
-        local connection = manager:Subscribe(function()
-            followDetectedGame()
-        end)
-        Page.Destroying:Connect(function()
-            pcall(function() connection:Disconnect() end)
-        end)
+        connection = manager:Subscribe(followDetectedGame)
     end
+
+    -- Do not depend solely on registry notifications. The mode detector runs while
+    -- the page is open and immediately changes the visible subpage after a round
+    -- transition, even when no feature state changed.
+    task.spawn(function()
+        while alive and Page.Parent do
+            followDetectedGame()
+            task.wait(Page.Visible and 0.35 or 0.9)
+        end
+    end)
+
+    Page.Destroying:Connect(function()
+        alive = false
+        if connection then pcall(function() connection:Disconnect() end) end
+    end)
 end
 
 return GamesPage
@@ -25120,6 +24215,46 @@ function GuardsPage:Create(Page, App)
 end
 
 return GuardsPage
+]====],
+        [ [====[Modules/Home.lua]====] ] = [====[local Home = {}
+
+function Home:Create(Page, App)
+
+	local Components = App.Components
+
+	local HeroBanner = App.Loader.HeroBanner
+	local FeatureGroups = App.Loader.FeatureGroups
+	local ServerStatus = App.Loader.ServerStatus
+	local NOMOAI = App.Loader.NOMOAI
+	local SupportDevelopment = App.Loader.SupportDevelopment
+	local DevelopmentGoal = App.Loader.DevelopmentGoal
+	local Supporters = App.Loader.Supporters
+	local ImportantNotice = App.Loader.ImportantNotice
+	local Footer = App.Loader.Footer
+
+
+	HeroBanner:Create(Page, App)
+
+	local Row1 = Components:CreateHorizontalContainer(Page)
+	Row1.LayoutOrder = 2
+
+	FeatureGroups:Create(Row1, App)
+	ServerStatus:Create(Row1, App)
+	NOMOAI:Create(Row1, App)
+
+	local Row2 = Components:CreateHorizontalContainer(Page)
+	Row2.LayoutOrder = 3
+
+	SupportDevelopment:Create(Row2, App)
+	DevelopmentGoal:Create(Row2, App)
+	Supporters:Create(Row2, App)
+
+	ImportantNotice:Create(Page, App)
+	Footer:Create(Page, App)
+
+end
+
+return Home
 ]====],
         [ [====[Modules/Home/DevelopmentGoal.lua]====] ] = [====[local DevelopmentGoal = {}
 
@@ -26388,45 +25523,1016 @@ end
 
 return Supporters
 ]====],
-        [ [====[Modules/Home.lua]====] ] = [====[local Home = {}
+        [ [====[Modules/Players.lua]====] ] = [====[local PlayersPage = {}
 
-function Home:Create(Page, App)
+local CATEGORIES = {
+    {
+        Name = "Movement & Camera",
+        Short = "MOVE",
+    },
+    {
+        Name = "Player ESP",
+        Short = "ESP",
+    },
+    {
+        Name = "Local Utilities",
+        Short = "TOOLS",
+    },
+}
 
-	local Components = App.Components
-
-	local HeroBanner = App.Loader.HeroBanner
-	local FeatureGroups = App.Loader.FeatureGroups
-	local ServerStatus = App.Loader.ServerStatus
-	local NOMOAI = App.Loader.NOMOAI
-	local SupportDevelopment = App.Loader.SupportDevelopment
-	local DevelopmentGoal = App.Loader.DevelopmentGoal
-	local Supporters = App.Loader.Supporters
-	local ImportantNotice = App.Loader.ImportantNotice
-	local Footer = App.Loader.Footer
-
-
-	HeroBanner:Create(Page, App)
-
-	local Row1 = Components:CreateHorizontalContainer(Page)
-	Row1.LayoutOrder = 2
-
-	FeatureGroups:Create(Row1, App)
-	ServerStatus:Create(Row1, App)
-	NOMOAI:Create(Row1, App)
-
-	local Row2 = Components:CreateHorizontalContainer(Page)
-	Row2.LayoutOrder = 3
-
-	SupportDevelopment:Create(Row2, App)
-	DevelopmentGoal:Create(Row2, App)
-	Supporters:Create(Row2, App)
-
-	ImportantNotice:Create(Page, App)
-	Footer:Create(Page, App)
-
+local function getFeature(App, id)
+    local manager = App.FeatureManager
+    local entry = manager
+        and manager.Registry
+        and manager.Registry[id]
+    return entry and entry.Feature or nil
 end
 
-return Home
+local function notify(App)
+    if App.FeatureManager
+        and type(App.FeatureManager.Notify)
+            == "function"
+    then
+        App.FeatureManager:Notify()
+    end
+end
+
+local function makeCorner(parent, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius =
+        UDim.new(0, radius or 12)
+    corner.Parent = parent
+end
+
+local function createRoot(
+    Page,
+    App,
+    topY,
+    cardHeight
+)
+    local padding = App:GetUIStyleValue(
+        "Players",
+        "PagePadding",
+        "MainPage"
+    ) or App.Profile.ContentPadding
+
+    local root = Instance.new("Frame")
+    root.Name = "PlayerSubpageContent"
+    root:SetAttribute(
+        "SquidNoMoSubpage",
+        true
+    )
+    root.Position =
+        UDim2.fromOffset(padding, topY)
+    root.Size = UDim2.new(
+        1,
+        -(padding * 2),
+        0,
+        10
+    )
+    root.BackgroundTransparency = 1
+    root.BorderSizePixel = 0
+    root.Active = false
+    root.Selectable = false
+    root.Parent = Page
+
+    local grid = Instance.new("UIGridLayout")
+    grid.SortOrder =
+        Enum.SortOrder.LayoutOrder
+    grid.CellPadding =
+        UDim2.fromOffset(12, 12)
+    grid.CellSize = UDim2.new(
+        0.5,
+        -6,
+        0,
+        cardHeight
+    )
+    grid.Parent = root
+
+    -- Player cards contain interactive sliders/buttons, so we manage the canvas
+    -- explicitly and keep the parent ScrollingFrame touch-active. This avoids the
+    -- mobile case where child controls consume the gesture and the page never pans.
+    Page.AutomaticCanvasSize = Enum.AutomaticSize.None
+    Page.ScrollingDirection = Enum.ScrollingDirection.Y
+    Page.ScrollingEnabled = true
+    Page.Active = true
+    Page.Selectable = false
+    Page.ClipsDescendants = true
+    Page.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+    Page.ScrollBarThickness = math.max(Page.ScrollBarThickness, App:IsMobile() and 10 or 6)
+    Page.ScrollBarImageTransparency = App:IsMobile() and 0.05 or 0.18
+    Page.ScrollBarImageColor3 = App:GetPageAccent("Players")
+
+    local function updateCanvas()
+        local height = math.max(
+            cardHeight,
+            grid.AbsoluteContentSize.Y
+        )
+        root.Size = UDim2.new(
+            1,
+            -(padding * 2),
+            0,
+            height
+        )
+        local viewport = math.max(0, Page.AbsoluteWindowSize.Y, Page.AbsoluteSize.Y)
+        local bottomPadding = App:IsMobile() and 104 or 56
+        local contentHeight = topY + height + bottomPadding
+        Page.CanvasSize = UDim2.fromOffset(0, math.max(contentHeight, viewport + 2))
+        Page.ScrollingEnabled = true
+    end
+
+    local connections = {}
+    table.insert(connections, grid:GetPropertyChangedSignal(
+        "AbsoluteContentSize"
+    ):Connect(updateCanvas))
+    table.insert(connections, Page:GetPropertyChangedSignal(
+        "AbsoluteSize"
+    ):Connect(updateCanvas))
+    table.insert(connections, root:GetPropertyChangedSignal(
+        "AbsoluteSize"
+    ):Connect(updateCanvas))
+
+    root.Destroying:Connect(function()
+        for _, connection in ipairs(connections) do
+            pcall(function() connection:Disconnect() end)
+        end
+    end)
+
+    task.defer(updateCanvas)
+    task.delay(0.08, updateCanvas)
+    task.delay(0.25, updateCanvas)
+    task.delay(0.60, updateCanvas)
+
+    return root
+end
+
+local function createToggle(
+    App,
+    parent,
+    title,
+    description,
+    accent,
+    featureId,
+    order
+)
+    local card = App:CreateCard(
+        parent,
+        UDim2.new(1, 0, 0, 132),
+        {
+            Color = App.Colors.CardAlt,
+            BorderColor = accent,
+            BorderTransparency = 0.18,
+            Radius = 14,
+        }
+    )
+    card.LayoutOrder = order
+
+    App:CreateText(
+        card,
+        title,
+        UDim2.new(1, -92, 0, 24),
+        UDim2.fromOffset(14, 14),
+        {
+            Font = Enum.Font.GothamBold,
+            TextSize =
+                App:IsMobile() and 15 or 14,
+            Color = App.Colors.Text,
+            ZIndex = 1014,
+        }
+    )
+
+    App:CreateText(
+        card,
+        description,
+        UDim2.new(1, -98, 0, 58),
+        UDim2.fromOffset(14, 44),
+        {
+            Font = Enum.Font.GothamMedium,
+            TextSize =
+                App:IsMobile() and 13 or 11,
+            Color = App.Colors.Muted,
+            Wrapped = true,
+            YAlignment =
+                Enum.TextYAlignment.Top,
+            ZIndex = 1014,
+        }
+    )
+
+    local button = Instance.new("TextButton")
+    button.AnchorPoint = Vector2.new(1, 0)
+    button.Position =
+        UDim2.new(1, -14, 0, 14)
+    button.Size = UDim2.fromOffset(58, 32)
+    button.BackgroundColor3 =
+        Color3.fromRGB(70, 66, 80)
+    button.BorderSizePixel = 0
+    button.AutoButtonColor = false
+    button.Text = ""
+    button.ZIndex = 1015
+    button.Parent = card
+    makeCorner(button, 999)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(26, 26)
+    knob.Position = UDim2.fromOffset(3, 3)
+    knob.BackgroundColor3 =
+        Color3.fromRGB(242, 239, 247)
+    knob.BorderSizePixel = 0
+    knob.ZIndex = 1016
+    knob.Parent = button
+    makeCorner(knob, 999)
+
+    local feature =
+        getFeature(App, featureId)
+
+    local function isEnabled()
+        if feature
+            and type(feature.IsEnabled)
+                == "function"
+        then
+            local ok, state = pcall(
+                feature.IsEnabled,
+                feature
+            )
+            return ok and state == true
+        end
+
+        return false
+    end
+
+    local function render()
+        local enabled = isEnabled()
+        button.BackgroundColor3 =
+            enabled
+            and accent
+            or Color3.fromRGB(70, 66, 80)
+        knob.Position = UDim2.fromOffset(
+            enabled and 29 or 3,
+            3
+        )
+    end
+
+    button.Activated:Connect(function()
+        local page = button:FindFirstAncestorWhichIsA("ScrollingFrame")
+        if page and page:GetAttribute("SquidNoMoTouchDragging") then return end
+        feature =
+            feature
+            or getFeature(App, featureId)
+
+        if not feature then
+            return
+        end
+
+        local method = isEnabled()
+            and feature.Disable
+            or feature.Enable
+
+        if type(method) == "function" then
+            local ok, result, detail =
+                pcall(method, feature)
+            if not ok or result == false then
+                local message = not ok
+                    and tostring(result)
+                    or tostring(
+                        detail
+                        or "The feature rejected the toggle."
+                    )
+                warn(
+                    "[SquidNoMo] "
+                    .. title
+                    .. " failed: "
+                    .. message
+                )
+                if App.Notifications
+                    and type(
+                        App.Notifications.Error
+                    ) == "function"
+                then
+                    App.Notifications:Error(
+                        title,
+                        message,
+                        5
+                    )
+                end
+            end
+            notify(App)
+            if type(App.QueueSettingsSave) == "function" then App:QueueSettingsSave() end
+            render()
+        end
+    end)
+
+    App:BindButtonFeedback(button, accent)
+    render()
+    return card
+end
+
+local function createSliderCard(
+    App,
+    parent,
+    title,
+    accent,
+    featureId,
+    minimum,
+    maximum,
+    defaultValue,
+    order
+)
+    local card = App:CreateCard(
+        parent,
+        UDim2.new(1, 0, 0, 178),
+        {
+            Color = App.Colors.CardAlt,
+            BorderColor = accent,
+            BorderTransparency = 0.18,
+            Radius = 14,
+        }
+    )
+    card.LayoutOrder = order
+
+    App:CreateText(
+        card,
+        title,
+        UDim2.new(1, -86, 0, 24),
+        UDim2.fromOffset(14, 14),
+        {
+            Font = Enum.Font.GothamBold,
+            TextSize =
+                App:IsMobile() and 15 or 14,
+            Color = App.Colors.Text,
+            ZIndex = 1014,
+        }
+    )
+
+    local valueLabel = App:CreateText(
+        card,
+        tostring(defaultValue),
+        UDim2.fromOffset(68, 24),
+        UDim2.new(1, -82, 0, 14),
+        {
+            Font = Enum.Font.GothamBlack,
+            TextSize =
+                App:IsMobile() and 15 or 14,
+            Color = accent,
+            XAlignment =
+                Enum.TextXAlignment.Right,
+            ZIndex = 1014,
+        }
+    )
+
+    local feature =
+        getFeature(App, featureId)
+    local current = defaultValue
+
+    if feature
+        and type(feature.Get) == "function"
+    then
+        local ok, value = pcall(
+            feature.Get,
+            feature
+        )
+        if ok
+            and type(value) == "number"
+        then
+            current = value
+        end
+    end
+
+    local controller
+
+    local function applyValue(nextValue)
+        current = math.clamp(
+            math.floor(nextValue + 0.5),
+            minimum,
+            maximum
+        )
+        valueLabel.Text = tostring(current)
+
+        feature =
+            feature
+            or getFeature(App, featureId)
+
+        if feature
+            and type(feature.Set)
+                == "function"
+        then
+            pcall(
+                feature.Set,
+                feature,
+                current
+            )
+            notify(App)
+        end
+    end
+
+    controller = App:CreateSlider(card, {
+        Position =
+            UDim2.fromOffset(14, 50),
+        Size =
+            UDim2.new(1, -28, 0, 34),
+        Min = minimum,
+        Max = maximum,
+        Value = current,
+        AccentColor = accent,
+        TrackHeight = 12,
+        KnobSize = 28,
+        OnChanged = applyValue,
+    })
+
+    local row = Instance.new("Frame")
+    row.Position =
+        UDim2.fromOffset(12, 104)
+    row.Size =
+        UDim2.new(1, -24, 0, 46)
+    row.BackgroundTransparency = 1
+    row.BorderSizePixel = 0
+    row.Parent = card
+
+    local layout =
+        Instance.new("UIListLayout")
+    layout.FillDirection =
+        Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment =
+        Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment =
+        Enum.VerticalAlignment.Center
+    layout.Padding = UDim.new(0, 6)
+    layout.Parent = row
+
+    for _, delta in ipairs({
+        -10, -5, -1, 1, 5, 10,
+    }) do
+        local label = delta > 0
+            and ("+" .. tostring(delta))
+            or tostring(delta)
+
+        local quick = App:CreateQuickButton(
+            row,
+            label,
+            UDim2.fromOffset(48, 38),
+            accent
+        )
+
+        quick.Activated:Connect(function()
+            local page = quick:FindFirstAncestorWhichIsA("ScrollingFrame")
+            if page and page:GetAttribute("SquidNoMoTouchDragging") then return end
+            applyValue(current + delta)
+            controller:SetValue(
+                current,
+                false
+            )
+        end)
+    end
+
+    controller:SetValue(current, false)
+    return card
+end
+
+local function addColorSwatches(
+    App,
+    card,
+    featureId,
+    colors
+)
+    local row = Instance.new("Frame")
+    row.Position =
+        UDim2.fromOffset(14, 94)
+    row.Size =
+        UDim2.new(1, -28, 0, 26)
+    row.BackgroundTransparency = 1
+    row.Parent = card
+
+    local layout =
+        Instance.new("UIListLayout")
+    layout.FillDirection =
+        Enum.FillDirection.Horizontal
+    layout.Padding = UDim.new(0, 10)
+    layout.Parent = row
+
+    local feature =
+        getFeature(App, featureId)
+
+    for _, color in ipairs(colors) do
+        local swatch =
+            Instance.new("TextButton")
+        swatch.Size =
+            UDim2.fromOffset(24, 24)
+        swatch.BackgroundColor3 = color
+        swatch.BorderSizePixel = 0
+        swatch.AutoButtonColor = false
+        swatch.Text = ""
+        swatch.Parent = row
+        makeCorner(swatch, 7)
+
+        swatch.Activated:Connect(
+            function()
+                feature =
+                    feature
+                    or getFeature(
+                        App,
+                        featureId
+                    )
+
+                if feature
+                    and type(
+                        feature.SetColor
+                    ) == "function"
+                then
+                    pcall(
+                        feature.SetColor,
+                        feature,
+                        color
+                    )
+                    notify(App)
+                end
+            end
+        )
+    end
+end
+
+local function buildMovement(
+    Page,
+    App,
+    topY
+)
+    local root =
+        createRoot(Page, App, topY, 178)
+
+    createSliderCard(
+        App,
+        root,
+        "Walk Speed",
+        Color3.fromRGB(0, 190, 255),
+        "player.walk_speed",
+        16,
+        120,
+        16,
+        1
+    )
+    createSliderCard(
+        App,
+        root,
+        "Jump Power",
+        Color3.fromRGB(180, 76, 255),
+        "player.jump_power",
+        50,
+        220,
+        50,
+        2
+    )
+    createSliderCard(
+        App,
+        root,
+        "Gravity",
+        Color3.fromRGB(255, 190, 58),
+        "player.gravity",
+        50,
+        196,
+        196,
+        3
+    )
+    createToggle(
+        App,
+        root,
+        "Infinite Jump",
+        "Allows repeated jumps while airborne.",
+        Color3.fromRGB(255, 88, 110),
+        "player.infinite_jump",
+        4
+    )
+    createToggle(
+        App,
+        root,
+        "Auto Jump",
+        "Automatically jumps while moving and grounded.",
+        Color3.fromRGB(255, 140, 70),
+        "player.auto_jump",
+        5
+    )
+    createToggle(
+        App,
+        root,
+        "Noclip",
+        "Disables local character collision.",
+        Color3.fromRGB(130, 110, 255),
+        "player.noclip",
+        6
+    )
+    createToggle(
+        App,
+        root,
+        "Force Third Person",
+        "Keeps the camera in a readable third-person range.",
+        Color3.fromRGB(58, 210, 255),
+        "player.force_third_person",
+        7
+    )
+    createToggle(
+        App,
+        root,
+        "Unlock Camera Zoom",
+        "Raises the local maximum camera zoom distance.",
+        Color3.fromRGB(255, 180, 70),
+        "player.unlock_zoom",
+        8
+    )
+    createToggle(
+        App,
+        root,
+        "Auto Stand",
+        "Recovers from sitting and platform-stand states.",
+        Color3.fromRGB(80, 255, 150),
+        "player.auto_stand",
+        9
+    )
+end
+
+local function buildESP(Page, App, topY)
+    local root =
+        createRoot(Page, App, topY, 132)
+
+    local definitions = {
+        {
+            "Player ESP",
+            "Highlights standard players.",
+            Color3.fromRGB(0, 170, 255),
+            "player.player_esp",
+            {
+                Color3.fromRGB(0, 170, 255),
+                Color3.fromRGB(66, 255, 105),
+                Color3.fromRGB(
+                    255,
+                    255,
+                    255
+                ),
+            },
+        },
+        {
+            "Guard ESP",
+            "Highlights detected guards.",
+            Color3.fromRGB(235, 55, 70),
+            "player.guard_esp",
+            {
+                Color3.fromRGB(235, 55, 70),
+                Color3.fromRGB(
+                    255,
+                    146,
+                    54
+                ),
+                Color3.fromRGB(
+                    255,
+                    64,
+                    164
+                ),
+            },
+        },
+        {
+            "Detective ESP",
+            "Highlights detected detectives.",
+            Color3.fromRGB(0, 230, 150),
+            "player.detective_esp",
+            {
+                Color3.fromRGB(
+                    0,
+                    230,
+                    150
+                ),
+                Color3.fromRGB(
+                    0,
+                    198,
+                    255
+                ),
+                Color3.fromRGB(
+                    255,
+                    214,
+                    74
+                ),
+            },
+        },
+        {
+            "Frontman ESP",
+            "Highlights detected frontmen.",
+            Color3.fromRGB(
+                172,
+                76,
+                255
+            ),
+            "player.frontman_esp",
+            {
+                Color3.fromRGB(
+                    172,
+                    76,
+                    255
+                ),
+                Color3.fromRGB(
+                    225,
+                    73,
+                    255
+                ),
+                Color3.fromRGB(
+                    240,
+                    240,
+                    255
+                ),
+            },
+        },
+        {
+            "Distance ESP",
+            "Displays distance information.",
+            Color3.fromRGB(0, 205, 255),
+            "player.distance_esp",
+            {
+                Color3.fromRGB(
+                    0,
+                    205,
+                    255
+                ),
+                Color3.fromRGB(
+                    90,
+                    255,
+                    210
+                ),
+                Color3.fromRGB(
+                    255,
+                    255,
+                    255
+                ),
+            },
+        },
+        {
+            "Health ESP",
+            "Displays health information.",
+            Color3.fromRGB(255, 82, 82),
+            "player.health_esp",
+            {
+                Color3.fromRGB(
+                    255,
+                    82,
+                    82
+                ),
+                Color3.fromRGB(
+                    255,
+                    172,
+                    64
+                ),
+                Color3.fromRGB(
+                    85,
+                    255,
+                    127
+                ),
+            },
+        },
+        {
+            "Name ESP",
+            "Displays player names above characters.",
+            Color3.fromRGB(245, 245, 255),
+            "player.name_esp",
+            {
+                Color3.fromRGB(245, 245, 255),
+                Color3.fromRGB(80, 220, 255),
+                Color3.fromRGB(255, 210, 70),
+            },
+        },
+        {
+            "Box ESP",
+            "Draws an always-visible player outline.",
+            Color3.fromRGB(255, 210, 70),
+            "player.box_esp",
+            {
+                Color3.fromRGB(255, 210, 70),
+                Color3.fromRGB(255, 82, 110),
+                Color3.fromRGB(80, 255, 150),
+            },
+        },
+    }
+
+    for index, definition in ipairs(
+        definitions
+    ) do
+        local card = createToggle(
+            App,
+            root,
+            definition[1],
+            definition[2],
+            definition[3],
+            definition[4],
+            index
+        )
+        addColorSwatches(
+            App,
+            card,
+            definition[4],
+            definition[5]
+        )
+    end
+end
+
+local function buildUtilities(
+    Page,
+    App,
+    topY
+)
+    local root =
+        createRoot(Page, App, topY, 132)
+
+    local definitions = {
+        {
+            "Anti AFK",
+            "Prevents idle disconnects.",
+            Color3.fromRGB(
+                66,
+                255,
+                130
+            ),
+            "player.anti_afk",
+        },
+        {
+            "Anti Lag",
+            "Reduces expensive local effects.",
+            Color3.fromRGB(
+                0,
+                170,
+                255
+            ),
+            "player.anti_lag",
+        },
+        {
+            "Hide Other Players",
+            "Hides other characters locally.",
+            Color3.fromRGB(
+                188,
+                84,
+                255
+            ),
+            "player.hide_others",
+        },
+        {
+            "Hide Local Character",
+            "Hides your character locally.",
+            Color3.fromRGB(
+                255,
+                159,
+                67
+            ),
+            "player.hide_self",
+        },
+        {
+            "Tool ESP",
+            "Highlights tools and interactables.",
+            Color3.fromRGB(
+                255,
+                210,
+                60
+            ),
+            "player.tool_esp",
+        },
+        {
+            "Auto Pick Up Baby",
+            "Collects the nearby Baby objective when a supported pickup interaction appears.",
+            Color3.fromRGB(
+                255,
+                132,
+                190
+            ),
+            "player.auto_pickup_baby",
+        },
+        {
+            "Mute Character Sounds",
+            "Mutes character sounds locally.",
+            Color3.fromRGB(
+                100,
+                200,
+                255
+            ),
+            "player.mute_character_sounds",
+        },
+        {
+            "Reset Character",
+            "Requests one local character reset.",
+            Color3.fromRGB(255, 105, 105),
+            "player.reset",
+        },
+        {
+            "Rejoin Server",
+            "Requests a rejoin to the current server.",
+            Color3.fromRGB(90, 205, 255),
+            "player.rejoin",
+        },
+    }
+
+    for index, definition in ipairs(
+        definitions
+    ) do
+        createToggle(
+            App,
+            root,
+            definition[1],
+            definition[2],
+            definition[3],
+            definition[4],
+            index
+        )
+    end
+end
+
+local function installTouchScrollFallback(Page, App)
+    if type(App.InstallPageTouchScroll) == "function" then
+        App:InstallPageTouchScroll(Page)
+    end
+end
+
+function PlayersPage:Create(Page, App)
+    installTouchScrollFallback(Page, App)
+    Page.CanvasPosition = Vector2.zero
+
+    local selected =
+        App.Session.SelectedPlayerCategory
+        or "Movement & Camera"
+
+    local selector =
+        App.Loader.CategoryStrip:Create(
+            Page,
+            App,
+            {
+                PageName = "Players",
+                SessionKey =
+                    "SelectedPlayerCategory",
+                DefaultName =
+                    "Movement & Camera",
+                ScrollerName =
+                    "PlayerCategoryScroller",
+                ButtonWidth = 220,
+                Items = CATEGORIES,
+                OnSelected = function(item)
+                    selected = item.Name
+                    Page.CanvasPosition = Vector2.zero
+
+                    local old =
+                        Page:FindFirstChild(
+                            "PlayerSubpageContent"
+                        )
+                    if old then
+                        old:Destroy()
+                    end
+
+                    local selectorRoot =
+                        Page:FindFirstChild(
+                            "PlayersCategoryRoot"
+                        )
+                    local topY = 128
+
+                    if selectorRoot then
+                        topY =
+                            selectorRoot
+                                .Position.Y.Offset
+                            + selectorRoot
+                                .Size.Y.Offset
+                            + 12
+                    end
+
+                    if item.Name
+                        == "Movement & Camera"
+                    then
+                        buildMovement(
+                            Page,
+                            App,
+                            topY
+                        )
+                    elseif item.Name
+                        == "Player ESP"
+                    then
+                        buildESP(
+                            Page,
+                            App,
+                            topY
+                        )
+                    else
+                        buildUtilities(
+                            Page,
+                            App,
+                            topY
+                        )
+                    end
+                end,
+            }
+        )
+
+    if selector and selector.Select then
+        local index = 1
+
+        for itemIndex, item in ipairs(
+            CATEGORIES
+        ) do
+            if item.Name == selected then
+                index = itemIndex
+                break
+            end
+        end
+
+        selector.Select(index)
+    end
+end
+
+return PlayersPage
 ]====],
         [ [====[Modules/Players/ESP.lua]====] ] = [====[--//========================================================--
 --// SquidNoMo
@@ -27282,1015 +27388,6 @@ end
 ----------------------------------------------------------
 
 return Utilities
-]====],
-        [ [====[Modules/Players.lua]====] ] = [====[local PlayersPage = {}
-
-local CATEGORIES = {
-    {
-        Name = "Movement & Camera",
-        Short = "MOVE",
-    },
-    {
-        Name = "Player ESP",
-        Short = "ESP",
-    },
-    {
-        Name = "Local Utilities",
-        Short = "TOOLS",
-    },
-}
-
-local function getFeature(App, id)
-    local manager = App.FeatureManager
-    local entry = manager
-        and manager.Registry
-        and manager.Registry[id]
-    return entry and entry.Feature or nil
-end
-
-local function notify(App)
-    if App.FeatureManager
-        and type(App.FeatureManager.Notify)
-            == "function"
-    then
-        App.FeatureManager:Notify()
-    end
-end
-
-local function makeCorner(parent, radius)
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius =
-        UDim.new(0, radius or 12)
-    corner.Parent = parent
-end
-
-local function createRoot(
-    Page,
-    App,
-    topY,
-    cardHeight
-)
-    local padding = App:GetUIStyleValue(
-        "Players",
-        "PagePadding",
-        "MainPage"
-    ) or App.Profile.ContentPadding
-
-    local root = Instance.new("Frame")
-    root.Name = "PlayerSubpageContent"
-    root:SetAttribute(
-        "SquidNoMoSubpage",
-        true
-    )
-    root.Position =
-        UDim2.fromOffset(padding, topY)
-    root.Size = UDim2.new(
-        1,
-        -(padding * 2),
-        0,
-        10
-    )
-    root.BackgroundTransparency = 1
-    root.BorderSizePixel = 0
-    root.Active = false
-    root.Selectable = false
-    root.Parent = Page
-
-    local grid = Instance.new("UIGridLayout")
-    grid.SortOrder =
-        Enum.SortOrder.LayoutOrder
-    grid.CellPadding =
-        UDim2.fromOffset(12, 12)
-    grid.CellSize = UDim2.new(
-        0.5,
-        -6,
-        0,
-        cardHeight
-    )
-    grid.Parent = root
-
-    -- Player cards contain interactive sliders/buttons, so we manage the canvas
-    -- explicitly and keep the parent ScrollingFrame touch-active. This avoids the
-    -- mobile case where child controls consume the gesture and the page never pans.
-    Page.AutomaticCanvasSize = Enum.AutomaticSize.None
-    Page.ScrollingDirection = Enum.ScrollingDirection.Y
-    Page.ScrollingEnabled = true
-    Page.Active = true
-    Page.Selectable = false
-    Page.ClipsDescendants = true
-    Page.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
-    Page.AutomaticCanvasSize = Enum.AutomaticSize.None
-    Page.ScrollingDirection = Enum.ScrollingDirection.Y
-    Page.ScrollBarThickness = math.max(Page.ScrollBarThickness, App:IsMobile() and 10 or 6)
-    Page.ScrollBarImageTransparency = App:IsMobile() and 0.05 or 0.18
-    Page.ScrollBarImageColor3 = App:GetPageAccent("Players")
-
-    local function updateCanvas()
-        local height = math.max(
-            cardHeight,
-            grid.AbsoluteContentSize.Y
-        )
-        root.Size = UDim2.new(
-            1,
-            -(padding * 2),
-            0,
-            height
-        )
-        local viewport = math.max(0, Page.AbsoluteSize.Y)
-        local contentHeight = topY + height + (App:IsMobile() and 72 or 40)
-        Page.CanvasSize = UDim2.fromOffset(
-            0,
-            math.max(contentHeight, viewport + 1)
-        )
-    end
-
-    local connections = {}
-    table.insert(connections, grid:GetPropertyChangedSignal(
-        "AbsoluteContentSize"
-    ):Connect(updateCanvas))
-    table.insert(connections, Page:GetPropertyChangedSignal(
-        "AbsoluteSize"
-    ):Connect(updateCanvas))
-    table.insert(connections, root:GetPropertyChangedSignal(
-        "AbsoluteSize"
-    ):Connect(updateCanvas))
-
-    root.Destroying:Connect(function()
-        for _, connection in ipairs(connections) do
-            pcall(function() connection:Disconnect() end)
-        end
-    end)
-
-    task.defer(updateCanvas)
-    task.delay(0.08, updateCanvas)
-    task.delay(0.25, updateCanvas)
-
-    return root
-end
-
-local function createToggle(
-    App,
-    parent,
-    title,
-    description,
-    accent,
-    featureId,
-    order
-)
-    local card = App:CreateCard(
-        parent,
-        UDim2.new(1, 0, 0, 132),
-        {
-            Color = App.Colors.CardAlt,
-            BorderColor = accent,
-            BorderTransparency = 0.18,
-            Radius = 14,
-        }
-    )
-    card.LayoutOrder = order
-
-    App:CreateText(
-        card,
-        title,
-        UDim2.new(1, -92, 0, 24),
-        UDim2.fromOffset(14, 14),
-        {
-            Font = Enum.Font.GothamBold,
-            TextSize =
-                App:IsMobile() and 15 or 14,
-            Color = App.Colors.Text,
-            ZIndex = 1014,
-        }
-    )
-
-    App:CreateText(
-        card,
-        description,
-        UDim2.new(1, -98, 0, 58),
-        UDim2.fromOffset(14, 44),
-        {
-            Font = Enum.Font.GothamMedium,
-            TextSize =
-                App:IsMobile() and 13 or 11,
-            Color = App.Colors.Muted,
-            Wrapped = true,
-            YAlignment =
-                Enum.TextYAlignment.Top,
-            ZIndex = 1014,
-        }
-    )
-
-    local button = Instance.new("TextButton")
-    button.AnchorPoint = Vector2.new(1, 0)
-    button.Position =
-        UDim2.new(1, -14, 0, 14)
-    button.Size = UDim2.fromOffset(58, 32)
-    button.BackgroundColor3 =
-        Color3.fromRGB(70, 66, 80)
-    button.BorderSizePixel = 0
-    button.AutoButtonColor = false
-    button.Text = ""
-    button.ZIndex = 1015
-    button.Parent = card
-    makeCorner(button, 999)
-
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.fromOffset(26, 26)
-    knob.Position = UDim2.fromOffset(3, 3)
-    knob.BackgroundColor3 =
-        Color3.fromRGB(242, 239, 247)
-    knob.BorderSizePixel = 0
-    knob.ZIndex = 1016
-    knob.Parent = button
-    makeCorner(knob, 999)
-
-    local feature =
-        getFeature(App, featureId)
-
-    local function isEnabled()
-        if feature
-            and type(feature.IsEnabled)
-                == "function"
-        then
-            local ok, state = pcall(
-                feature.IsEnabled,
-                feature
-            )
-            return ok and state == true
-        end
-
-        return false
-    end
-
-    local function render()
-        local enabled = isEnabled()
-        button.BackgroundColor3 =
-            enabled
-            and accent
-            or Color3.fromRGB(70, 66, 80)
-        knob.Position = UDim2.fromOffset(
-            enabled and 29 or 3,
-            3
-        )
-    end
-
-    button.Activated:Connect(function()
-        feature =
-            feature
-            or getFeature(App, featureId)
-
-        if not feature then
-            return
-        end
-
-        local method = isEnabled()
-            and feature.Disable
-            or feature.Enable
-
-        if type(method) == "function" then
-            local ok, result, detail =
-                pcall(method, feature)
-            if not ok or result == false then
-                local message = not ok
-                    and tostring(result)
-                    or tostring(
-                        detail
-                        or "The feature rejected the toggle."
-                    )
-                warn(
-                    "[SquidNoMo] "
-                    .. title
-                    .. " failed: "
-                    .. message
-                )
-                if App.Notifications
-                    and type(
-                        App.Notifications.Error
-                    ) == "function"
-                then
-                    App.Notifications:Error(
-                        title,
-                        message,
-                        5
-                    )
-                end
-            end
-            notify(App)
-            if type(App.QueueSettingsSave) == "function" then App:QueueSettingsSave() end
-            render()
-        end
-    end)
-
-    App:BindButtonFeedback(button, accent)
-    render()
-    return card
-end
-
-local function createSliderCard(
-    App,
-    parent,
-    title,
-    accent,
-    featureId,
-    minimum,
-    maximum,
-    defaultValue,
-    order
-)
-    local card = App:CreateCard(
-        parent,
-        UDim2.new(1, 0, 0, 178),
-        {
-            Color = App.Colors.CardAlt,
-            BorderColor = accent,
-            BorderTransparency = 0.18,
-            Radius = 14,
-        }
-    )
-    card.LayoutOrder = order
-
-    App:CreateText(
-        card,
-        title,
-        UDim2.new(1, -86, 0, 24),
-        UDim2.fromOffset(14, 14),
-        {
-            Font = Enum.Font.GothamBold,
-            TextSize =
-                App:IsMobile() and 15 or 14,
-            Color = App.Colors.Text,
-            ZIndex = 1014,
-        }
-    )
-
-    local valueLabel = App:CreateText(
-        card,
-        tostring(defaultValue),
-        UDim2.fromOffset(68, 24),
-        UDim2.new(1, -82, 0, 14),
-        {
-            Font = Enum.Font.GothamBlack,
-            TextSize =
-                App:IsMobile() and 15 or 14,
-            Color = accent,
-            XAlignment =
-                Enum.TextXAlignment.Right,
-            ZIndex = 1014,
-        }
-    )
-
-    local feature =
-        getFeature(App, featureId)
-    local current = defaultValue
-
-    if feature
-        and type(feature.Get) == "function"
-    then
-        local ok, value = pcall(
-            feature.Get,
-            feature
-        )
-        if ok
-            and type(value) == "number"
-        then
-            current = value
-        end
-    end
-
-    local controller
-
-    local function applyValue(nextValue)
-        current = math.clamp(
-            math.floor(nextValue + 0.5),
-            minimum,
-            maximum
-        )
-        valueLabel.Text = tostring(current)
-
-        feature =
-            feature
-            or getFeature(App, featureId)
-
-        if feature
-            and type(feature.Set)
-                == "function"
-        then
-            pcall(
-                feature.Set,
-                feature,
-                current
-            )
-            notify(App)
-        end
-    end
-
-    controller = App:CreateSlider(card, {
-        Position =
-            UDim2.fromOffset(14, 50),
-        Size =
-            UDim2.new(1, -28, 0, 34),
-        Min = minimum,
-        Max = maximum,
-        Value = current,
-        AccentColor = accent,
-        TrackHeight = 12,
-        KnobSize = 28,
-        OnChanged = applyValue,
-    })
-
-    local row = Instance.new("Frame")
-    row.Position =
-        UDim2.fromOffset(12, 104)
-    row.Size =
-        UDim2.new(1, -24, 0, 46)
-    row.BackgroundTransparency = 1
-    row.BorderSizePixel = 0
-    row.Parent = card
-
-    local layout =
-        Instance.new("UIListLayout")
-    layout.FillDirection =
-        Enum.FillDirection.Horizontal
-    layout.HorizontalAlignment =
-        Enum.HorizontalAlignment.Center
-    layout.VerticalAlignment =
-        Enum.VerticalAlignment.Center
-    layout.Padding = UDim.new(0, 6)
-    layout.Parent = row
-
-    for _, delta in ipairs({
-        -10, -5, -1, 1, 5, 10,
-    }) do
-        local label = delta > 0
-            and ("+" .. tostring(delta))
-            or tostring(delta)
-
-        local quick = App:CreateQuickButton(
-            row,
-            label,
-            UDim2.fromOffset(48, 38),
-            accent
-        )
-
-        quick.Activated:Connect(function()
-            applyValue(current + delta)
-            controller:SetValue(
-                current,
-                false
-            )
-        end)
-    end
-
-    controller:SetValue(current, false)
-    return card
-end
-
-local function addColorSwatches(
-    App,
-    card,
-    featureId,
-    colors
-)
-    local row = Instance.new("Frame")
-    row.Position =
-        UDim2.fromOffset(14, 94)
-    row.Size =
-        UDim2.new(1, -28, 0, 26)
-    row.BackgroundTransparency = 1
-    row.Parent = card
-
-    local layout =
-        Instance.new("UIListLayout")
-    layout.FillDirection =
-        Enum.FillDirection.Horizontal
-    layout.Padding = UDim.new(0, 10)
-    layout.Parent = row
-
-    local feature =
-        getFeature(App, featureId)
-
-    for _, color in ipairs(colors) do
-        local swatch =
-            Instance.new("TextButton")
-        swatch.Size =
-            UDim2.fromOffset(24, 24)
-        swatch.BackgroundColor3 = color
-        swatch.BorderSizePixel = 0
-        swatch.AutoButtonColor = false
-        swatch.Text = ""
-        swatch.Parent = row
-        makeCorner(swatch, 7)
-
-        swatch.Activated:Connect(
-            function()
-                feature =
-                    feature
-                    or getFeature(
-                        App,
-                        featureId
-                    )
-
-                if feature
-                    and type(
-                        feature.SetColor
-                    ) == "function"
-                then
-                    pcall(
-                        feature.SetColor,
-                        feature,
-                        color
-                    )
-                    notify(App)
-                end
-            end
-        )
-    end
-end
-
-local function buildMovement(
-    Page,
-    App,
-    topY
-)
-    local root =
-        createRoot(Page, App, topY, 178)
-
-    createSliderCard(
-        App,
-        root,
-        "Walk Speed",
-        Color3.fromRGB(0, 190, 255),
-        "player.walk_speed",
-        16,
-        120,
-        16,
-        1
-    )
-    createSliderCard(
-        App,
-        root,
-        "Jump Power",
-        Color3.fromRGB(180, 76, 255),
-        "player.jump_power",
-        50,
-        220,
-        50,
-        2
-    )
-    createSliderCard(
-        App,
-        root,
-        "Gravity",
-        Color3.fromRGB(255, 190, 58),
-        "player.gravity",
-        50,
-        196,
-        196,
-        3
-    )
-    createToggle(
-        App,
-        root,
-        "Infinite Jump",
-        "Allows repeated jumps while airborne.",
-        Color3.fromRGB(255, 88, 110),
-        "player.infinite_jump",
-        4
-    )
-    createToggle(
-        App,
-        root,
-        "Auto Jump",
-        "Automatically jumps while moving and grounded.",
-        Color3.fromRGB(255, 140, 70),
-        "player.auto_jump",
-        5
-    )
-    createToggle(
-        App,
-        root,
-        "Noclip",
-        "Disables local character collision.",
-        Color3.fromRGB(130, 110, 255),
-        "player.noclip",
-        6
-    )
-    createToggle(
-        App,
-        root,
-        "Force Third Person",
-        "Keeps the camera in a readable third-person range.",
-        Color3.fromRGB(58, 210, 255),
-        "player.force_third_person",
-        7
-    )
-    createToggle(
-        App,
-        root,
-        "Unlock Camera Zoom",
-        "Raises the local maximum camera zoom distance.",
-        Color3.fromRGB(255, 180, 70),
-        "player.unlock_zoom",
-        8
-    )
-    createToggle(
-        App,
-        root,
-        "Auto Stand",
-        "Recovers from sitting and platform-stand states.",
-        Color3.fromRGB(80, 255, 150),
-        "player.auto_stand",
-        9
-    )
-end
-
-local function buildESP(Page, App, topY)
-    local root =
-        createRoot(Page, App, topY, 132)
-
-    local definitions = {
-        {
-            "Player ESP",
-            "Highlights standard players.",
-            Color3.fromRGB(0, 170, 255),
-            "player.player_esp",
-            {
-                Color3.fromRGB(0, 170, 255),
-                Color3.fromRGB(66, 255, 105),
-                Color3.fromRGB(
-                    255,
-                    255,
-                    255
-                ),
-            },
-        },
-        {
-            "Guard ESP",
-            "Highlights detected guards.",
-            Color3.fromRGB(235, 55, 70),
-            "player.guard_esp",
-            {
-                Color3.fromRGB(235, 55, 70),
-                Color3.fromRGB(
-                    255,
-                    146,
-                    54
-                ),
-                Color3.fromRGB(
-                    255,
-                    64,
-                    164
-                ),
-            },
-        },
-        {
-            "Detective ESP",
-            "Highlights detected detectives.",
-            Color3.fromRGB(0, 230, 150),
-            "player.detective_esp",
-            {
-                Color3.fromRGB(
-                    0,
-                    230,
-                    150
-                ),
-                Color3.fromRGB(
-                    0,
-                    198,
-                    255
-                ),
-                Color3.fromRGB(
-                    255,
-                    214,
-                    74
-                ),
-            },
-        },
-        {
-            "Frontman ESP",
-            "Highlights detected frontmen.",
-            Color3.fromRGB(
-                172,
-                76,
-                255
-            ),
-            "player.frontman_esp",
-            {
-                Color3.fromRGB(
-                    172,
-                    76,
-                    255
-                ),
-                Color3.fromRGB(
-                    225,
-                    73,
-                    255
-                ),
-                Color3.fromRGB(
-                    240,
-                    240,
-                    255
-                ),
-            },
-        },
-        {
-            "Distance ESP",
-            "Displays distance information.",
-            Color3.fromRGB(0, 205, 255),
-            "player.distance_esp",
-            {
-                Color3.fromRGB(
-                    0,
-                    205,
-                    255
-                ),
-                Color3.fromRGB(
-                    90,
-                    255,
-                    210
-                ),
-                Color3.fromRGB(
-                    255,
-                    255,
-                    255
-                ),
-            },
-        },
-        {
-            "Health ESP",
-            "Displays health information.",
-            Color3.fromRGB(255, 82, 82),
-            "player.health_esp",
-            {
-                Color3.fromRGB(
-                    255,
-                    82,
-                    82
-                ),
-                Color3.fromRGB(
-                    255,
-                    172,
-                    64
-                ),
-                Color3.fromRGB(
-                    85,
-                    255,
-                    127
-                ),
-            },
-        },
-        {
-            "Name ESP",
-            "Displays player names above characters.",
-            Color3.fromRGB(245, 245, 255),
-            "player.name_esp",
-            {
-                Color3.fromRGB(245, 245, 255),
-                Color3.fromRGB(80, 220, 255),
-                Color3.fromRGB(255, 210, 70),
-            },
-        },
-        {
-            "Box ESP",
-            "Draws an always-visible player outline.",
-            Color3.fromRGB(255, 210, 70),
-            "player.box_esp",
-            {
-                Color3.fromRGB(255, 210, 70),
-                Color3.fromRGB(255, 82, 110),
-                Color3.fromRGB(80, 255, 150),
-            },
-        },
-    }
-
-    for index, definition in ipairs(
-        definitions
-    ) do
-        local card = createToggle(
-            App,
-            root,
-            definition[1],
-            definition[2],
-            definition[3],
-            definition[4],
-            index
-        )
-        addColorSwatches(
-            App,
-            card,
-            definition[4],
-            definition[5]
-        )
-    end
-end
-
-local function buildUtilities(
-    Page,
-    App,
-    topY
-)
-    local root =
-        createRoot(Page, App, topY, 132)
-
-    local definitions = {
-        {
-            "Anti AFK",
-            "Prevents idle disconnects.",
-            Color3.fromRGB(
-                66,
-                255,
-                130
-            ),
-            "player.anti_afk",
-        },
-        {
-            "Anti Lag",
-            "Reduces expensive local effects.",
-            Color3.fromRGB(
-                0,
-                170,
-                255
-            ),
-            "player.anti_lag",
-        },
-        {
-            "Hide Other Players",
-            "Hides other characters locally.",
-            Color3.fromRGB(
-                188,
-                84,
-                255
-            ),
-            "player.hide_others",
-        },
-        {
-            "Hide Local Character",
-            "Hides your character locally.",
-            Color3.fromRGB(
-                255,
-                159,
-                67
-            ),
-            "player.hide_self",
-        },
-        {
-            "Tool ESP",
-            "Highlights tools and interactables.",
-            Color3.fromRGB(
-                255,
-                210,
-                60
-            ),
-            "player.tool_esp",
-        },
-        {
-            "Auto Pick Up Baby",
-            "Collects the nearby Baby objective when a supported pickup interaction appears.",
-            Color3.fromRGB(
-                255,
-                132,
-                190
-            ),
-            "player.auto_pickup_baby",
-        },
-        {
-            "Mute Character Sounds",
-            "Mutes character sounds locally.",
-            Color3.fromRGB(
-                100,
-                200,
-                255
-            ),
-            "player.mute_character_sounds",
-        },
-        {
-            "Reset Character",
-            "Requests one local character reset.",
-            Color3.fromRGB(255, 105, 105),
-            "player.reset",
-        },
-        {
-            "Rejoin Server",
-            "Requests a rejoin to the current server.",
-            Color3.fromRGB(90, 205, 255),
-            "player.rejoin",
-        },
-    }
-
-    for index, definition in ipairs(
-        definitions
-    ) do
-        createToggle(
-            App,
-            root,
-            definition[1],
-            definition[2],
-            definition[3],
-            definition[4],
-            index
-        )
-    end
-end
-
-local function installTouchScrollFallback(Page, App)
-    if type(App.InstallPageTouchScroll) == "function" then
-        App:InstallPageTouchScroll(Page)
-    end
-end
-
-function PlayersPage:Create(Page, App)
-    installTouchScrollFallback(Page, App)
-    Page.CanvasPosition = Vector2.zero
-
-    local selected =
-        App.Session.SelectedPlayerCategory
-        or "Movement & Camera"
-
-    local selector =
-        App.Loader.CategoryStrip:Create(
-            Page,
-            App,
-            {
-                PageName = "Players",
-                SessionKey =
-                    "SelectedPlayerCategory",
-                DefaultName =
-                    "Movement & Camera",
-                ScrollerName =
-                    "PlayerCategoryScroller",
-                ButtonWidth = 220,
-                Items = CATEGORIES,
-                OnSelected = function(item)
-                    selected = item.Name
-                    Page.CanvasPosition = Vector2.zero
-
-                    local old =
-                        Page:FindFirstChild(
-                            "PlayerSubpageContent"
-                        )
-                    if old then
-                        old:Destroy()
-                    end
-
-                    local selectorRoot =
-                        Page:FindFirstChild(
-                            "PlayersCategoryRoot"
-                        )
-                    local topY = 128
-
-                    if selectorRoot then
-                        topY =
-                            selectorRoot
-                                .Position.Y.Offset
-                            + selectorRoot
-                                .Size.Y.Offset
-                            + 12
-                    end
-
-                    if item.Name
-                        == "Movement & Camera"
-                    then
-                        buildMovement(
-                            Page,
-                            App,
-                            topY
-                        )
-                    elseif item.Name
-                        == "Player ESP"
-                    then
-                        buildESP(
-                            Page,
-                            App,
-                            topY
-                        )
-                    else
-                        buildUtilities(
-                            Page,
-                            App,
-                            topY
-                        )
-                    end
-                end,
-            }
-        )
-
-    if selector and selector.Select then
-        local index = 1
-
-        for itemIndex, item in ipairs(
-            CATEGORIES
-        ) do
-            if item.Name == selected then
-                index = itemIndex
-                break
-            end
-        end
-
-        selector.Select(index)
-    end
-end
-
-return PlayersPage
 ]====],
         [ [====[Modules/Settings.lua]====] ] = [====[local Settings = {}
 

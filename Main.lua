@@ -199,6 +199,48 @@ sizeConstraint.MinSize = Vector2.new(320, 360)
 sizeConstraint.MaxSize = Vector2.new(590, 520)
 sizeConstraint.Parent = panel
 
+local minimizeLoader = Instance.new("TextButton")
+minimizeLoader.Name = "MinimizeLoader"
+minimizeLoader.AnchorPoint = Vector2.new(1, 0)
+minimizeLoader.Position = UDim2.new(1, -10, 0, 10)
+minimizeLoader.Size = UDim2.fromOffset(42, 34)
+minimizeLoader.BackgroundColor3 = Color3.fromRGB(87, 67, 155)
+minimizeLoader.BorderSizePixel = 0
+minimizeLoader.Font = Enum.Font.GothamBlack
+minimizeLoader.Text = "—"
+minimizeLoader.TextColor3 = Color3.new(1, 1, 1)
+minimizeLoader.TextSize = 22
+minimizeLoader.ZIndex = 30
+minimizeLoader.Parent = panel
+addCorner(minimizeLoader, 10)
+
+local loaderBubble = Instance.new("TextButton")
+loaderBubble.Name = "LoaderBubble"
+loaderBubble.AnchorPoint = Vector2.new(1, 0)
+loaderBubble.Position = UDim2.new(1, -18, 0, 72)
+loaderBubble.Size = UDim2.fromOffset(194, 54)
+loaderBubble.BackgroundColor3 = Color3.fromRGB(9, 15, 19)
+loaderBubble.BackgroundTransparency = 0.04
+loaderBubble.BorderSizePixel = 0
+loaderBubble.Font = Enum.Font.GothamBold
+loaderBubble.Text = "SquidNoMo loading • 2%"
+loaderBubble.TextColor3 = Color3.fromRGB(55, 235, 111)
+loaderBubble.TextSize = 14
+loaderBubble.Visible = false
+loaderBubble.ZIndex = 40
+loaderBubble.Parent = shade
+addCorner(loaderBubble, 14)
+addStroke(loaderBubble, Color3.fromRGB(50, 223, 102), 0.12, 2)
+
+local function setLoaderMinimized(state)
+    bootstrap.Minimized = state == true
+    panel.Visible = not bootstrap.Minimized
+    loaderBubble.Visible = bootstrap.Minimized
+    Environment.__SquidNoMoOpenMinimized = bootstrap.Minimized
+end
+minimizeLoader.Activated:Connect(function() setLoaderMinimized(true) end)
+loaderBubble.Activated:Connect(function() setLoaderMinimized(false) end)
+
 local content = Instance.new("Frame")
 content.Size = UDim2.new(1, -24, 0, 495)
 content.Position = UDim2.fromOffset(12, 10)
@@ -546,8 +588,12 @@ function bootstrap:SetStatus(message, progress)
                 true
             )
         end
+        local percentText = tostring(math.floor(amount * 100 + 0.5)) .. "%"
         if percent and percent.Parent then
-            percent.Text = tostring(math.floor(amount * 100 + 0.5)) .. "%"
+            percent.Text = percentText
+        end
+        if loaderBubble and loaderBubble.Parent then
+            loaderBubble.Text = "SquidNoMo loading • " .. percentText
         end
         updateStageRows(amount)
     end
@@ -556,6 +602,12 @@ end
 function bootstrap:Finish(loader)
     self.Loader = loader
     self.Loading = false
+    if self.Minimized == true then
+        Environment.__SquidNoMoOpenMinimized = true
+        if loader and loader.App and type(loader.App.SetMinimized) == "function" then
+            pcall(loader.App.SetMinimized, loader.App, true)
+        end
+    end
     self:SetStatus("Ready — opening SquidNoMo...", 1)
     heading.Text = "SQUID NO MO IS READY"
     task.delay(0.55, function()

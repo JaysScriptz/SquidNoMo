@@ -396,14 +396,28 @@ function FeatureFolder:Render(Page, App, options)
         render()
     end
 
-    task.defer(function()
-        local rows = math.max(1, math.ceil(#features / 2))
+    local function updateCanvas()
+        local height = math.max(cardHeight, grid.AbsoluteContentSize.Y)
+        content.AutomaticSize = Enum.AutomaticSize.None
+        content.Size = UDim2.new(1, -(padding * 2), 0, height)
         Page.AutomaticCanvasSize = Enum.AutomaticSize.None
+        Page.ScrollingDirection = Enum.ScrollingDirection.Y
+        Page.ScrollingEnabled = true
+        local viewport = math.max(Page.AbsoluteWindowSize.Y, Page.AbsoluteSize.Y)
         Page.CanvasSize = UDim2.fromOffset(
             0,
-            topY + rows * (cardHeight + cellGap) + 36
+            math.max(topY + height + (App:IsMobile() and 92 or 44), viewport + 2)
         )
+    end
+    local gridConnection = grid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
+    local pageConnection = Page:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCanvas)
+    content.Destroying:Connect(function()
+        pcall(function() gridConnection:Disconnect() end)
+        pcall(function() pageConnection:Disconnect() end)
     end)
+    task.defer(updateCanvas)
+    task.delay(0.12, updateCanvas)
+    task.delay(0.45, updateCanvas)
 
     return content
 end

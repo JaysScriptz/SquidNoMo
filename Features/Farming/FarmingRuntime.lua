@@ -26,23 +26,12 @@ local FarmingRuntime = {
 }
 
 local FeatureRuntime = Environment.__SquidNoMoFeatureRuntime
-local expectedFeatureRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r5")
+local expectedFeatureRevision = tostring(Manifest.FeatureRuntimeRevision or "")
 if type(FeatureRuntime) ~= "table"
     or FeatureRuntime.Revision ~= expectedFeatureRevision
     or tonumber(FeatureRuntime.BuildNumber) ~= BUILD_NUMBER
 then
-    local source = game:HttpGet(
-        FarmingRuntime.Repository
-            .. "Features/Shared/Runtime.lua?squidnomo_build="
-            .. BUILD_TOKEN
-    )
-    FeatureRuntime = loadstring(source)()
-end
-if type(FeatureRuntime) ~= "table"
-    or FeatureRuntime.Revision ~= expectedFeatureRevision
-    or tonumber(FeatureRuntime.BuildNumber) ~= BUILD_NUMBER
-then
-    error("SquidNoMo farming runtime requires the current feature runtime build")
+    error("SquidNoMo farming requires the verified feature runtime from the current build")
 end
 
 local ModuleCache = Environment.__SquidNoMoFarmingModuleCache
@@ -92,13 +81,11 @@ local function loadFeature(path)
     if not feature and loader and type(loader.LoadRemote) == "function" then
         feature = loader:LoadRemote(path)
     elseif not feature then
-        local separator = string.find(path, "?", 1, true) and "&" or "?"
-        local source = game:HttpGet(
-            FarmingRuntime.Repository
-                .. path
-                .. separator
-                .. "squidnomo_build=" .. BUILD_TOKEN
-        )
+        local bundle = Environment.__SquidNoMoSourceBundle
+        local source = type(bundle) == "table" and bundle[path] or nil
+        if type(source) ~= "string" then
+            error("verified bundled source is unavailable for " .. tostring(path))
+        end
         local chunk, compileError = loadstring(source)
         if not chunk then
             error("compile failed for " .. tostring(path) .. ": " .. tostring(compileError))
@@ -556,10 +543,25 @@ end
 
 function ControllerMethods:_DisableAll()
     local firstError
+    local loader = getLoader()
+    local manager = loader and loader.FeatureManager
     for path, feature in pairs(self.Children) do
         if self.OwnedPaths[path] then
-            local ok, err = setFeatureEnabled(feature, false)
-            if not ok and not firstError then firstError = err end
+            local released = false
+            if manager and type(manager.Registry) == "table" and type(manager.SetTransientFeature) == "function" then
+                for id, entry in pairs(manager.Registry) do
+                    if entry.Path == path then
+                        local ok, err = manager:SetTransientFeature(id, self, false)
+                        if not ok and not firstError then firstError = err end
+                        released = true
+                        break
+                    end
+                end
+            end
+            if not released then
+                local ok, err = setFeatureEnabled(feature, false)
+                if not ok and not firstError then firstError = err end
+            end
         end
     end
     self.ActivePaths = {}
@@ -571,12 +573,22 @@ function ControllerMethods:_SwitchTo(paths)
     paths = normalizePathList(paths)
     local desired = {}
     for _, path in ipairs(paths) do desired[path] = true end
+    local loader = getLoader()
+    local manager = loader and loader.FeatureManager
 
-    -- Stop the old phase before starting the next one so movement and action
-    -- leases cannot fight during a farming transition.
     for path, feature in pairs(self.Children) do
         if self.ActivePaths[path] and not desired[path] then
-            if self.OwnedPaths[path] then
+            local released = false
+            if manager and type(manager.Registry) == "table" and type(manager.SetTransientFeature) == "function" then
+                for id, entry in pairs(manager.Registry) do
+                    if entry.Path == path then
+                        manager:SetTransientFeature(id, self, false)
+                        released = true
+                        break
+                    end
+                end
+            end
+            if not released and self.OwnedPaths[path] then
                 local ok, err = setFeatureEnabled(feature, false)
                 if not ok then return false, "failed to stop " .. tostring(path) .. ": " .. tostring(err) end
             end
@@ -588,11 +600,26 @@ function ControllerMethods:_SwitchTo(paths)
     for _, path in ipairs(paths) do
         local feature, loadError = self:_Load(path)
         if not feature then return false, loadError end
-        local alreadyEnabled = featureEnabled(feature)
-        local ok, err = setFeatureEnabled(feature, true)
-        if not ok then return false, "failed to start " .. tostring(path) .. ": " .. tostring(err) end
+        local managed = false
+        if manager and type(manager.Registry) == "table" and type(manager.SetTransientFeature) == "function" then
+            for id, entry in pairs(manager.Registry) do
+                if entry.Path == path then
+                    local ok, err = manager:SetTransientFeature(id, self, true)
+                    if not ok then return false, "failed to start " .. tostring(path) .. ": " .. tostring(err) end
+                    managed = true
+                    break
+                end
+            end
+        end
+        if not managed then
+            local alreadyEnabled = featureEnabled(feature)
+            local ok, err = setFeatureEnabled(feature, true)
+            if not ok then return false, "failed to start " .. tostring(path) .. ": " .. tostring(err) end
+            if not alreadyEnabled then self.OwnedPaths[path] = true end
+        else
+            self.OwnedPaths[path] = true
+        end
         self.ActivePaths[path] = true
-        if not alreadyEnabled then self.OwnedPaths[path] = true end
     end
     return true
 end
