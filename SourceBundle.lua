@@ -1,7 +1,7 @@
 -- Generated SquidNoMo verified source bundle.
 -- Upload this file together with BuildManifest.lua and Main.lua.
 return {
-    BuildToken = [====[1_1_beta_11-ui-overhaul-demonstration-learning-r11]====],
+    BuildToken = [====[1_1_beta_12-visible-learning-controls-r12]====],
     Sources = {
         [ [====[BuildManifest.lua]====] ] = [====[-- SquidNoMo deployment manifest.
 -- BuildNumber is advanced automatically by repository workflows whenever feature code changes.
@@ -9,8 +9,8 @@ return {
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 11,
-    Revision = "ui-overhaul-demonstration-learning-r11",
+    BuildNumber = 12,
+    Revision = "visible-learning-controls-r12",
     FeatureRuntimeRevision = "adaptive-game-runtime-r10",
     GameRuntimeRevision = "game-modules-rlgl-learner-r10",
     PlayerRuntimeRevision = "player-runtime-r4",
@@ -14431,72 +14431,6 @@ return Runtime:CreateFeature({
     IdleInterval = 0.65,
 })
 ]====],
-        [ [====[Features/Games/Rebellion/FrontmanNavigator.lua]====] ] = [====[local Environment = _G
-if type(getgenv) == "function" then
-    local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then Environment = result end
-end
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
-local Runtime = Environment.__SquidNoMoGameRuntime
-if type(Runtime) ~= "table"
-    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
-    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
-then
-    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
-end
-
-
-return Runtime:CreateFeature({
-    Game = "Rebellion",
-    Id = "mapped.games.rebellion.frontmannavigator",
-    Name = "Frontman Navigator",
-    Description = "Pathfinds toward the confirmed Frontman, command room, control room, or final Rebellion objective.",
-    Handler = "PathTo",
-    TargetTokens = {"frontman", "front man", "command room", "control room", "host", "office"},
-    ExcludeTokens = {"poster", "icon", "shop"},
-    TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
-    StopDistance = 9,
-    Interact = true,
-    InteractDistance = 12,
-    MovementPriority = 72,
-    Interval = 0.4,
-    IdleInterval = 0.9,
-    WaitingMessage = "Waiting for the Frontman objective",
-})
-]====],
-        [ [====[Features/Games/Rebellion/GuardCombat.lua]====] ] = [====[local Environment = _G
-if type(getgenv) == "function" then
-    local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then Environment = result end
-end
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
-local Runtime = Environment.__SquidNoMoGameRuntime
-if type(Runtime) ~= "table"
-    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
-    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
-then
-    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
-end
-
-
-return Runtime:CreateFeature({
-    Game = "Rebellion",
-    Id = "mapped.games.rebellion.guardcombat",
-    Name = "Guard Combat",
-    Description = "Targets confirmed guard or soldier characters and activates an equipped combat tool at a controlled rate.",
-    Handler = "ToolAura",
-    PlayerTokens = {"guard", "staff", "soldier"},
-    TargetTokens = {"guard", "staff", "soldier"},
-    IncludeNPCs = true,
-    ToolTokens = {"gun", "rifle", "pistol", "bat", "weapon"},
-    Range = 16,
-    FaceTarget = true,
-    ActionCooldown = 0.28,
-    ActionPriority = 72,
-    Interval = 0.2,
-    IdleInterval = 0.75,
-})
-]====],
         [ [====[Features/Games/RLGL/AntiStuck.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
@@ -14639,6 +14573,72 @@ return Runtime:CreateFeature({
     Handler = "StateHUD",
     Interval = 0.1,
     IdleInterval = 0.55,
+})
+]====],
+        [ [====[Features/Games/Rebellion/FrontmanNavigator.lua]====] ] = [====[local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then Environment = result end
+end
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
+if type(Runtime) ~= "table"
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
+then
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
+end
+
+
+return Runtime:CreateFeature({
+    Game = "Rebellion",
+    Id = "mapped.games.rebellion.frontmannavigator",
+    Name = "Frontman Navigator",
+    Description = "Pathfinds toward the confirmed Frontman, command room, control room, or final Rebellion objective.",
+    Handler = "PathTo",
+    TargetTokens = {"frontman", "front man", "command room", "control room", "host", "office"},
+    ExcludeTokens = {"poster", "icon", "shop"},
+    TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
+    StopDistance = 9,
+    Interact = true,
+    InteractDistance = 12,
+    MovementPriority = 72,
+    Interval = 0.4,
+    IdleInterval = 0.9,
+    WaitingMessage = "Waiting for the Frontman objective",
+})
+]====],
+        [ [====[Features/Games/Rebellion/GuardCombat.lua]====] ] = [====[local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then Environment = result end
+end
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
+if type(Runtime) ~= "table"
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
+then
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
+end
+
+
+return Runtime:CreateFeature({
+    Game = "Rebellion",
+    Id = "mapped.games.rebellion.guardcombat",
+    Name = "Guard Combat",
+    Description = "Targets confirmed guard or soldier characters and activates an equipped combat tool at a controlled rate.",
+    Handler = "ToolAura",
+    PlayerTokens = {"guard", "staff", "soldier"},
+    TargetTokens = {"guard", "staff", "soldier"},
+    IncludeNPCs = true,
+    ToolTokens = {"gun", "rifle", "pistol", "bat", "weapon"},
+    Range = 16,
+    FaceTarget = true,
+    ActionCooldown = 0.28,
+    ActionPriority = 72,
+    Interval = 0.2,
+    IdleInterval = 0.75,
 })
 ]====],
         [ [====[Features/Games/RockPaperScissors/AutoPlay.lua]====] ] = [====[local Environment = _G
@@ -16415,8 +16415,8 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
 local Recorder = {
-    Revision = "demonstration-recorder-r1",
-    BuildNumber = 11,
+    Revision = "demonstration-recorder-r2",
+    BuildNumber = 12,
     Active = false,
     Session = nil,
     Listeners = {},
@@ -16781,8 +16781,8 @@ function Recorder:Start(gameName)
     self.Message = "Learning " .. gameName .. " — play the round normally."
     self.Session = {
         schema = 1,
-        build = self.Loader and self.Loader.BuildVersion or "1.1 beta 11",
-        buildNumber = self.Loader and self.Loader.BuildNumber or 11,
+        build = self.Loader and self.Loader.BuildVersion or "1.1 beta 12",
+        buildNumber = self.Loader and self.Loader.BuildNumber or 12,
         game = gameName,
         placeId = game.PlaceId,
         startedAtUnix = os.time(),
@@ -26914,19 +26914,43 @@ function GamesPage:Create(Page, App)
     local manager = App.FeatureManager
     local alive = true
     local lastDetected = nil
+    local mobile = App:IsMobile()
+
+    -- Keep the recorder and game category controls fixed above the vertically
+    -- scrolling feature cards. They use separate hosts so neither can clip or
+    -- cover the other on narrow phone viewports.
+    local learningHeight = mobile and 112 or 104
+    local categoryHeight = mobile and 102 or 106
+    local headerGap = mobile and 8 or 10
 
     local shell = App.Loader.SubpageShell:Create(Page, App, {
         PageName = "Games",
-        HeaderHeight = App:IsMobile() and 100 or 106,
-        ToolbarHeight = App:IsMobile() and 68 or 64,
+        HeaderHeight = learningHeight + headerGap + categoryHeight,
+        ToolbarHeight = 0,
     })
 
-    local learning = App.Loader.LearningPanel:Create(shell.Toolbar, App, {
+    local learningHost = Instance.new("Frame")
+    learningHost.Name = "LearningPanelHost"
+    learningHost.Position = UDim2.fromOffset(0, 0)
+    learningHost.Size = UDim2.new(1, 0, 0, learningHeight)
+    learningHost.BackgroundTransparency = 1
+    learningHost.ClipsDescendants = false
+    learningHost.Parent = shell.Header
+
+    local categoryHost = Instance.new("Frame")
+    categoryHost.Name = "GameCategoryHost"
+    categoryHost.Position = UDim2.fromOffset(0, learningHeight + headerGap)
+    categoryHost.Size = UDim2.new(1, 0, 0, categoryHeight)
+    categoryHost.BackgroundTransparency = 1
+    categoryHost.ClipsDescendants = true
+    categoryHost.Parent = shell.Header
+
+    local learning = App.Loader.LearningPanel:Create(learningHost, App, {
         GameName = categories[1] and categories[1].Name or "Red Light, Green Light",
     })
 
     local selector = App.Loader.CategoryStrip:Create(Page, App, {
-        Parent = shell.Header,
+        Parent = categoryHost,
         GestureOwner = Page,
         ClearParent = false,
         PageName = "Games",
@@ -27012,46 +27036,6 @@ function GuardsPage:Create(Page, App)
 end
 
 return GuardsPage
-]====],
-        [ [====[Modules/Home.lua]====] ] = [====[local Home = {}
-
-function Home:Create(Page, App)
-
-	local Components = App.Components
-
-	local HeroBanner = App.Loader.HeroBanner
-	local FeatureGroups = App.Loader.FeatureGroups
-	local ServerStatus = App.Loader.ServerStatus
-	local NOMOAI = App.Loader.NOMOAI
-	local SupportDevelopment = App.Loader.SupportDevelopment
-	local DevelopmentGoal = App.Loader.DevelopmentGoal
-	local Supporters = App.Loader.Supporters
-	local ImportantNotice = App.Loader.ImportantNotice
-	local Footer = App.Loader.Footer
-
-
-	HeroBanner:Create(Page, App)
-
-	local Row1 = Components:CreateHorizontalContainer(Page)
-	Row1.LayoutOrder = 2
-
-	FeatureGroups:Create(Row1, App)
-	ServerStatus:Create(Row1, App)
-	NOMOAI:Create(Row1, App)
-
-	local Row2 = Components:CreateHorizontalContainer(Page)
-	Row2.LayoutOrder = 3
-
-	SupportDevelopment:Create(Row2, App)
-	DevelopmentGoal:Create(Row2, App)
-	Supporters:Create(Row2, App)
-
-	ImportantNotice:Create(Page, App)
-	Footer:Create(Page, App)
-
-end
-
-return Home
 ]====],
         [ [====[Modules/Home/DevelopmentGoal.lua]====] ] = [====[local DevelopmentGoal = {}
 
@@ -28320,6 +28304,46 @@ end
 
 return Supporters
 ]====],
+        [ [====[Modules/Home.lua]====] ] = [====[local Home = {}
+
+function Home:Create(Page, App)
+
+	local Components = App.Components
+
+	local HeroBanner = App.Loader.HeroBanner
+	local FeatureGroups = App.Loader.FeatureGroups
+	local ServerStatus = App.Loader.ServerStatus
+	local NOMOAI = App.Loader.NOMOAI
+	local SupportDevelopment = App.Loader.SupportDevelopment
+	local DevelopmentGoal = App.Loader.DevelopmentGoal
+	local Supporters = App.Loader.Supporters
+	local ImportantNotice = App.Loader.ImportantNotice
+	local Footer = App.Loader.Footer
+
+
+	HeroBanner:Create(Page, App)
+
+	local Row1 = Components:CreateHorizontalContainer(Page)
+	Row1.LayoutOrder = 2
+
+	FeatureGroups:Create(Row1, App)
+	ServerStatus:Create(Row1, App)
+	NOMOAI:Create(Row1, App)
+
+	local Row2 = Components:CreateHorizontalContainer(Page)
+	Row2.LayoutOrder = 3
+
+	SupportDevelopment:Create(Row2, App)
+	DevelopmentGoal:Create(Row2, App)
+	Supporters:Create(Row2, App)
+
+	ImportantNotice:Create(Page, App)
+	Footer:Create(Page, App)
+
+end
+
+return Home
+]====],
         [ [====[Modules/LearningPanel.lua]====] ] = [====[local LearningPanel = {}
 
 local function corner(parent, radius)
@@ -28328,118 +28352,160 @@ local function corner(parent, radius)
     value.Parent = parent
 end
 
-local function button(parent, text, color, order)
+local function makeButton(parent, text, color, order)
     local value = Instance.new("TextButton")
+    value.Name = string.gsub(text, "[^%w]", "") .. "Button"
     value.LayoutOrder = order
-    value.Size = UDim2.fromOffset(104, 42)
+    value.Size = UDim2.new(1 / 3, -6, 1, 0)
     value.BackgroundColor3 = color
+    value.BackgroundTransparency = 0.04
     value.BorderSizePixel = 0
     value.AutoButtonColor = false
     value.Text = text
     value.TextColor3 = Color3.new(1, 1, 1)
     value.Font = Enum.Font.GothamBold
-    value.TextSize = 13
+    value.TextSize = 12
+    value.TextWrapped = true
     value.Parent = parent
     corner(value, 10)
     return value
 end
 
-function LearningPanel:Create(Parent, App, options)
+local function setButtonEnabled(button, enabled)
+    button.Active = enabled == true
+    button.Selectable = enabled == true
+    button.BackgroundTransparency = enabled and 0.04 or 0.55
+    button.TextTransparency = enabled and 0 or 0.35
+end
+
+function LearningPanel:Create(parent, App, options)
     options = options or {}
     local recorder = App.Loader and App.Loader.LearningRecorder
     local accent = App:GetPageAccent("Games")
     local selectedGame = options.GameName or "Red Light, Green Light"
+    local mobile = App:IsMobile()
 
-    local card = App:CreateCard(Parent, UDim2.fromScale(1, 1), {
+    local card = App:CreateCard(parent, UDim2.fromScale(1, 1), {
         Color = App.Colors.Card,
         BorderColor = accent,
-        BorderTransparency = 0.18,
+        BorderTransparency = 0.10,
         Radius = 13,
     })
+    card.Name = "OneRoundLearningPanel"
     card.ClipsDescendants = true
 
-    local title = App:CreateText(card, "ONE-ROUND LEARNING", UDim2.fromOffset(190, 18), UDim2.fromOffset(14, 8), {
+    local heading = Instance.new("Frame")
+    heading.Name = "LearningHeading"
+    heading.Position = UDim2.fromOffset(14, 8)
+    heading.Size = UDim2.new(1, -28, 0, mobile and 42 or 38)
+    heading.BackgroundTransparency = 1
+    heading.Parent = card
+
+    local title = App:CreateText(heading, "● ONE-ROUND RECORDER", UDim2.new(0.38, -8, 0, 18), UDim2.fromOffset(0, 0), {
         Font = Enum.Font.GothamBlack,
-        TextSize = App:IsMobile() and 12 or 11,
+        TextSize = mobile and 12 or 11,
         Color = accent,
         ZIndex = 1014,
     })
 
-    local gameLabel = App:CreateText(card, selectedGame, UDim2.new(0.30, -20, 0, 22), UDim2.fromOffset(14, 27), {
+    local gameLabel = App:CreateText(heading, selectedGame, UDim2.new(0.38, -8, 0, 20), UDim2.fromOffset(0, 19), {
         Font = Enum.Font.GothamBold,
-        TextSize = App:IsMobile() and 14 or 13,
+        TextSize = mobile and 13 or 12,
         Color = App.Colors.Text,
         ZIndex = 1014,
     })
     gameLabel.TextTruncate = Enum.TextTruncate.AtEnd
 
-    local status = App:CreateText(card, "Play one round manually, then mark success.", UDim2.new(0.30, -16, 0, 36), UDim2.new(0.30, 0, 0, 13), {
+    local status = App:CreateText(heading, "Tap START RECORDING before you play the round.", UDim2.new(0.62, 0, 1, 0), UDim2.new(0.38, 0, 0, 0), {
         Font = Enum.Font.GothamMedium,
-        TextSize = App:IsMobile() and 12 or 11,
+        TextSize = mobile and 11 or 10,
         Color = App.Colors.Muted,
         Wrapped = true,
+        YAlignment = Enum.TextYAlignment.Center,
         ZIndex = 1014,
     })
 
     local actions = Instance.new("Frame")
-    actions.AnchorPoint = Vector2.new(1, 0.5)
-    actions.Position = UDim2.new(1, -12, 0.5, 0)
-    actions.Size = UDim2.new(0.40, 0, 0, 44)
+    actions.Name = "LearningActions"
+    actions.Position = UDim2.fromOffset(12, mobile and 55 or 50)
+    actions.Size = UDim2.new(1, -24, 0, mobile and 46 or 42)
     actions.BackgroundTransparency = 1
     actions.Parent = card
 
     local layout = Instance.new("UIListLayout")
     layout.FillDirection = Enum.FillDirection.Horizontal
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
     layout.Padding = UDim.new(0, 8)
     layout.Parent = actions
 
-    local learn = button(actions, "LEARN", accent, 1)
-    local success = button(actions, "SUCCESS", Color3.fromRGB(48, 190, 105), 2)
-    local stop = button(actions, "STOP", Color3.fromRGB(185, 66, 76), 3)
+    local startButton = makeButton(actions, "START RECORDING", accent, 1)
+    local finishButton = makeButton(actions, "FINISH & SAVE", Color3.fromRGB(48, 190, 105), 2)
+    local cancelButton = makeButton(actions, "CANCEL", Color3.fromRGB(185, 66, 76), 3)
+
+    local function notify(kind, message)
+        if not App.Notifications then return end
+        local method = App.Notifications[kind]
+        if type(method) == "function" then
+            method(App.Notifications, "Round recorder", tostring(message), 6)
+        end
+    end
 
     local function render(nextStatus)
         nextStatus = nextStatus or (recorder and recorder:GetStatus()) or {}
         local active = nextStatus.Active == true
+        local available = recorder ~= nil
         gameLabel.Text = active and tostring(nextStatus.Game or selectedGame) or selectedGame
-        status.Text = tostring(nextStatus.Message or "Play one round manually, then mark success.")
-        status.TextColor3 = active and Color3.fromRGB(255, 214, 84) or App.Colors.Muted
-        learn.Visible = not active
-        success.Visible = active
-        stop.Visible = active
+
+        if not available then
+            status.Text = "Recorder unavailable. Upload the complete matching build."
+            status.TextColor3 = Color3.fromRGB(255, 106, 122)
+        elseif active then
+            local samples = tonumber(nextStatus.Samples) or 0
+            local events = tonumber(nextStatus.Events) or 0
+            status.Text = string.format("RECORDING • %d samples • %d events", samples, events)
+            status.TextColor3 = Color3.fromRGB(255, 214, 84)
+        else
+            status.Text = tostring(nextStatus.Message or "Tap START RECORDING before you play the round.")
+            status.TextColor3 = nextStatus.SavedPath and Color3.fromRGB(72, 232, 124) or App.Colors.Muted
+        end
+
+        title.Text = active and "● RECORDING ROUND" or "● ONE-ROUND RECORDER"
+        title.TextColor3 = active and Color3.fromRGB(255, 95, 115) or accent
+        setButtonEnabled(startButton, available and not active)
+        setButtonEnabled(finishButton, available and active)
+        setButtonEnabled(cancelButton, available and active)
     end
 
-    learn.Activated:Connect(function()
-        if not recorder then return end
+    startButton.Activated:Connect(function()
+        if not recorder or recorder.Active then return end
         local ok, detail = recorder:Start(selectedGame)
-        if not ok and App.Notifications and type(App.Notifications.Error) == "function" then
-            App.Notifications:Error("Learning", tostring(detail), 5)
-        end
+        if not ok then notify("Error", detail) else notify("Success", "Recording started. Play the round manually.") end
         render()
     end)
 
-    success.Activated:Connect(function()
-        if not recorder then return end
+    finishButton.Activated:Connect(function()
+        if not recorder or not recorder.Active then return end
         local ok, detail = recorder:MarkSuccess()
-        if App.Notifications then
-            local method = ok and App.Notifications.Success or App.Notifications.Error
-            if type(method) == "function" then
-                method(App.Notifications, "Learning", tostring(detail), 6)
-            end
+        if ok then
+            notify("Success", "Successful round saved to " .. tostring(detail))
+        else
+            notify("Error", detail)
         end
         render()
     end)
 
-    stop.Activated:Connect(function()
-        if not recorder then return end
-        recorder:Stop(false)
+    cancelButton.Activated:Connect(function()
+        if not recorder or not recorder.Active then return end
+        local ok, detail = recorder:Stop(false)
+        if ok then notify("Warning", "Recording stopped and saved to " .. tostring(detail)) else notify("Error", detail) end
         render()
     end)
 
-    App:BindButtonFeedback(learn, accent)
-    App:BindButtonFeedback(success, Color3.fromRGB(48, 190, 105))
-    App:BindButtonFeedback(stop, Color3.fromRGB(185, 66, 76))
+    App:BindButtonFeedback(startButton, accent)
+    App:BindButtonFeedback(finishButton, Color3.fromRGB(48, 190, 105))
+    App:BindButtonFeedback(cancelButton, Color3.fromRGB(185, 66, 76))
 
     local connection = recorder and recorder:Subscribe(render) or nil
     card.Destroying:Connect(function()
@@ -28457,6 +28523,861 @@ function LearningPanel:Create(Parent, App, options)
 end
 
 return LearningPanel
+]====],
+        [ [====[Modules/Players/ESP.lua]====] ] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// ESP.lua
+--//========================================================--
+
+local ESP = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function ESP:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- ESP Card
+	----------------------------------------------------------
+
+	local Card = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,340)
+
+	)
+
+	Card.LayoutOrder = 1
+
+	Components:CreateTitle(
+
+		Card,
+		Theme,
+		"👁 Role ESP"
+
+	)
+
+	local Holder = Instance.new("Frame")
+
+	Holder.BackgroundTransparency = 1
+
+	Holder.Position = UDim2.fromOffset(20,55)
+
+	Holder.Size = UDim2.new(1,-40,1,-75)
+
+	Holder.Parent = Card
+
+	local HolderLayout = Instance.new("UIListLayout")
+
+	HolderLayout.Padding = UDim.new(0,12)
+
+	HolderLayout.Parent = Holder
+
+  	----------------------------------------------------------
+	-- Player ESP
+	----------------------------------------------------------
+
+	local _, PlayerESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Player ESP"
+
+		)
+
+	PlayerESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.PlayerESP then
+
+			if State then
+				App.Features.Player.PlayerESP:Enable()
+			else
+				App.Features.Player.PlayerESP:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Guard ESP
+	----------------------------------------------------------
+
+	local _, GuardESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Guard ESP"
+
+		)
+
+	GuardESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.GuardESP then
+
+			if State then
+				App.Features.Player.GuardESP:Enable()
+			else
+				App.Features.Player.GuardESP:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Detective ESP
+	----------------------------------------------------------
+
+	local _, DetectiveESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Detective ESP"
+
+		)
+
+	DetectiveESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.DetectiveESP then
+
+			if State then
+				App.Features.Player.DetectiveESP:Enable()
+			else
+				App.Features.Player.DetectiveESP:Disable()
+			end
+
+		end
+
+	end)
+
+  	----------------------------------------------------------
+	-- Frontman ESP
+	----------------------------------------------------------
+
+	local _, FrontmanESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Frontman ESP"
+
+		)
+
+	FrontmanESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.FrontmanESP then
+
+			if State then
+				App.Features.Player.FrontmanESP:Enable()
+			else
+				App.Features.Player.FrontmanESP:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Finished
+	----------------------------------------------------------
+
+end
+
+----------------------------------------------------------
+-- Return Module
+----------------------------------------------------------
+
+return ESP
+]====],
+        [ [====[Modules/Players/Enhancements.lua]====] ] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// Enhancements.lua
+--//========================================================--
+
+local Enhancements = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function Enhancements:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- Enhancement Card
+	----------------------------------------------------------
+
+	local Card = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,340)
+
+	)
+
+	Card.LayoutOrder = 1
+
+	Components:CreateTitle(
+
+		Card,
+		Theme,
+		"✨ Player Enhancements"
+
+	)
+
+	local Holder = Instance.new("Frame")
+
+	Holder.BackgroundTransparency = 1
+
+	Holder.Position = UDim2.fromOffset(20,55)
+
+	Holder.Size = UDim2.new(1,-40,1,-75)
+
+	Holder.Parent = Card
+
+	local HolderLayout = Instance.new("UIListLayout")
+
+	HolderLayout.Padding = UDim.new(0,12)
+
+	HolderLayout.Parent = Holder
+
+  	----------------------------------------------------------
+	-- Walk Speed
+	----------------------------------------------------------
+
+	local _, WalkSpeed =
+		Components:CreateSlider(
+
+			Holder,
+			Theme,
+			"Walk Speed",
+			16,
+			100,
+			16
+
+		)
+
+	WalkSpeed:OnChanged(function(Value)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.WalkSpeed then
+
+			App.Features.Player.WalkSpeed:Set(Value)
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Jump Power
+	----------------------------------------------------------
+
+	local _, JumpPower =
+		Components:CreateSlider(
+
+			Holder,
+			Theme,
+			"Jump Power",
+			50,
+			200,
+			50
+
+		)
+
+	JumpPower:OnChanged(function(Value)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.JumpPower then
+
+			App.Features.Player.JumpPower:Set(Value)
+
+		end
+
+	end)
+
+  	----------------------------------------------------------
+	-- Infinite Jump
+	----------------------------------------------------------
+
+	local _, InfiniteJump =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Infinite Jump"
+
+		)
+
+	InfiniteJump:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.InfiniteJump then
+
+			if State then
+				App.Features.Player.InfiniteJump:Enable()
+			else
+				App.Features.Player.InfiniteJump:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Noclip
+	----------------------------------------------------------
+
+	local _, Noclip =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Noclip"
+
+		)
+
+	Noclip:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.Noclip then
+
+			if State then
+				App.Features.Player.Noclip:Enable()
+			else
+				App.Features.Player.Noclip:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Finished
+	----------------------------------------------------------
+
+end
+
+return Enhancements
+]====],
+        [ [====[Modules/Players/Main.lua]====] ] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// Main.lua
+--//========================================================--
+
+local PlayersMain = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function PlayersMain:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Main Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- Top Navigation Card
+	----------------------------------------------------------
+
+	local NavCard = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,64)
+
+	)
+
+	NavCard.LayoutOrder = 1
+
+	----------------------------------------------------------
+	-- Navigation Container
+	----------------------------------------------------------
+
+	local NavContainer = Instance.new("Frame")
+
+	NavContainer.Name = "Navigation"
+
+	NavContainer.BackgroundTransparency = 1
+
+	NavContainer.Size = UDim2.new(1,-24,1,-16)
+
+	NavContainer.Position = UDim2.fromOffset(12,8)
+
+	NavContainer.Parent = NavCard
+
+	local NavLayout = Instance.new("UIListLayout")
+
+	NavLayout.FillDirection = Enum.FillDirection.Horizontal
+
+	NavLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+
+	NavLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+	NavLayout.Padding = UDim.new(0,14)
+
+	NavLayout.Parent = NavContainer
+
+	----------------------------------------------------------
+	-- Content Area
+	----------------------------------------------------------
+
+	local Content = Instance.new("Frame")
+
+	Content.Name = "Content"
+
+	Content.BackgroundTransparency = 1
+
+	Content.Size = UDim2.new(1,0,1,-80)
+
+	Content.AutomaticSize = Enum.AutomaticSize.Y
+
+	Content.LayoutOrder = 2
+
+	Content.Parent = Page
+
+	self.Content = Content
+	self.NavContainer = NavContainer
+
+  	----------------------------------------------------------
+	-- Navigation Buttons
+	----------------------------------------------------------
+
+	local CurrentTab
+
+	local Buttons = {}
+
+	local function CreateTab(Name, Icon)
+
+		local Button = Instance.new("TextButton")
+
+		Button.Name = Name
+
+		Button.Size = UDim2.fromOffset(170,44)
+
+		Button.BackgroundColor3 = Theme.Card
+
+		Button.BorderSizePixel = 0
+
+		Button.AutoButtonColor = false
+
+		Button.Font = Theme.FontBold
+
+		Button.TextSize = 16
+
+		Button.Text = Icon .. "  " .. Name
+
+		Button.TextColor3 = Theme.Text
+
+		Button.Parent = NavContainer
+
+		local Corner = Instance.new("UICorner")
+
+		Corner.CornerRadius = UDim.new(0,12)
+
+		Corner.Parent = Button
+
+		Buttons[Name] = Button
+
+		return Button
+
+	end
+
+	local EnhancementsButton =
+		CreateTab("Enhancements","✨")
+
+	local ESPButton =
+		CreateTab("ESP","👁")
+
+	local UtilitiesButton =
+		CreateTab("Utilities","🛠")
+
+  	----------------------------------------------------------
+	-- Page Loader
+	----------------------------------------------------------
+
+	local CurrentPage
+
+	local function ClearPage()
+
+		if CurrentPage then
+
+			CurrentPage:Destroy()
+
+			CurrentPage = nil
+
+		end
+
+	end
+
+	local function SelectTab(Name)
+
+		CurrentTab = Name
+
+		for TabName, Button in pairs(Buttons) do
+
+			if TabName == Name then
+
+				Button.BackgroundColor3 = Theme.Accent
+				Button.TextColor3 = Theme.Background
+
+			else
+
+				Button.BackgroundColor3 = Theme.Card
+				Button.TextColor3 = Theme.Text
+
+			end
+
+		end
+
+		ClearPage()
+
+		CurrentPage = Instance.new("Frame")
+
+		CurrentPage.Name = Name
+
+		CurrentPage.BackgroundTransparency = 1
+
+		CurrentPage.Size = UDim2.fromScale(1,1)
+
+		CurrentPage.Parent = Content
+
+		if Name == "Enhancements" then
+
+			local Module = loadstring(game:HttpGet(
+
+				App.Config.Repository ..
+				"Modules/Players/Enhancements.lua"
+
+			))()
+
+			Module:Create(CurrentPage, App)
+
+		elseif Name == "ESP" then
+
+			local Module = loadstring(game:HttpGet(
+
+				App.Config.Repository ..
+				"Modules/Players/ESP.lua"
+
+			))()
+
+			Module:Create(CurrentPage, App)
+
+		elseif Name == "Utilities" then
+
+			local Module = loadstring(game:HttpGet(
+
+				App.Config.Repository ..
+				"Modules/Players/Utilities.lua"
+
+			))()
+
+			Module:Create(CurrentPage, App)
+
+		end
+
+  end
+	----------------------------------------------------------
+	-- Navigation Events
+	----------------------------------------------------------
+
+	EnhancementsButton.MouseButton1Click:Connect(function()
+
+		SelectTab("Enhancements")
+
+	end)
+
+	ESPButton.MouseButton1Click:Connect(function()
+
+		SelectTab("ESP")
+
+	end)
+
+	UtilitiesButton.MouseButton1Click:Connect(function()
+
+		SelectTab("Utilities")
+
+	end)
+
+	----------------------------------------------------------
+	-- Default Page
+	----------------------------------------------------------
+
+	SelectTab("Enhancements")
+
+end
+
+----------------------------------------------------------
+-- Return Module
+----------------------------------------------------------
+
+return PlayersMain
+  
+]====],
+        [ [====[Modules/Players/Utilities.lua]====] ] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// Utilities.lua
+--//========================================================--
+
+local Utilities = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function Utilities:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- Utilities Card
+	----------------------------------------------------------
+
+	local Card = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,340)
+
+	)
+
+	Card.LayoutOrder = 1
+
+	Components:CreateTitle(
+
+		Card,
+		Theme,
+		"🛠 Player Utilities"
+
+	)
+
+	local Holder = Instance.new("Frame")
+
+	Holder.BackgroundTransparency = 1
+
+	Holder.Position = UDim2.fromOffset(20,55)
+
+	Holder.Size = UDim2.new(1,-40,1,-75)
+
+	Holder.Parent = Card
+
+	local HolderLayout = Instance.new("UIListLayout")
+
+	HolderLayout.Padding = UDim.new(0,12)
+
+	HolderLayout.Parent = Holder
+
+  	----------------------------------------------------------
+	-- Anti AFK
+	----------------------------------------------------------
+
+	local _, AntiAFK =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Anti AFK"
+
+		)
+
+	AntiAFK:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.AntiAFK then
+
+			if State then
+				App.Features.Player.AntiAFK:Enable()
+			else
+				App.Features.Player.AntiAFK:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Anti Lag
+	----------------------------------------------------------
+
+	local _, AntiLag =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Anti Lag"
+
+		)
+
+	AntiLag:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.AntiLag then
+
+			if State then
+				App.Features.Player.AntiLag:Enable()
+			else
+				App.Features.Player.AntiLag:Disable()
+			end
+
+		end
+
+	end)
+
+  	----------------------------------------------------------
+	-- Reset Character
+	----------------------------------------------------------
+
+	local ResetButton =
+		Components:CreateButton(
+
+			Holder,
+			Theme,
+			"🔄 Reset Character"
+
+		)
+
+	ResetButton.MouseButton1Click:Connect(function()
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.Reset then
+
+			App.Features.Player.Reset:Execute()
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Rejoin Server
+	----------------------------------------------------------
+
+	local RejoinButton =
+		Components:CreateButton(
+
+			Holder,
+			Theme,
+			"🌐 Rejoin Server"
+
+		)
+
+	RejoinButton.MouseButton1Click:Connect(function()
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.Rejoin then
+
+			App.Features.Player.Rejoin:Execute()
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Finished
+	----------------------------------------------------------
+
+end
+
+----------------------------------------------------------
+-- Return Module
+----------------------------------------------------------
+
+return Utilities
 ]====],
         [ [====[Modules/Players.lua]====] ] = [====[local PlayersPage = {}
 
@@ -29413,861 +30334,6 @@ function PlayersPage:Create(Page, App)
 end
 
 return PlayersPage
-]====],
-        [ [====[Modules/Players/Enhancements.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// Enhancements.lua
---//========================================================--
-
-local Enhancements = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function Enhancements:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- Enhancement Card
-	----------------------------------------------------------
-
-	local Card = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,340)
-
-	)
-
-	Card.LayoutOrder = 1
-
-	Components:CreateTitle(
-
-		Card,
-		Theme,
-		"✨ Player Enhancements"
-
-	)
-
-	local Holder = Instance.new("Frame")
-
-	Holder.BackgroundTransparency = 1
-
-	Holder.Position = UDim2.fromOffset(20,55)
-
-	Holder.Size = UDim2.new(1,-40,1,-75)
-
-	Holder.Parent = Card
-
-	local HolderLayout = Instance.new("UIListLayout")
-
-	HolderLayout.Padding = UDim.new(0,12)
-
-	HolderLayout.Parent = Holder
-
-  	----------------------------------------------------------
-	-- Walk Speed
-	----------------------------------------------------------
-
-	local _, WalkSpeed =
-		Components:CreateSlider(
-
-			Holder,
-			Theme,
-			"Walk Speed",
-			16,
-			100,
-			16
-
-		)
-
-	WalkSpeed:OnChanged(function(Value)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.WalkSpeed then
-
-			App.Features.Player.WalkSpeed:Set(Value)
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Jump Power
-	----------------------------------------------------------
-
-	local _, JumpPower =
-		Components:CreateSlider(
-
-			Holder,
-			Theme,
-			"Jump Power",
-			50,
-			200,
-			50
-
-		)
-
-	JumpPower:OnChanged(function(Value)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.JumpPower then
-
-			App.Features.Player.JumpPower:Set(Value)
-
-		end
-
-	end)
-
-  	----------------------------------------------------------
-	-- Infinite Jump
-	----------------------------------------------------------
-
-	local _, InfiniteJump =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Infinite Jump"
-
-		)
-
-	InfiniteJump:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.InfiniteJump then
-
-			if State then
-				App.Features.Player.InfiniteJump:Enable()
-			else
-				App.Features.Player.InfiniteJump:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Noclip
-	----------------------------------------------------------
-
-	local _, Noclip =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Noclip"
-
-		)
-
-	Noclip:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.Noclip then
-
-			if State then
-				App.Features.Player.Noclip:Enable()
-			else
-				App.Features.Player.Noclip:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Finished
-	----------------------------------------------------------
-
-end
-
-return Enhancements
-]====],
-        [ [====[Modules/Players/ESP.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// ESP.lua
---//========================================================--
-
-local ESP = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function ESP:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- ESP Card
-	----------------------------------------------------------
-
-	local Card = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,340)
-
-	)
-
-	Card.LayoutOrder = 1
-
-	Components:CreateTitle(
-
-		Card,
-		Theme,
-		"👁 Role ESP"
-
-	)
-
-	local Holder = Instance.new("Frame")
-
-	Holder.BackgroundTransparency = 1
-
-	Holder.Position = UDim2.fromOffset(20,55)
-
-	Holder.Size = UDim2.new(1,-40,1,-75)
-
-	Holder.Parent = Card
-
-	local HolderLayout = Instance.new("UIListLayout")
-
-	HolderLayout.Padding = UDim.new(0,12)
-
-	HolderLayout.Parent = Holder
-
-  	----------------------------------------------------------
-	-- Player ESP
-	----------------------------------------------------------
-
-	local _, PlayerESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Player ESP"
-
-		)
-
-	PlayerESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.PlayerESP then
-
-			if State then
-				App.Features.Player.PlayerESP:Enable()
-			else
-				App.Features.Player.PlayerESP:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Guard ESP
-	----------------------------------------------------------
-
-	local _, GuardESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Guard ESP"
-
-		)
-
-	GuardESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.GuardESP then
-
-			if State then
-				App.Features.Player.GuardESP:Enable()
-			else
-				App.Features.Player.GuardESP:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Detective ESP
-	----------------------------------------------------------
-
-	local _, DetectiveESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Detective ESP"
-
-		)
-
-	DetectiveESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.DetectiveESP then
-
-			if State then
-				App.Features.Player.DetectiveESP:Enable()
-			else
-				App.Features.Player.DetectiveESP:Disable()
-			end
-
-		end
-
-	end)
-
-  	----------------------------------------------------------
-	-- Frontman ESP
-	----------------------------------------------------------
-
-	local _, FrontmanESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Frontman ESP"
-
-		)
-
-	FrontmanESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.FrontmanESP then
-
-			if State then
-				App.Features.Player.FrontmanESP:Enable()
-			else
-				App.Features.Player.FrontmanESP:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Finished
-	----------------------------------------------------------
-
-end
-
-----------------------------------------------------------
--- Return Module
-----------------------------------------------------------
-
-return ESP
-]====],
-        [ [====[Modules/Players/Main.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// Main.lua
---//========================================================--
-
-local PlayersMain = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function PlayersMain:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Main Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- Top Navigation Card
-	----------------------------------------------------------
-
-	local NavCard = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,64)
-
-	)
-
-	NavCard.LayoutOrder = 1
-
-	----------------------------------------------------------
-	-- Navigation Container
-	----------------------------------------------------------
-
-	local NavContainer = Instance.new("Frame")
-
-	NavContainer.Name = "Navigation"
-
-	NavContainer.BackgroundTransparency = 1
-
-	NavContainer.Size = UDim2.new(1,-24,1,-16)
-
-	NavContainer.Position = UDim2.fromOffset(12,8)
-
-	NavContainer.Parent = NavCard
-
-	local NavLayout = Instance.new("UIListLayout")
-
-	NavLayout.FillDirection = Enum.FillDirection.Horizontal
-
-	NavLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-
-	NavLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-
-	NavLayout.Padding = UDim.new(0,14)
-
-	NavLayout.Parent = NavContainer
-
-	----------------------------------------------------------
-	-- Content Area
-	----------------------------------------------------------
-
-	local Content = Instance.new("Frame")
-
-	Content.Name = "Content"
-
-	Content.BackgroundTransparency = 1
-
-	Content.Size = UDim2.new(1,0,1,-80)
-
-	Content.AutomaticSize = Enum.AutomaticSize.Y
-
-	Content.LayoutOrder = 2
-
-	Content.Parent = Page
-
-	self.Content = Content
-	self.NavContainer = NavContainer
-
-  	----------------------------------------------------------
-	-- Navigation Buttons
-	----------------------------------------------------------
-
-	local CurrentTab
-
-	local Buttons = {}
-
-	local function CreateTab(Name, Icon)
-
-		local Button = Instance.new("TextButton")
-
-		Button.Name = Name
-
-		Button.Size = UDim2.fromOffset(170,44)
-
-		Button.BackgroundColor3 = Theme.Card
-
-		Button.BorderSizePixel = 0
-
-		Button.AutoButtonColor = false
-
-		Button.Font = Theme.FontBold
-
-		Button.TextSize = 16
-
-		Button.Text = Icon .. "  " .. Name
-
-		Button.TextColor3 = Theme.Text
-
-		Button.Parent = NavContainer
-
-		local Corner = Instance.new("UICorner")
-
-		Corner.CornerRadius = UDim.new(0,12)
-
-		Corner.Parent = Button
-
-		Buttons[Name] = Button
-
-		return Button
-
-	end
-
-	local EnhancementsButton =
-		CreateTab("Enhancements","✨")
-
-	local ESPButton =
-		CreateTab("ESP","👁")
-
-	local UtilitiesButton =
-		CreateTab("Utilities","🛠")
-
-  	----------------------------------------------------------
-	-- Page Loader
-	----------------------------------------------------------
-
-	local CurrentPage
-
-	local function ClearPage()
-
-		if CurrentPage then
-
-			CurrentPage:Destroy()
-
-			CurrentPage = nil
-
-		end
-
-	end
-
-	local function SelectTab(Name)
-
-		CurrentTab = Name
-
-		for TabName, Button in pairs(Buttons) do
-
-			if TabName == Name then
-
-				Button.BackgroundColor3 = Theme.Accent
-				Button.TextColor3 = Theme.Background
-
-			else
-
-				Button.BackgroundColor3 = Theme.Card
-				Button.TextColor3 = Theme.Text
-
-			end
-
-		end
-
-		ClearPage()
-
-		CurrentPage = Instance.new("Frame")
-
-		CurrentPage.Name = Name
-
-		CurrentPage.BackgroundTransparency = 1
-
-		CurrentPage.Size = UDim2.fromScale(1,1)
-
-		CurrentPage.Parent = Content
-
-		if Name == "Enhancements" then
-
-			local Module = loadstring(game:HttpGet(
-
-				App.Config.Repository ..
-				"Modules/Players/Enhancements.lua"
-
-			))()
-
-			Module:Create(CurrentPage, App)
-
-		elseif Name == "ESP" then
-
-			local Module = loadstring(game:HttpGet(
-
-				App.Config.Repository ..
-				"Modules/Players/ESP.lua"
-
-			))()
-
-			Module:Create(CurrentPage, App)
-
-		elseif Name == "Utilities" then
-
-			local Module = loadstring(game:HttpGet(
-
-				App.Config.Repository ..
-				"Modules/Players/Utilities.lua"
-
-			))()
-
-			Module:Create(CurrentPage, App)
-
-		end
-
-  end
-	----------------------------------------------------------
-	-- Navigation Events
-	----------------------------------------------------------
-
-	EnhancementsButton.MouseButton1Click:Connect(function()
-
-		SelectTab("Enhancements")
-
-	end)
-
-	ESPButton.MouseButton1Click:Connect(function()
-
-		SelectTab("ESP")
-
-	end)
-
-	UtilitiesButton.MouseButton1Click:Connect(function()
-
-		SelectTab("Utilities")
-
-	end)
-
-	----------------------------------------------------------
-	-- Default Page
-	----------------------------------------------------------
-
-	SelectTab("Enhancements")
-
-end
-
-----------------------------------------------------------
--- Return Module
-----------------------------------------------------------
-
-return PlayersMain
-  
-]====],
-        [ [====[Modules/Players/Utilities.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// Utilities.lua
---//========================================================--
-
-local Utilities = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function Utilities:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- Utilities Card
-	----------------------------------------------------------
-
-	local Card = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,340)
-
-	)
-
-	Card.LayoutOrder = 1
-
-	Components:CreateTitle(
-
-		Card,
-		Theme,
-		"🛠 Player Utilities"
-
-	)
-
-	local Holder = Instance.new("Frame")
-
-	Holder.BackgroundTransparency = 1
-
-	Holder.Position = UDim2.fromOffset(20,55)
-
-	Holder.Size = UDim2.new(1,-40,1,-75)
-
-	Holder.Parent = Card
-
-	local HolderLayout = Instance.new("UIListLayout")
-
-	HolderLayout.Padding = UDim.new(0,12)
-
-	HolderLayout.Parent = Holder
-
-  	----------------------------------------------------------
-	-- Anti AFK
-	----------------------------------------------------------
-
-	local _, AntiAFK =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Anti AFK"
-
-		)
-
-	AntiAFK:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.AntiAFK then
-
-			if State then
-				App.Features.Player.AntiAFK:Enable()
-			else
-				App.Features.Player.AntiAFK:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Anti Lag
-	----------------------------------------------------------
-
-	local _, AntiLag =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Anti Lag"
-
-		)
-
-	AntiLag:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.AntiLag then
-
-			if State then
-				App.Features.Player.AntiLag:Enable()
-			else
-				App.Features.Player.AntiLag:Disable()
-			end
-
-		end
-
-	end)
-
-  	----------------------------------------------------------
-	-- Reset Character
-	----------------------------------------------------------
-
-	local ResetButton =
-		Components:CreateButton(
-
-			Holder,
-			Theme,
-			"🔄 Reset Character"
-
-		)
-
-	ResetButton.MouseButton1Click:Connect(function()
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.Reset then
-
-			App.Features.Player.Reset:Execute()
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Rejoin Server
-	----------------------------------------------------------
-
-	local RejoinButton =
-		Components:CreateButton(
-
-			Holder,
-			Theme,
-			"🌐 Rejoin Server"
-
-		)
-
-	RejoinButton.MouseButton1Click:Connect(function()
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.Rejoin then
-
-			App.Features.Player.Rejoin:Execute()
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Finished
-	----------------------------------------------------------
-
-end
-
-----------------------------------------------------------
--- Return Module
-----------------------------------------------------------
-
-return Utilities
 ]====],
         [ [====[Modules/Settings.lua]====] ] = [====[local Settings = {}
 

@@ -6,19 +6,43 @@ function GamesPage:Create(Page, App)
     local manager = App.FeatureManager
     local alive = true
     local lastDetected = nil
+    local mobile = App:IsMobile()
+
+    -- Keep the recorder and game category controls fixed above the vertically
+    -- scrolling feature cards. They use separate hosts so neither can clip or
+    -- cover the other on narrow phone viewports.
+    local learningHeight = mobile and 112 or 104
+    local categoryHeight = mobile and 102 or 106
+    local headerGap = mobile and 8 or 10
 
     local shell = App.Loader.SubpageShell:Create(Page, App, {
         PageName = "Games",
-        HeaderHeight = App:IsMobile() and 100 or 106,
-        ToolbarHeight = App:IsMobile() and 68 or 64,
+        HeaderHeight = learningHeight + headerGap + categoryHeight,
+        ToolbarHeight = 0,
     })
 
-    local learning = App.Loader.LearningPanel:Create(shell.Toolbar, App, {
+    local learningHost = Instance.new("Frame")
+    learningHost.Name = "LearningPanelHost"
+    learningHost.Position = UDim2.fromOffset(0, 0)
+    learningHost.Size = UDim2.new(1, 0, 0, learningHeight)
+    learningHost.BackgroundTransparency = 1
+    learningHost.ClipsDescendants = false
+    learningHost.Parent = shell.Header
+
+    local categoryHost = Instance.new("Frame")
+    categoryHost.Name = "GameCategoryHost"
+    categoryHost.Position = UDim2.fromOffset(0, learningHeight + headerGap)
+    categoryHost.Size = UDim2.new(1, 0, 0, categoryHeight)
+    categoryHost.BackgroundTransparency = 1
+    categoryHost.ClipsDescendants = true
+    categoryHost.Parent = shell.Header
+
+    local learning = App.Loader.LearningPanel:Create(learningHost, App, {
         GameName = categories[1] and categories[1].Name or "Red Light, Green Light",
     })
 
     local selector = App.Loader.CategoryStrip:Create(Page, App, {
-        Parent = shell.Header,
+        Parent = categoryHost,
         GestureOwner = Page,
         ClearParent = false,
         PageName = "Games",

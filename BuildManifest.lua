@@ -4,8 +4,8 @@
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 11,
-    Revision = "ui-overhaul-demonstration-learning-r11",
+    BuildNumber = 12,
+    Revision = "visible-learning-controls-r12",
     FeatureRuntimeRevision = "adaptive-game-runtime-r10",
     GameRuntimeRevision = "game-modules-rlgl-learner-r10",
     PlayerRuntimeRevision = "player-runtime-r4",

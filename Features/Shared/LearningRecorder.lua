@@ -6,8 +6,8 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
 local Recorder = {
-    Revision = "demonstration-recorder-r1",
-    BuildNumber = 11,
+    Revision = "demonstration-recorder-r2",
+    BuildNumber = 12,
     Active = false,
     Session = nil,
     Listeners = {},
@@ -372,8 +372,8 @@ function Recorder:Start(gameName)
     self.Message = "Learning " .. gameName .. " — play the round normally."
     self.Session = {
         schema = 1,
-        build = self.Loader and self.Loader.BuildVersion or "1.1 beta 11",
-        buildNumber = self.Loader and self.Loader.BuildNumber or 11,
+        build = self.Loader and self.Loader.BuildVersion or "1.1 beta 12",
+        buildNumber = self.Loader and self.Loader.BuildNumber or 12,
         game = gameName,
         placeId = game.PlaceId,
         startedAtUnix = os.time(),
