@@ -7,39 +7,24 @@ function GamesPage:Create(Page, App)
     local alive = true
     local lastDetected = nil
     local mobile = App:IsMobile()
-
-    -- Keep the recorder and game category controls fixed above the vertically
-    -- scrolling feature cards. They use separate hosts so neither can clip or
-    -- cover the other on narrow phone viewports.
-    local learningHeight = mobile and 112 or 104
     local categoryHeight = mobile and 102 or 106
-    local headerGap = mobile and 8 or 10
 
+    -- The learning recorder is a separate executable (Recorder.lua). Keeping the
+    -- Games page focused on navigation prevents recorder controls from being
+    -- clipped by subpage headers or affected by page scrolling.
     local shell = App.Loader.SubpageShell:Create(Page, App, {
         PageName = "Games",
-        HeaderHeight = learningHeight + headerGap + categoryHeight,
+        HeaderHeight = categoryHeight,
         ToolbarHeight = 0,
     })
 
-    local learningHost = Instance.new("Frame")
-    learningHost.Name = "LearningPanelHost"
-    learningHost.Position = UDim2.fromOffset(0, 0)
-    learningHost.Size = UDim2.new(1, 0, 0, learningHeight)
-    learningHost.BackgroundTransparency = 1
-    learningHost.ClipsDescendants = false
-    learningHost.Parent = shell.Header
-
     local categoryHost = Instance.new("Frame")
     categoryHost.Name = "GameCategoryHost"
-    categoryHost.Position = UDim2.fromOffset(0, learningHeight + headerGap)
+    categoryHost.Position = UDim2.fromOffset(0, 0)
     categoryHost.Size = UDim2.new(1, 0, 0, categoryHeight)
     categoryHost.BackgroundTransparency = 1
     categoryHost.ClipsDescendants = true
     categoryHost.Parent = shell.Header
-
-    local learning = App.Loader.LearningPanel:Create(learningHost, App, {
-        GameName = categories[1] and categories[1].Name or "Red Light, Green Light",
-    })
 
     local selector = App.Loader.CategoryStrip:Create(Page, App, {
         Parent = categoryHost,
@@ -52,7 +37,6 @@ function GamesPage:Create(Page, App)
         ButtonWidth = 190,
         Items = categories,
         OnSelected = function(item, _, userInitiated)
-            if learning and learning.SetGame then learning.SetGame(item.Name) end
             if userInitiated and manager and type(manager.SetManualGameCategory) == "function" then
                 manager:SetManualGameCategory(item.Name)
             end

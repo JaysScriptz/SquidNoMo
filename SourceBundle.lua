@@ -1,16 +1,16 @@
 -- Generated SquidNoMo verified source bundle.
--- Upload this file together with BuildManifest.lua and Main.lua.
+-- Upload this file together with BuildManifest.lua, Main.lua, and Recorder.lua.
 return {
-    BuildToken = [====[1_1_beta_12-visible-learning-controls-r12]====],
+    BuildToken = [====[1_1_beta_13-standalone-learning-recorder-r13]====],
     Sources = {
-        [ [====[BuildManifest.lua]====] ] = [====[-- SquidNoMo deployment manifest.
+        ["BuildManifest.lua"] = [====[-- SquidNoMo deployment manifest.
 -- BuildNumber is advanced automatically by repository workflows whenever feature code changes.
 
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 12,
-    Revision = "visible-learning-controls-r12",
+    BuildNumber = 13,
+    Revision = "standalone-learning-recorder-r13",
     FeatureRuntimeRevision = "adaptive-game-runtime-r10",
     GameRuntimeRevision = "game-modules-rlgl-learner-r10",
     PlayerRuntimeRevision = "player-runtime-r4",
@@ -20,6 +20,7 @@ local Manifest = {
     UIFeatureCount = 23,
     ExpectedRegistryTotal = 117,
     StartupBundle = "SourceBundle.lua",
+    StandaloneRecorder = "Recorder.lua",
     StartupTimeoutSeconds = 30,
     RequiredSharedFiles = {
         "Features/Shared/Runtime.lua",
@@ -47,7 +48,7 @@ Manifest.BuildToken = string.gsub(
 
 return Manifest
 ]====],
-        [ [====[Config.lua]====] ] = [====[local Config = {}
+        ["Config.lua"] = [====[local Config = {}
 
 Config.Debug = true
 
@@ -58,7 +59,7 @@ Config.Repository = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/mai
 
 return Config
 ]====],
-        [ [====[Core/App.lua]====] ] = [====[-- Runtime patch: navigation selection uses Lua closures, not custom TextButton methods.
+        ["Core/App.lua"] = [====[-- Runtime patch: navigation selection uses Lua closures, not custom TextButton methods.
 --//========================================================--
 --// SquidNoMo - Universal App Runtime (Mobile V2)
 --// Core/App.lua
@@ -6410,7 +6411,7 @@ end
 return App
 
 ]====],
-        [ [====[Core/Components.lua]====] ] = [====[--//========================================================--
+        ["Core/Components.lua"] = [====[--//========================================================--
 --// SquidNoMo
 --// 1.1 beta 1
 --// Components.lua
@@ -7422,7 +7423,7 @@ end
 
 return Components
 ]====],
-        [ [====[Core/FeatureRegistry.lua]====] ] = [====[--//========================================================--
+        ["Core/FeatureRegistry.lua"] = [====[--//========================================================--
 --// SquidNoMo
 --// 1.1 beta 1
 --// Core/FeatureRegistry.lua
@@ -7670,7 +7671,7 @@ end
 
 return FeatureRegistry
 ]====],
-        [ [====[Core/Icons.lua]====] ] = [====[--//========================================================--
+        ["Core/Icons.lua"] = [====[--//========================================================--
 --// SquidNoMo
 --// 1.1 beta 1
 --// Core/Icons.lua
@@ -7877,7 +7878,7 @@ end
 
 return Icons
 ]====],
-        [ [====[Core/Navigation.lua]====] ] = [====[--//========================================================--
+        ["Core/Navigation.lua"] = [====[--//========================================================--
 --// SquidNoMo
 --// 1.1 beta 1
 --// Navigation.lua
@@ -8048,7 +8049,7 @@ end
 
 return Navigation
 ]====],
-        [ [====[Core/Notifications.lua]====] ] = [====[--//========================================================--
+        ["Core/Notifications.lua"] = [====[--//========================================================--
 --// SquidNoMo
 --// 1.1 beta 1
 --// Notifications.lua
@@ -8257,7 +8258,7 @@ end
 
 return Notifications
 ]====],
-        [ [====[Core/RuntimeStats.lua]====] ] = [====[--//========================================================--
+        ["Core/RuntimeStats.lua"] = [====[--//========================================================--
 --// SquidNoMo
 --// 1.1 beta 1
 --// Core/RuntimeStats.lua
@@ -8377,7 +8378,7 @@ end
 
 return RuntimeStats
 ]====],
-        [ [====[Core/SettingsStore.lua]====] ] = [====[local SettingsStore = {}
+        ["Core/SettingsStore.lua"] = [====[local SettingsStore = {}
 
 local HttpService = game:GetService("HttpService")
 
@@ -8472,7 +8473,7 @@ end
 
 return SettingsStore
 ]====],
-        [ [====[Core/Theme.lua]====] ] = [====[--//========================================================--
+        ["Core/Theme.lua"] = [====[--//========================================================--
 --// SquidNoMo
 --// 1.1 beta 1
 --// Theme.lua
@@ -8686,7 +8687,7 @@ end
 
 return Theme
 ]====],
-        [ [====[Core/UIStyleManager.lua]====] ] = [====[local UIStyleManager = {}
+        ["Core/UIStyleManager.lua"] = [====[local UIStyleManager = {}
 
 UIStyleManager.PageNames = {
     'Home',
@@ -9261,7 +9262,7 @@ end
 
 return UIStyleManager
 ]====],
-        [ [====[Core/Utilities.lua]====] ] = [====[--//========================================================--
+        ["Core/Utilities.lua"] = [====[--//========================================================--
 --// SquidNoMo
 --// 1.1 beta 1
 --// Utilities.lua
@@ -9567,7 +9568,7 @@ end
 
 return Utilities
 ]====],
-        [ [====[Features/Detective/BoatDepositor.lua]====] ] = [====[local Environment = _G
+        ["Features/Detective/BoatDepositor.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -9600,7 +9601,7 @@ return Runtime:CreateFeature({
     ActionPriority = 85,
 })
 ]====],
-        [ [====[Features/Detective/DisguiseManager.lua]====] ] = [====[local Environment = _G
+        ["Features/Detective/DisguiseManager.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -9628,7 +9629,7 @@ return Runtime:CreateFeature({
     Interval = 0.5,
 })
 ]====],
-        [ [====[Features/Detective/EvidenceCollector.lua]====] ] = [====[local Environment = _G
+        ["Features/Detective/EvidenceCollector.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -9662,7 +9663,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for collectible evidence",
 })
 ]====],
-        [ [====[Features/Detective/EvidenceESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Detective/EvidenceESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -9691,7 +9692,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for evidence objects",
 })
 ]====],
-        [ [====[Features/Detective/IslandNavigator.lua]====] ] = [====[local Environment = _G
+        ["Features/Detective/IslandNavigator.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -9723,7 +9724,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for evidence on the island",
 })
 ]====],
-        [ [====[Features/Farming/DetectiveMasterController.lua]====] ] = [====[local Environment = _G
+        ["Features/Farming/DetectiveMasterController.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -9782,7 +9783,7 @@ return FarmingRuntime:CreateController({
     end,
 })
 ]====],
-        [ [====[Features/Farming/FarmingRuntime.lua]====] ] = [====[-- SquidNoMo farming controller runtime
+        ["Features/Farming/FarmingRuntime.lua"] = [====[-- SquidNoMo farming controller runtime
 -- Coordinates existing feature modules without relying on Roblox Instance require paths.
 
 local Players = game:GetService("Players")
@@ -10561,7 +10562,7 @@ end
 Environment.__SquidNoMoFarmingRuntime = FarmingRuntime
 return FarmingRuntime
 ]====],
-        [ [====[Features/Farming/FrontmanAdaptiveController.lua]====] ] = [====[local Environment = _G
+        ["Features/Farming/FrontmanAdaptiveController.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -10671,7 +10672,7 @@ end
 
 return Controller
 ]====],
-        [ [====[Features/Farming/GuardMasterController.lua]====] ] = [====[local Environment = _G
+        ["Features/Farming/GuardMasterController.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -10776,7 +10777,7 @@ return FarmingRuntime:CreateController({
     end,
 })
 ]====],
-        [ [====[Features/Farming/PlayerMinigameBot.lua]====] ] = [====[local Environment = _G
+        ["Features/Farming/PlayerMinigameBot.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -10883,7 +10884,7 @@ return FarmingRuntime:CreateController({
     end,
 })
 ]====],
-        [ [====[Features/FeatureManager.lua]====] ] = [====[--// SquidNoMo live feature registry and loader
+        ["Features/FeatureManager.lua"] = [====[--// SquidNoMo live feature registry and loader
 
 local FeatureManager = {}
 
@@ -11715,7 +11716,7 @@ end
 
 return FeatureManager
 ]====],
-        [ [====[Features/Games/Dalgona/AutoCut.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Dalgona/AutoCut.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -11741,7 +11742,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.75,
 })
 ]====],
-        [ [====[Features/Games/Dalgona/AutoLighter.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Dalgona/AutoLighter.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -11769,7 +11770,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for a lighter tool",
 })
 ]====],
-        [ [====[Features/Games/Dalgona/HighlightESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Dalgona/HighlightESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -11798,7 +11799,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for the Dalgona shape interface",
 })
 ]====],
-        [ [====[Features/Games/Dalgona/TraceHelper.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Dalgona/TraceHelper.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -11827,7 +11828,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for a visible trace path",
 })
 ]====],
-        [ [====[Features/Games/Escape/IslandNav.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Escape/IslandNav.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -11860,7 +11861,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for an extraction boat or finish point",
 })
 ]====],
-        [ [====[Features/Games/GameRuntime.lua]====] ] = [====[-- SquidNoMo game feature runtime, adaptive RLGL signal learner for beta 10.
+        ["Features/Games/GameRuntime.lua"] = [====[-- SquidNoMo game feature runtime, adaptive RLGL signal learner for beta 10.
 -- All game modules use this single cooperative runtime. No game module starts its
 -- own uncontrolled loop or performs an HTTP request.
 
@@ -13497,7 +13498,7 @@ end
 
 return GameRuntime
 ]====],
-        [ [====[Features/Games/GlassBridge/AntiFall.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/GlassBridge/AntiFall.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13525,7 +13526,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.55,
 })
 ]====],
-        [ [====[Features/Games/GlassBridge/AutoComplete.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/GlassBridge/AutoComplete.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13553,7 +13554,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.75,
 })
 ]====],
-        [ [====[Features/Games/GlassBridge/AutoReset.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/GlassBridge/AutoReset.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13581,7 +13582,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.55,
 })
 ]====],
-        [ [====[Features/Games/GlassBridge/GlassESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/GlassBridge/GlassESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13609,7 +13610,7 @@ return Runtime:CreateFeature({
     IdleInterval = 1.0,
 })
 ]====],
-        [ [====[Features/Games/HideSeek/AutoGrabKey.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/HideSeek/AutoGrabKey.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13644,7 +13645,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for an available Hide & Seek key",
 })
 ]====],
-        [ [====[Features/Games/HideSeek/AutoGrabKnife.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/HideSeek/AutoGrabKnife.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13679,7 +13680,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for an available knife",
 })
 ]====],
-        [ [====[Features/Games/HideSeek/AutoPathToExit.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/HideSeek/AutoPathToExit.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13714,7 +13715,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for a detected exit",
 })
 ]====],
-        [ [====[Features/Games/HideSeek/AutoSwing.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/HideSeek/AutoSwing.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13746,7 +13747,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for a melee tool and nearby opponent",
 })
 ]====],
-        [ [====[Features/Games/HideSeek/EnemyESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/HideSeek/EnemyESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13774,7 +13775,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for opposing players",
 })
 ]====],
-        [ [====[Features/Games/HideSeek/ExitESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/HideSeek/ExitESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13805,7 +13806,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for detected exits",
 })
 ]====],
-        [ [====[Features/Games/HideSeek/HunterTracker.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/HideSeek/HunterTracker.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13835,7 +13836,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for a hunter or seeker role",
 })
 ]====],
-        [ [====[Features/Games/HideSeek/MapRadar.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/HideSeek/MapRadar.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13864,7 +13865,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.8,
 })
 ]====],
-        [ [====[Features/Games/JumpRope/AutoComplete.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/JumpRope/AutoComplete.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13896,7 +13897,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.65,
 })
 ]====],
-        [ [====[Features/Games/JumpRope/AutoJump.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/JumpRope/AutoJump.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13924,7 +13925,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.55,
 })
 ]====],
-        [ [====[Features/Games/JumpRope/AutoPosition.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/JumpRope/AutoPosition.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13954,7 +13955,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.75,
 })
 ]====],
-        [ [====[Features/Games/JumpRope/JumpBoost.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/JumpRope/JumpBoost.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -13981,7 +13982,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.8,
 })
 ]====],
-        [ [====[Features/Games/Marbles/MarbleAimer.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Marbles/MarbleAimer.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14013,7 +14014,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.8,
 })
 ]====],
-        [ [====[Features/Games/Marbles/MarblesESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Marbles/MarblesESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14043,7 +14044,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for marble targets",
 })
 ]====],
-        [ [====[Features/Games/Marbles/RecoveryAssist.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Marbles/RecoveryAssist.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14070,7 +14071,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.8,
 })
 ]====],
-        [ [====[Features/Games/Marbles/RingShooter.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Marbles/RingShooter.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14102,7 +14103,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.75,
 })
 ]====],
-        [ [====[Features/Games/Mingle/AutoRoom.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Mingle/AutoRoom.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14131,7 +14132,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.75,
 })
 ]====],
-        [ [====[Features/Games/Mingle/RoomESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Mingle/RoomESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14158,7 +14159,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.9,
 })
 ]====],
-        [ [====[Features/Games/Mingle/SmartRoom.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Mingle/SmartRoom.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14187,7 +14188,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.7,
 })
 ]====],
-        [ [====[Features/Games/NightBrawls/BrawlESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/NightBrawls/BrawlESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14215,7 +14216,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for night-brawl opponents",
 })
 ]====],
-        [ [====[Features/Games/NightBrawls/BrawlEvasion.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/NightBrawls/BrawlEvasion.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14243,7 +14244,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.7,
 })
 ]====],
-        [ [====[Features/Games/NightBrawls/CombatAura.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/NightBrawls/CombatAura.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14273,7 +14274,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.7,
 })
 ]====],
-        [ [====[Features/Games/Pentathlon/Biseokchigi.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Pentathlon/Biseokchigi.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14305,7 +14306,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.65,
 })
 ]====],
-        [ [====[Features/Games/Pentathlon/Ddakji.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Pentathlon/Ddakji.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14337,7 +14338,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.65,
 })
 ]====],
-        [ [====[Features/Games/Pentathlon/Gonggi.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Pentathlon/Gonggi.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14367,7 +14368,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.65,
 })
 ]====],
-        [ [====[Features/Games/Pentathlon/Jegichagi.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Pentathlon/Jegichagi.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14399,7 +14400,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.65,
 })
 ]====],
-        [ [====[Features/Games/Pentathlon/Paengi.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Pentathlon/Paengi.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14431,7 +14432,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.65,
 })
 ]====],
-        [ [====[Features/Games/RLGL/AntiStuck.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/RLGL/AntiStuck.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14458,7 +14459,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.75,
 })
 ]====],
-        [ [====[Features/Games/RLGL/AutoMove.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/RLGL/AutoMove.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14488,7 +14489,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.55,
 })
 ]====],
-        [ [====[Features/Games/RLGL/DollESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/RLGL/DollESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14519,7 +14520,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for the RLGL doll",
 })
 ]====],
-        [ [====[Features/Games/RLGL/SafeZoneESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/RLGL/SafeZoneESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14550,7 +14551,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for the finish or safe zone",
 })
 ]====],
-        [ [====[Features/Games/RLGL/StateESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/RLGL/StateESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14575,7 +14576,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.55,
 })
 ]====],
-        [ [====[Features/Games/Rebellion/FrontmanNavigator.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Rebellion/FrontmanNavigator.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14608,7 +14609,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for the Frontman objective",
 })
 ]====],
-        [ [====[Features/Games/Rebellion/GuardCombat.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/Rebellion/GuardCombat.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14641,7 +14642,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.75,
 })
 ]====],
-        [ [====[Features/Games/RockPaperScissors/AutoPlay.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/RockPaperScissors/AutoPlay.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14666,7 +14667,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.75,
 })
 ]====],
-        [ [====[Features/Games/SkySquid/AntiFall.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/SkySquid/AntiFall.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14694,7 +14695,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.55,
 })
 ]====],
-        [ [====[Features/Games/SkySquid/AutoFight.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/SkySquid/AutoFight.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14724,7 +14725,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.7,
 })
 ]====],
-        [ [====[Features/Games/SkySquid/AutoPush.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/SkySquid/AutoPush.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14754,7 +14755,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.7,
 })
 ]====],
-        [ [====[Features/Games/SkySquid/InstantGrab.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/SkySquid/InstantGrab.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14788,7 +14789,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for a nearby usable item",
 })
 ]====],
-        [ [====[Features/Games/SquidGame/CourtBoundaryKeeper.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/SquidGame/CourtBoundaryKeeper.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14819,7 +14820,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for the Squid Game court",
 })
 ]====],
-        [ [====[Features/Games/SquidGame/SquidGamePush.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/SquidGame/SquidGamePush.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14849,7 +14850,7 @@ return Runtime:CreateFeature({
     IdleInterval = 0.7,
 })
 ]====],
-        [ [====[Features/Games/TugOfWar/AutoPull.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/TugOfWar/AutoPull.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14879,7 +14880,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for the Tug of War pull control",
 })
 ]====],
-        [ [====[Features/Games/TugOfWar/PerfectTiming.lua]====] ] = [====[local Environment = _G
+        ["Features/Games/TugOfWar/PerfectTiming.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14911,7 +14912,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for the Tug of War timing meter",
 })
 ]====],
-        [ [====[Features/Guard/Coffin/CoffinDisposal.lua]====] ] = [====[local Environment = _G
+        ["Features/Guard/Coffin/CoffinDisposal.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14944,7 +14945,7 @@ return Runtime:CreateFeature({
     ActionPriority = 75,
 })
 ]====],
-        [ [====[Features/Guard/Coffin/CoffinGrabber.lua]====] ] = [====[local Environment = _G
+        ["Features/Guard/Coffin/CoffinGrabber.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -14978,7 +14979,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for an available coffin or body",
 })
 ]====],
-        [ [====[Features/Guard/Kitchen/AutoCooker.lua]====] ] = [====[local Environment = _G
+        ["Features/Guard/Kitchen/AutoCooker.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -15011,7 +15012,7 @@ return Runtime:CreateFeature({
     ActionPriority = 70,
 })
 ]====],
-        [ [====[Features/Guard/Kitchen/AutoStorage.lua]====] ] = [====[local Environment = _G
+        ["Features/Guard/Kitchen/AutoStorage.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -15044,7 +15045,7 @@ return Runtime:CreateFeature({
     ActionPriority = 80,
 })
 ]====],
-        [ [====[Features/Guard/Kitchen/AutoSupply.lua]====] ] = [====[local Environment = _G
+        ["Features/Guard/Kitchen/AutoSupply.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -15078,7 +15079,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for kitchen supplies",
 })
 ]====],
-        [ [====[Features/Guard/PlayerModeration/GuardLocalCleanup.lua]====] ] = [====[local Environment = _G
+        ["Features/Guard/PlayerModeration/GuardLocalCleanup.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -15110,7 +15111,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for a nearby cleanup target",
 })
 ]====],
-        [ [====[Features/Guard/PlayerModeration/GuardLocalModerator.lua]====] ] = [====[local Environment = _G
+        ["Features/Guard/PlayerModeration/GuardLocalModerator.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then Environment = result end
@@ -15140,7 +15141,7 @@ return Runtime:CreateFeature({
     Interval = 0.22,
 })
 ]====],
-        [ [====[Features/Player/AntiAFK.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/AntiAFK.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15180,7 +15181,7 @@ return Runtime:CreateFeature({
     Kind = "AntiAFK",
 })
 ]====],
-        [ [====[Features/Player/AntiLag.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/AntiLag.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15221,7 +15222,7 @@ return Runtime:CreateFeature({
     Interval = 1.2,
 })
 ]====],
-        [ [====[Features/Player/AutoJump.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/AutoJump.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15262,7 +15263,7 @@ return Runtime:CreateFeature({
     Interval = 0.08,
 })
 ]====],
-        [ [====[Features/Player/AutoPickUpBaby.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/AutoPickUpBaby.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15318,7 +15319,7 @@ return Runtime:CreateFeature({
     WaitingMessage = "Waiting for a nearby Baby pickup",
 })
 ]====],
-        [ [====[Features/Player/AutoStand.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/AutoStand.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15358,7 +15359,7 @@ return Runtime:CreateFeature({
     Kind = "AutoStand",
 })
 ]====],
-        [ [====[Features/Player/BoxESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/BoxESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15401,7 +15402,7 @@ return Runtime:CreateFeature({
     OutlineColor = Color3.fromRGB(255, 210, 60),
 })
 ]====],
-        [ [====[Features/Player/DetectiveESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/DetectiveESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15444,7 +15445,7 @@ return Runtime:CreateFeature({
     FillTransparency = 0.48,
 })
 ]====],
-        [ [====[Features/Player/DistanceESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/DistanceESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15487,7 +15488,7 @@ return Runtime:CreateFeature({
     Interval = 0.32,
 })
 ]====],
-        [ [====[Features/Player/ForceThirdPerson.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/ForceThirdPerson.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15529,7 +15530,7 @@ return Runtime:CreateFeature({
     MaxZoom = 24,
 })
 ]====],
-        [ [====[Features/Player/FrontmanESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/FrontmanESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15572,7 +15573,7 @@ return Runtime:CreateFeature({
     FillTransparency = 0.45,
 })
 ]====],
-        [ [====[Features/Player/Gravity.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/Gravity.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15618,7 +15619,7 @@ return Runtime:CreateFeature({
     Interval = 0.2,
 })
 ]====],
-        [ [====[Features/Player/GuardESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/GuardESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15661,7 +15662,7 @@ return Runtime:CreateFeature({
     FillTransparency = 0.48,
 })
 ]====],
-        [ [====[Features/Player/HealthESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/HealthESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15704,7 +15705,7 @@ return Runtime:CreateFeature({
     Interval = 0.32,
 })
 ]====],
-        [ [====[Features/Player/HideOthers.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/HideOthers.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15746,7 +15747,7 @@ return Runtime:CreateFeature({
     Interval = 0.35,
 })
 ]====],
-        [ [====[Features/Player/HideSelf.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/HideSelf.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15788,7 +15789,7 @@ return Runtime:CreateFeature({
     Interval = 0.25,
 })
 ]====],
-        [ [====[Features/Player/InfiniteJump.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/InfiniteJump.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -15828,7 +15829,7 @@ return Runtime:CreateFeature({
     Kind = "InfiniteJump",
 })
 ]====],
-        [ [====[Features/Player/Init.lua]====] ] = [====[-- SquidNoMo player module registry
+        ["Features/Player/Init.lua"] = [====[-- SquidNoMo player module registry
 -- Every file under Features/Player is loaded and registered here.
 
 local Player = {}
@@ -15984,7 +15985,7 @@ end
 
 return Player
 ]====],
-        [ [====[Features/Player/JumpPower.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/JumpPower.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -16030,7 +16031,7 @@ return Runtime:CreateFeature({
     Interval = 0.1,
 })
 ]====],
-        [ [====[Features/Player/MuteCharacterSounds.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/MuteCharacterSounds.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -16071,7 +16072,7 @@ return Runtime:CreateFeature({
     Interval = 0.45,
 })
 ]====],
-        [ [====[Features/Player/NameESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/NameESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -16114,7 +16115,7 @@ return Runtime:CreateFeature({
     Interval = 0.9,
 })
 ]====],
-        [ [====[Features/Player/NoClip.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/NoClip.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -16154,7 +16155,7 @@ return Runtime:CreateFeature({
     Kind = "NoClip",
 })
 ]====],
-        [ [====[Features/Player/PlayerESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/PlayerESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -16196,7 +16197,7 @@ return Runtime:CreateFeature({
     FillTransparency = 0.5,
 })
 ]====],
-        [ [====[Features/Player/Rejoin.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/Rejoin.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -16237,7 +16238,7 @@ return Runtime:CreateFeature({
     Action = "Rejoin",
 })
 ]====],
-        [ [====[Features/Player/Reset.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/Reset.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -16278,7 +16279,7 @@ return Runtime:CreateFeature({
     Action = "Reset",
 })
 ]====],
-        [ [====[Features/Player/ToolESP.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/ToolESP.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -16320,7 +16321,7 @@ return Runtime:CreateFeature({
     Interval = 0.95,
 })
 ]====],
-        [ [====[Features/Player/UnlockZoom.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/UnlockZoom.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -16361,7 +16362,7 @@ return Runtime:CreateFeature({
     MaxZoom = 1000,
 })
 ]====],
-        [ [====[Features/Player/WalkSpeed.lua]====] ] = [====[local Environment = _G
+        ["Features/Player/WalkSpeed.lua"] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
     if ok and type(result) == "table" then
@@ -16407,16 +16408,25 @@ return Runtime:CreateFeature({
     Interval = 0.1,
 })
 ]====],
-        [ [====[Features/Shared/LearningRecorder.lua]====] ] = [====[local Players = game:GetService("Players")
+        ["Features/Shared/LearningRecorder.lua"] = [====[local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 
+local BootEnvironment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then BootEnvironment = result end
+end
+local BootManifest = type(BootEnvironment.__SquidNoMoBuildManifest) == "table"
+    and BootEnvironment.__SquidNoMoBuildManifest
+    or {}
+
 local Recorder = {
-    Revision = "demonstration-recorder-r2",
-    BuildNumber = 12,
+    Revision = "standalone-demonstration-recorder-r3",
+    BuildNumber = tonumber(BootManifest.BuildNumber) or 13,
     Active = false,
     Session = nil,
     Listeners = {},
@@ -16573,6 +16583,7 @@ end
 
 function Recorder:Initialize(Loader, Manager)
     self.Loader = Loader
+    self.BuildNumber = tonumber(Loader and Loader.BuildNumber) or self.BuildNumber
     self.Manager = Manager
     self.Runtime = Loader
         and Loader.Features
@@ -16781,8 +16792,8 @@ function Recorder:Start(gameName)
     self.Message = "Learning " .. gameName .. " — play the round normally."
     self.Session = {
         schema = 1,
-        build = self.Loader and self.Loader.BuildVersion or "1.1 beta 12",
-        buildNumber = self.Loader and self.Loader.BuildNumber or 12,
+        build = self.Loader and self.Loader.BuildVersion or "1.1 beta 13",
+        buildNumber = self.Loader and self.Loader.BuildNumber or 13,
         game = gameName,
         placeId = game.PlaceId,
         startedAtUnix = os.time(),
@@ -16920,7 +16931,7 @@ end
 
 return Recorder
 ]====],
-        [ [====[Features/Shared/PlayerRuntime.lua]====] ] = [====[-- SquidNoMo player feature runtime
+        ["Features/Shared/PlayerRuntime.lua"] = [====[-- SquidNoMo player feature runtime
 -- Shared implementation for every module under Features/Player.
 
 local Players = game:GetService("Players")
@@ -18172,7 +18183,7 @@ end
 
 return Runtime
 ]====],
-        [ [====[Features/Shared/RoleService.lua]====] ] = [====[local RoleService = {}
+        ["Features/Shared/RoleService.lua"] = [====[local RoleService = {}
 
 RoleService.Roles = {
     Player = "Player",
@@ -18265,7 +18276,7 @@ end
 
 return RoleService
 ]====],
-        [ [====[Features/Shared/Runtime.lua]====] ] = [====[-- SquidNoMo feature runtime
+        ["Features/Shared/Runtime.lua"] = [====[-- SquidNoMo feature runtime
 -- Runtime identity is supplied by BuildManifest.lua so feature fixes can advance builds automatically.
 
 local Players = game:GetService("Players")
@@ -22787,7 +22798,7 @@ end
 
 return Runtime
 ]====],
-        [ [====[Features/UI/CameraFOV.lua]====] ] = [====[local CameraFOV = {}
+        ["Features/UI/CameraFOV.lua"] = [====[local CameraFOV = {}
 local Workspace = game:GetService("Workspace")
 
 local Current = 70
@@ -22887,7 +22898,7 @@ end
 
 return CameraFOV
 ]====],
-        [ [====[Features/UI/ClockHUD.lua]====] ] = [====[local ClockHUD = {}
+        ["Features/UI/ClockHUD.lua"] = [====[local ClockHUD = {}
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 
@@ -22972,7 +22983,7 @@ function ClockHUD:GetState() return Enabled and "on" or "off" end
 
 return ClockHUD
 ]====],
-        [ [====[Features/UI/CompassHUD.lua]====] ] = [====[local CompassHUD = {}
+        ["Features/UI/CompassHUD.lua"] = [====[local CompassHUD = {}
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
@@ -23064,7 +23075,7 @@ function CompassHUD:GetState() return Enabled and "on" or "off" end
 
 return CompassHUD
 ]====],
-        [ [====[Features/UI/CoordinatesHUD.lua]====] ] = [====[local CoordinatesHUD = {}
+        ["Features/UI/CoordinatesHUD.lua"] = [====[local CoordinatesHUD = {}
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
@@ -23157,7 +23168,7 @@ function CoordinatesHUD:GetState() return Enabled and "on" or "off" end
 
 return CoordinatesHUD
 ]====],
-        [ [====[Features/UI/CoreGuiToggle.lua]====] ] = [====[local StarterGui = game:GetService("StarterGui")
+        ["Features/UI/CoreGuiToggle.lua"] = [====[local StarterGui = game:GetService("StarterGui")
 
 local CoreGuiToggle = {}
 CoreGuiToggle.__index = CoreGuiToggle
@@ -23194,7 +23205,7 @@ end
 
 return CoreGuiToggle
 ]====],
-        [ [====[Features/UI/Crosshair.lua]====] ] = [====[local Crosshair = {}
+        ["Features/UI/Crosshair.lua"] = [====[local Crosshair = {}
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
@@ -23279,7 +23290,7 @@ function Crosshair:GetColor() return Color end
 
 return Crosshair
 ]====],
-        [ [====[Features/UI/DisableParticles.lua]====] ] = [====[local DisableParticles = {}
+        ["Features/UI/DisableParticles.lua"] = [====[local DisableParticles = {}
 local Workspace = game:GetService("Workspace")
 
 local Enabled = false
@@ -23344,7 +23355,7 @@ function DisableParticles:GetState() return Enabled and "on" or "off" end
 
 return DisableParticles
 ]====],
-        [ [====[Features/UI/DisableShadows.lua]====] ] = [====[local DisableShadows = {}
+        ["Features/UI/DisableShadows.lua"] = [====[local DisableShadows = {}
 local Lighting = game:GetService("Lighting")
 
 local Enabled = false
@@ -23377,7 +23388,7 @@ function DisableShadows:GetState() return Enabled and "on" or "off" end
 
 return DisableShadows
 ]====],
-        [ [====[Features/UI/Fullbright.lua]====] ] = [====[local Fullbright = {}
+        ["Features/UI/Fullbright.lua"] = [====[local Fullbright = {}
 local Lighting = game:GetService("Lighting")
 
 local Enabled = false
@@ -23432,7 +23443,7 @@ function Fullbright:GetState() return Enabled and "on" or "off" end
 
 return Fullbright
 ]====],
-        [ [====[Features/UI/HighContrast.lua]====] ] = [====[local HighContrast = {}
+        ["Features/UI/HighContrast.lua"] = [====[local HighContrast = {}
 local Lighting = game:GetService("Lighting")
 
 local Enabled = false
@@ -23472,7 +23483,7 @@ function HighContrast:GetState() return Enabled and "on" or "off" end
 
 return HighContrast
 ]====],
-        [ [====[Features/UI/Init.lua]====] ] = [====[local UI = {}
+        ["Features/UI/Init.lua"] = [====[local UI = {}
 
 function UI:Initialize(Loader)
     local function Load(name)
@@ -23563,7 +23574,7 @@ end
 
 return UI
 ]====],
-        [ [====[Features/UI/PerformanceHUD.lua]====] ] = [====[local PerformanceHUD = {}
+        ["Features/UI/PerformanceHUD.lua"] = [====[local PerformanceHUD = {}
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -23681,7 +23692,7 @@ function PerformanceHUD:GetState() return Enabled and "on" or "off" end
 
 return PerformanceHUD
 ]====],
-        [ [====[Features/UI/RemoveAtmosphere.lua]====] ] = [====[local RemoveAtmosphere = {}
+        ["Features/UI/RemoveAtmosphere.lua"] = [====[local RemoveAtmosphere = {}
 local Lighting = game:GetService("Lighting")
 
 local Enabled = false
@@ -23731,7 +23742,7 @@ function RemoveAtmosphere:GetState() return Enabled and "on" or "off" end
 
 return RemoveAtmosphere
 ]====],
-        [ [====[Features/UI/RemoveBlur.lua]====] ] = [====[local RemoveBlur = {}
+        ["Features/UI/RemoveBlur.lua"] = [====[local RemoveBlur = {}
 local Lighting = game:GetService("Lighting")
 local Enabled = false
 local States = {}
@@ -23766,7 +23777,7 @@ function RemoveBlur:IsEnabled() return Enabled end
 function RemoveBlur:GetState() return Enabled and "on" or "off" end
 return RemoveBlur
 ]====],
-        [ [====[Features/UI/RemoveFog.lua]====] ] = [====[local RemoveFog = {}
+        ["Features/UI/RemoveFog.lua"] = [====[local RemoveFog = {}
 local Lighting = game:GetService("Lighting")
 
 local Enabled = false
@@ -23800,7 +23811,7 @@ function RemoveFog:GetState() return Enabled and "on" or "off" end
 
 return RemoveFog
 ]====],
-        [ [====[Features/UI/RoleLegend.lua]====] ] = [====[local RoleLegend = {}
+        ["Features/UI/RoleLegend.lua"] = [====[local RoleLegend = {}
 
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
@@ -23896,7 +23907,7 @@ function RoleLegend:GetState() return Enabled and "on" or "off" end
 
 return RoleLegend
 ]====],
-        [ [====[Features/UI/ScreenEffects.lua]====] ] = [====[local ScreenEffects = {}
+        ["Features/UI/ScreenEffects.lua"] = [====[local ScreenEffects = {}
 local Lighting = game:GetService("Lighting")
 local Enabled = false
 local States = {}
@@ -23941,7 +23952,7 @@ function ScreenEffects:IsEnabled() return Enabled end
 function ScreenEffects:GetState() return Enabled and "on" or "off" end
 return ScreenEffects
 ]====],
-        [ [====[Features/UI/ServerHUD.lua]====] ] = [====[local ServerHUD = {}
+        ["Features/UI/ServerHUD.lua"] = [====[local ServerHUD = {}
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 
@@ -24029,7 +24040,7 @@ function ServerHUD:GetState() return Enabled and "on" or "off" end
 
 return ServerHUD
 ]====],
-        [ [====[Features/UI/SessionHUD.lua]====] ] = [====[local SessionHUD = {}
+        ["Features/UI/SessionHUD.lua"] = [====[local SessionHUD = {}
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 
@@ -24122,7 +24133,7 @@ function SessionHUD:GetState() return Enabled and "on" or "off" end
 
 return SessionHUD
 ]====],
-        [ [====[Features/UI/SpeedHUD.lua]====] ] = [====[local SpeedHUD = {}
+        ["Features/UI/SpeedHUD.lua"] = [====[local SpeedHUD = {}
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
@@ -24209,7 +24220,7 @@ function SpeedHUD:GetState() return Enabled and "on" or "off" end
 
 return SpeedHUD
 ]====],
-        [ [====[Loader.lua]====] ] = [====[--// SquidNoMo loader
+        ["Loader.lua"] = [====[--// SquidNoMo loader
 -- BUNDLE_COMPATIBLE_LOADER: bundled-startup-recovery-r5
 
 local REPOSITORY = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
@@ -24527,13 +24538,11 @@ end
 
 Loader.FeatureCatalog = Load("Modules/FeatureCatalog.lua")
 Loader.FeatureManager = Load("Features/FeatureManager.lua")
-Loader.LearningRecorder = Load("Features/Shared/LearningRecorder.lua")
 Loader.App = Load("Core/App.lua")
 
 Loader.Home = Load("Modules/Home.lua")
 Loader.SubpageShell = Load("Modules/SubpageShell.lua")
 Loader.CategoryStrip = Load("Modules/CategoryStrip.lua")
-Loader.LearningPanel = Load("Modules/LearningPanel.lua")
 Loader.FeatureFolder = Load("Modules/FeatureFolder.lua")
 Loader.Games = Load("Modules/Games.lua")
 Loader.Players = Load("Modules/Players.lua")
@@ -24704,9 +24713,6 @@ if featuresLoaded then
         )
     end
 
-    if Loader.LearningRecorder and type(Loader.LearningRecorder.Initialize) == "function" then
-        Loader.LearningRecorder:Initialize(Loader, Loader.FeatureManager)
-    end
 
     print(
         "[Loader] Features initialized before page build:",
@@ -24781,7 +24787,7 @@ end
 
 return Loader
 ]====],
-        [ [====[Main.lua]====] ] = [====[--// SquidNoMo entry point
+        ["Main.lua"] = [====[--// SquidNoMo entry point
 
 local REPOSITORY = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
 local BANNER_PATH = "Images/BannerGuards.png"
@@ -25496,7 +25502,7 @@ bootstrap:Finish(result)
 print("[SquidNoMo] Loader executed")
 return result
 ]====],
-        [ [====[Modules/CategoryStrip.lua]====] ] = [====[local CategoryStrip = {}
+        ["Modules/CategoryStrip.lua"] = [====[local CategoryStrip = {}
 
 local function makeCorner(parent, radius)
     local corner = Instance.new("UICorner")
@@ -25699,7 +25705,7 @@ end
 
 return CategoryStrip
 ]====],
-        [ [====[Modules/Detective.lua]====] ] = [====[local DetectivePage = {}
+        ["Modules/Detective.lua"] = [====[local DetectivePage = {}
 
 function DetectivePage:Create(Page, App)
     local catalog = App.Loader.FeatureCatalog
@@ -25732,7 +25738,7 @@ end
 
 return DetectivePage
 ]====],
-        [ [====[Modules/Farming.lua]====] ] = [====[local FarmingPage = {}
+        ["Modules/Farming.lua"] = [====[local FarmingPage = {}
 
 function FarmingPage:Create(Page, App)
     local catalog = App.Loader and App.Loader.FeatureCatalog
@@ -25761,7 +25767,7 @@ end
 
 return FarmingPage
 ]====],
-        [ [====[Modules/FeatureCatalog.lua]====] ] = [====[local FeatureCatalog = {}
+        ["Modules/FeatureCatalog.lua"] = [====[local FeatureCatalog = {}
 
 local function slug(value)
     value = tostring(value or ""):lower()
@@ -26480,7 +26486,7 @@ end
 
 return FeatureCatalog
 ]====],
-        [ [====[Modules/FeatureFolder.lua]====] ] = [====[local FeatureFolder = {}
+        ["Modules/FeatureFolder.lua"] = [====[local FeatureFolder = {}
 
 local cache = {}
 
@@ -26906,7 +26912,7 @@ end
 
 return FeatureFolder
 ]====],
-        [ [====[Modules/Games.lua]====] ] = [====[local GamesPage = {}
+        ["Modules/Games.lua"] = [====[local GamesPage = {}
 
 function GamesPage:Create(Page, App)
     local catalog = App.Loader.FeatureCatalog
@@ -26915,39 +26921,24 @@ function GamesPage:Create(Page, App)
     local alive = true
     local lastDetected = nil
     local mobile = App:IsMobile()
-
-    -- Keep the recorder and game category controls fixed above the vertically
-    -- scrolling feature cards. They use separate hosts so neither can clip or
-    -- cover the other on narrow phone viewports.
-    local learningHeight = mobile and 112 or 104
     local categoryHeight = mobile and 102 or 106
-    local headerGap = mobile and 8 or 10
 
+    -- The learning recorder is a separate executable (Recorder.lua). Keeping the
+    -- Games page focused on navigation prevents recorder controls from being
+    -- clipped by subpage headers or affected by page scrolling.
     local shell = App.Loader.SubpageShell:Create(Page, App, {
         PageName = "Games",
-        HeaderHeight = learningHeight + headerGap + categoryHeight,
+        HeaderHeight = categoryHeight,
         ToolbarHeight = 0,
     })
 
-    local learningHost = Instance.new("Frame")
-    learningHost.Name = "LearningPanelHost"
-    learningHost.Position = UDim2.fromOffset(0, 0)
-    learningHost.Size = UDim2.new(1, 0, 0, learningHeight)
-    learningHost.BackgroundTransparency = 1
-    learningHost.ClipsDescendants = false
-    learningHost.Parent = shell.Header
-
     local categoryHost = Instance.new("Frame")
     categoryHost.Name = "GameCategoryHost"
-    categoryHost.Position = UDim2.fromOffset(0, learningHeight + headerGap)
+    categoryHost.Position = UDim2.fromOffset(0, 0)
     categoryHost.Size = UDim2.new(1, 0, 0, categoryHeight)
     categoryHost.BackgroundTransparency = 1
     categoryHost.ClipsDescendants = true
     categoryHost.Parent = shell.Header
-
-    local learning = App.Loader.LearningPanel:Create(learningHost, App, {
-        GameName = categories[1] and categories[1].Name or "Red Light, Green Light",
-    })
 
     local selector = App.Loader.CategoryStrip:Create(Page, App, {
         Parent = categoryHost,
@@ -26960,7 +26951,6 @@ function GamesPage:Create(Page, App)
         ButtonWidth = 190,
         Items = categories,
         OnSelected = function(item, _, userInitiated)
-            if learning and learning.SetGame then learning.SetGame(item.Name) end
             if userInitiated and manager and type(manager.SetManualGameCategory) == "function" then
                 manager:SetManualGameCategory(item.Name)
             end
@@ -27004,7 +26994,7 @@ end
 
 return GamesPage
 ]====],
-        [ [====[Modules/Guards.lua]====] ] = [====[local GuardsPage = {}
+        ["Modules/Guards.lua"] = [====[local GuardsPage = {}
 
 function GuardsPage:Create(Page, App)
     local catalog = App.Loader.FeatureCatalog
@@ -27037,7 +27027,47 @@ end
 
 return GuardsPage
 ]====],
-        [ [====[Modules/Home/DevelopmentGoal.lua]====] ] = [====[local DevelopmentGoal = {}
+        ["Modules/Home.lua"] = [====[local Home = {}
+
+function Home:Create(Page, App)
+
+	local Components = App.Components
+
+	local HeroBanner = App.Loader.HeroBanner
+	local FeatureGroups = App.Loader.FeatureGroups
+	local ServerStatus = App.Loader.ServerStatus
+	local NOMOAI = App.Loader.NOMOAI
+	local SupportDevelopment = App.Loader.SupportDevelopment
+	local DevelopmentGoal = App.Loader.DevelopmentGoal
+	local Supporters = App.Loader.Supporters
+	local ImportantNotice = App.Loader.ImportantNotice
+	local Footer = App.Loader.Footer
+
+
+	HeroBanner:Create(Page, App)
+
+	local Row1 = Components:CreateHorizontalContainer(Page)
+	Row1.LayoutOrder = 2
+
+	FeatureGroups:Create(Row1, App)
+	ServerStatus:Create(Row1, App)
+	NOMOAI:Create(Row1, App)
+
+	local Row2 = Components:CreateHorizontalContainer(Page)
+	Row2.LayoutOrder = 3
+
+	SupportDevelopment:Create(Row2, App)
+	DevelopmentGoal:Create(Row2, App)
+	Supporters:Create(Row2, App)
+
+	ImportantNotice:Create(Page, App)
+	Footer:Create(Page, App)
+
+end
+
+return Home
+]====],
+        ["Modules/Home/DevelopmentGoal.lua"] = [====[local DevelopmentGoal = {}
 
 function DevelopmentGoal:Create(Parent, App)
 
@@ -27132,7 +27162,7 @@ end
 
 return DevelopmentGoal
 ]====],
-        [ [====[Modules/Home/FeatureGroups.lua]====] ] = [====[local FeatureGroups = {}
+        ["Modules/Home/FeatureGroups.lua"] = [====[local FeatureGroups = {}
 
 function FeatureGroups:Create(Parent, App)
 
@@ -27195,7 +27225,7 @@ end
 
 return FeatureGroups
 ]====],
-        [ [====[Modules/Home/FeatureStats.lua]====] ] = [====[--//========================================================--
+        ["Modules/Home/FeatureStats.lua"] = [====[--//========================================================--
 --// SquidNoMo
 --// 1.1 beta 1
 --// Modules/Home/FeatureStats.lua
@@ -27476,7 +27506,7 @@ end
 
 return FeatureStats
 ]====],
-        [ [====[Modules/Home/Footer.lua]====] ] = [====[local Footer = {}
+        ["Modules/Home/Footer.lua"] = [====[local Footer = {}
 
 function Footer:Create(Parent, App)
 
@@ -27517,7 +27547,7 @@ end
 
 return Footer
 ]====],
-        [ [====[Modules/Home/Hero.lua]====] ] = [====[--//========================================================--
+        ["Modules/Home/Hero.lua"] = [====[--//========================================================--
 --// SquidNoMo
 --// 1.1 beta 1
 --// Modules/Home/Hero.lua
@@ -27702,7 +27732,7 @@ end
 
 return Hero
 ]====],
-        [ [====[Modules/Home/HeroBanner.lua]====] ] = [====[local HeroBanner = {}
+        ["Modules/Home/HeroBanner.lua"] = [====[local HeroBanner = {}
 
 function HeroBanner:Create(Parent, App)
 
@@ -27775,7 +27805,7 @@ end
 
 return HeroBanner
 ]====],
-        [ [====[Modules/Home/ImportantNotice.lua]====] ] = [====[local ImportantNotice = {}
+        ["Modules/Home/ImportantNotice.lua"] = [====[local ImportantNotice = {}
 
 function ImportantNotice:Create(Parent, App)
 
@@ -27847,7 +27877,7 @@ end
 
 return ImportantNotice
 ]====],
-        [ [====[Modules/Home/NOMOAI.lua]====] ] = [====[local NOMOAI = {}
+        ["Modules/Home/NOMOAI.lua"] = [====[local NOMOAI = {}
 
 function NOMOAI:Create(Parent, App)
 
@@ -27928,7 +27958,7 @@ end
 
 return NOMOAI
 ]====],
-        [ [====[Modules/Home/ServerStatus.lua]====] ] = [====[local ServerStatus = {}
+        ["Modules/Home/ServerStatus.lua"] = [====[local ServerStatus = {}
 
 function ServerStatus:Create(Parent, App)
 
@@ -28021,7 +28051,7 @@ end
 
 return ServerStatus
 ]====],
-        [ [====[Modules/Home/StatusPanels.lua]====] ] = [====[--//========================================================--
+        ["Modules/Home/StatusPanels.lua"] = [====[--//========================================================--
 --// SquidNoMo
 --// 1.1 beta 1
 --// Modules/Home/StatusPanels.lua
@@ -28165,7 +28195,7 @@ end
 
 return StatusPanels
 ]====],
-        [ [====[Modules/Home/SupportDevelopment.lua]====] ] = [====[local SupportDevelopment = {}
+        ["Modules/Home/SupportDevelopment.lua"] = [====[local SupportDevelopment = {}
 
 function SupportDevelopment:Create(Parent, App)
 
@@ -28227,7 +28257,7 @@ end
 
 return SupportDevelopment
 ]====],
-        [ [====[Modules/Home/Supporters.lua]====] ] = [====[local Supporters = {}
+        ["Modules/Home/Supporters.lua"] = [====[local Supporters = {}
 
 function Supporters:Create(Parent, App)
 
@@ -28304,1082 +28334,7 @@ end
 
 return Supporters
 ]====],
-        [ [====[Modules/Home.lua]====] ] = [====[local Home = {}
-
-function Home:Create(Page, App)
-
-	local Components = App.Components
-
-	local HeroBanner = App.Loader.HeroBanner
-	local FeatureGroups = App.Loader.FeatureGroups
-	local ServerStatus = App.Loader.ServerStatus
-	local NOMOAI = App.Loader.NOMOAI
-	local SupportDevelopment = App.Loader.SupportDevelopment
-	local DevelopmentGoal = App.Loader.DevelopmentGoal
-	local Supporters = App.Loader.Supporters
-	local ImportantNotice = App.Loader.ImportantNotice
-	local Footer = App.Loader.Footer
-
-
-	HeroBanner:Create(Page, App)
-
-	local Row1 = Components:CreateHorizontalContainer(Page)
-	Row1.LayoutOrder = 2
-
-	FeatureGroups:Create(Row1, App)
-	ServerStatus:Create(Row1, App)
-	NOMOAI:Create(Row1, App)
-
-	local Row2 = Components:CreateHorizontalContainer(Page)
-	Row2.LayoutOrder = 3
-
-	SupportDevelopment:Create(Row2, App)
-	DevelopmentGoal:Create(Row2, App)
-	Supporters:Create(Row2, App)
-
-	ImportantNotice:Create(Page, App)
-	Footer:Create(Page, App)
-
-end
-
-return Home
-]====],
-        [ [====[Modules/LearningPanel.lua]====] ] = [====[local LearningPanel = {}
-
-local function corner(parent, radius)
-    local value = Instance.new("UICorner")
-    value.CornerRadius = UDim.new(0, radius or 12)
-    value.Parent = parent
-end
-
-local function makeButton(parent, text, color, order)
-    local value = Instance.new("TextButton")
-    value.Name = string.gsub(text, "[^%w]", "") .. "Button"
-    value.LayoutOrder = order
-    value.Size = UDim2.new(1 / 3, -6, 1, 0)
-    value.BackgroundColor3 = color
-    value.BackgroundTransparency = 0.04
-    value.BorderSizePixel = 0
-    value.AutoButtonColor = false
-    value.Text = text
-    value.TextColor3 = Color3.new(1, 1, 1)
-    value.Font = Enum.Font.GothamBold
-    value.TextSize = 12
-    value.TextWrapped = true
-    value.Parent = parent
-    corner(value, 10)
-    return value
-end
-
-local function setButtonEnabled(button, enabled)
-    button.Active = enabled == true
-    button.Selectable = enabled == true
-    button.BackgroundTransparency = enabled and 0.04 or 0.55
-    button.TextTransparency = enabled and 0 or 0.35
-end
-
-function LearningPanel:Create(parent, App, options)
-    options = options or {}
-    local recorder = App.Loader and App.Loader.LearningRecorder
-    local accent = App:GetPageAccent("Games")
-    local selectedGame = options.GameName or "Red Light, Green Light"
-    local mobile = App:IsMobile()
-
-    local card = App:CreateCard(parent, UDim2.fromScale(1, 1), {
-        Color = App.Colors.Card,
-        BorderColor = accent,
-        BorderTransparency = 0.10,
-        Radius = 13,
-    })
-    card.Name = "OneRoundLearningPanel"
-    card.ClipsDescendants = true
-
-    local heading = Instance.new("Frame")
-    heading.Name = "LearningHeading"
-    heading.Position = UDim2.fromOffset(14, 8)
-    heading.Size = UDim2.new(1, -28, 0, mobile and 42 or 38)
-    heading.BackgroundTransparency = 1
-    heading.Parent = card
-
-    local title = App:CreateText(heading, "● ONE-ROUND RECORDER", UDim2.new(0.38, -8, 0, 18), UDim2.fromOffset(0, 0), {
-        Font = Enum.Font.GothamBlack,
-        TextSize = mobile and 12 or 11,
-        Color = accent,
-        ZIndex = 1014,
-    })
-
-    local gameLabel = App:CreateText(heading, selectedGame, UDim2.new(0.38, -8, 0, 20), UDim2.fromOffset(0, 19), {
-        Font = Enum.Font.GothamBold,
-        TextSize = mobile and 13 or 12,
-        Color = App.Colors.Text,
-        ZIndex = 1014,
-    })
-    gameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-
-    local status = App:CreateText(heading, "Tap START RECORDING before you play the round.", UDim2.new(0.62, 0, 1, 0), UDim2.new(0.38, 0, 0, 0), {
-        Font = Enum.Font.GothamMedium,
-        TextSize = mobile and 11 or 10,
-        Color = App.Colors.Muted,
-        Wrapped = true,
-        YAlignment = Enum.TextYAlignment.Center,
-        ZIndex = 1014,
-    })
-
-    local actions = Instance.new("Frame")
-    actions.Name = "LearningActions"
-    actions.Position = UDim2.fromOffset(12, mobile and 55 or 50)
-    actions.Size = UDim2.new(1, -24, 0, mobile and 46 or 42)
-    actions.BackgroundTransparency = 1
-    actions.Parent = card
-
-    local layout = Instance.new("UIListLayout")
-    layout.FillDirection = Enum.FillDirection.Horizontal
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    layout.VerticalAlignment = Enum.VerticalAlignment.Center
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 8)
-    layout.Parent = actions
-
-    local startButton = makeButton(actions, "START RECORDING", accent, 1)
-    local finishButton = makeButton(actions, "FINISH & SAVE", Color3.fromRGB(48, 190, 105), 2)
-    local cancelButton = makeButton(actions, "CANCEL", Color3.fromRGB(185, 66, 76), 3)
-
-    local function notify(kind, message)
-        if not App.Notifications then return end
-        local method = App.Notifications[kind]
-        if type(method) == "function" then
-            method(App.Notifications, "Round recorder", tostring(message), 6)
-        end
-    end
-
-    local function render(nextStatus)
-        nextStatus = nextStatus or (recorder and recorder:GetStatus()) or {}
-        local active = nextStatus.Active == true
-        local available = recorder ~= nil
-        gameLabel.Text = active and tostring(nextStatus.Game or selectedGame) or selectedGame
-
-        if not available then
-            status.Text = "Recorder unavailable. Upload the complete matching build."
-            status.TextColor3 = Color3.fromRGB(255, 106, 122)
-        elseif active then
-            local samples = tonumber(nextStatus.Samples) or 0
-            local events = tonumber(nextStatus.Events) or 0
-            status.Text = string.format("RECORDING • %d samples • %d events", samples, events)
-            status.TextColor3 = Color3.fromRGB(255, 214, 84)
-        else
-            status.Text = tostring(nextStatus.Message or "Tap START RECORDING before you play the round.")
-            status.TextColor3 = nextStatus.SavedPath and Color3.fromRGB(72, 232, 124) or App.Colors.Muted
-        end
-
-        title.Text = active and "● RECORDING ROUND" or "● ONE-ROUND RECORDER"
-        title.TextColor3 = active and Color3.fromRGB(255, 95, 115) or accent
-        setButtonEnabled(startButton, available and not active)
-        setButtonEnabled(finishButton, available and active)
-        setButtonEnabled(cancelButton, available and active)
-    end
-
-    startButton.Activated:Connect(function()
-        if not recorder or recorder.Active then return end
-        local ok, detail = recorder:Start(selectedGame)
-        if not ok then notify("Error", detail) else notify("Success", "Recording started. Play the round manually.") end
-        render()
-    end)
-
-    finishButton.Activated:Connect(function()
-        if not recorder or not recorder.Active then return end
-        local ok, detail = recorder:MarkSuccess()
-        if ok then
-            notify("Success", "Successful round saved to " .. tostring(detail))
-        else
-            notify("Error", detail)
-        end
-        render()
-    end)
-
-    cancelButton.Activated:Connect(function()
-        if not recorder or not recorder.Active then return end
-        local ok, detail = recorder:Stop(false)
-        if ok then notify("Warning", "Recording stopped and saved to " .. tostring(detail)) else notify("Error", detail) end
-        render()
-    end)
-
-    App:BindButtonFeedback(startButton, accent)
-    App:BindButtonFeedback(finishButton, Color3.fromRGB(48, 190, 105))
-    App:BindButtonFeedback(cancelButton, Color3.fromRGB(185, 66, 76))
-
-    local connection = recorder and recorder:Subscribe(render) or nil
-    card.Destroying:Connect(function()
-        if connection then pcall(function() connection:Disconnect() end) end
-    end)
-
-    render()
-    return {
-        Root = card,
-        SetGame = function(name)
-            selectedGame = tostring(name or selectedGame)
-            if not recorder or not recorder.Active then gameLabel.Text = selectedGame end
-        end,
-    }
-end
-
-return LearningPanel
-]====],
-        [ [====[Modules/Players/ESP.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// ESP.lua
---//========================================================--
-
-local ESP = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function ESP:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- ESP Card
-	----------------------------------------------------------
-
-	local Card = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,340)
-
-	)
-
-	Card.LayoutOrder = 1
-
-	Components:CreateTitle(
-
-		Card,
-		Theme,
-		"👁 Role ESP"
-
-	)
-
-	local Holder = Instance.new("Frame")
-
-	Holder.BackgroundTransparency = 1
-
-	Holder.Position = UDim2.fromOffset(20,55)
-
-	Holder.Size = UDim2.new(1,-40,1,-75)
-
-	Holder.Parent = Card
-
-	local HolderLayout = Instance.new("UIListLayout")
-
-	HolderLayout.Padding = UDim.new(0,12)
-
-	HolderLayout.Parent = Holder
-
-  	----------------------------------------------------------
-	-- Player ESP
-	----------------------------------------------------------
-
-	local _, PlayerESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Player ESP"
-
-		)
-
-	PlayerESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.PlayerESP then
-
-			if State then
-				App.Features.Player.PlayerESP:Enable()
-			else
-				App.Features.Player.PlayerESP:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Guard ESP
-	----------------------------------------------------------
-
-	local _, GuardESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Guard ESP"
-
-		)
-
-	GuardESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.GuardESP then
-
-			if State then
-				App.Features.Player.GuardESP:Enable()
-			else
-				App.Features.Player.GuardESP:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Detective ESP
-	----------------------------------------------------------
-
-	local _, DetectiveESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Detective ESP"
-
-		)
-
-	DetectiveESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.DetectiveESP then
-
-			if State then
-				App.Features.Player.DetectiveESP:Enable()
-			else
-				App.Features.Player.DetectiveESP:Disable()
-			end
-
-		end
-
-	end)
-
-  	----------------------------------------------------------
-	-- Frontman ESP
-	----------------------------------------------------------
-
-	local _, FrontmanESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Frontman ESP"
-
-		)
-
-	FrontmanESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.FrontmanESP then
-
-			if State then
-				App.Features.Player.FrontmanESP:Enable()
-			else
-				App.Features.Player.FrontmanESP:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Finished
-	----------------------------------------------------------
-
-end
-
-----------------------------------------------------------
--- Return Module
-----------------------------------------------------------
-
-return ESP
-]====],
-        [ [====[Modules/Players/Enhancements.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// Enhancements.lua
---//========================================================--
-
-local Enhancements = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function Enhancements:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- Enhancement Card
-	----------------------------------------------------------
-
-	local Card = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,340)
-
-	)
-
-	Card.LayoutOrder = 1
-
-	Components:CreateTitle(
-
-		Card,
-		Theme,
-		"✨ Player Enhancements"
-
-	)
-
-	local Holder = Instance.new("Frame")
-
-	Holder.BackgroundTransparency = 1
-
-	Holder.Position = UDim2.fromOffset(20,55)
-
-	Holder.Size = UDim2.new(1,-40,1,-75)
-
-	Holder.Parent = Card
-
-	local HolderLayout = Instance.new("UIListLayout")
-
-	HolderLayout.Padding = UDim.new(0,12)
-
-	HolderLayout.Parent = Holder
-
-  	----------------------------------------------------------
-	-- Walk Speed
-	----------------------------------------------------------
-
-	local _, WalkSpeed =
-		Components:CreateSlider(
-
-			Holder,
-			Theme,
-			"Walk Speed",
-			16,
-			100,
-			16
-
-		)
-
-	WalkSpeed:OnChanged(function(Value)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.WalkSpeed then
-
-			App.Features.Player.WalkSpeed:Set(Value)
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Jump Power
-	----------------------------------------------------------
-
-	local _, JumpPower =
-		Components:CreateSlider(
-
-			Holder,
-			Theme,
-			"Jump Power",
-			50,
-			200,
-			50
-
-		)
-
-	JumpPower:OnChanged(function(Value)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.JumpPower then
-
-			App.Features.Player.JumpPower:Set(Value)
-
-		end
-
-	end)
-
-  	----------------------------------------------------------
-	-- Infinite Jump
-	----------------------------------------------------------
-
-	local _, InfiniteJump =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Infinite Jump"
-
-		)
-
-	InfiniteJump:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.InfiniteJump then
-
-			if State then
-				App.Features.Player.InfiniteJump:Enable()
-			else
-				App.Features.Player.InfiniteJump:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Noclip
-	----------------------------------------------------------
-
-	local _, Noclip =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Noclip"
-
-		)
-
-	Noclip:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.Noclip then
-
-			if State then
-				App.Features.Player.Noclip:Enable()
-			else
-				App.Features.Player.Noclip:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Finished
-	----------------------------------------------------------
-
-end
-
-return Enhancements
-]====],
-        [ [====[Modules/Players/Main.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// Main.lua
---//========================================================--
-
-local PlayersMain = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function PlayersMain:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Main Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- Top Navigation Card
-	----------------------------------------------------------
-
-	local NavCard = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,64)
-
-	)
-
-	NavCard.LayoutOrder = 1
-
-	----------------------------------------------------------
-	-- Navigation Container
-	----------------------------------------------------------
-
-	local NavContainer = Instance.new("Frame")
-
-	NavContainer.Name = "Navigation"
-
-	NavContainer.BackgroundTransparency = 1
-
-	NavContainer.Size = UDim2.new(1,-24,1,-16)
-
-	NavContainer.Position = UDim2.fromOffset(12,8)
-
-	NavContainer.Parent = NavCard
-
-	local NavLayout = Instance.new("UIListLayout")
-
-	NavLayout.FillDirection = Enum.FillDirection.Horizontal
-
-	NavLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-
-	NavLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-
-	NavLayout.Padding = UDim.new(0,14)
-
-	NavLayout.Parent = NavContainer
-
-	----------------------------------------------------------
-	-- Content Area
-	----------------------------------------------------------
-
-	local Content = Instance.new("Frame")
-
-	Content.Name = "Content"
-
-	Content.BackgroundTransparency = 1
-
-	Content.Size = UDim2.new(1,0,1,-80)
-
-	Content.AutomaticSize = Enum.AutomaticSize.Y
-
-	Content.LayoutOrder = 2
-
-	Content.Parent = Page
-
-	self.Content = Content
-	self.NavContainer = NavContainer
-
-  	----------------------------------------------------------
-	-- Navigation Buttons
-	----------------------------------------------------------
-
-	local CurrentTab
-
-	local Buttons = {}
-
-	local function CreateTab(Name, Icon)
-
-		local Button = Instance.new("TextButton")
-
-		Button.Name = Name
-
-		Button.Size = UDim2.fromOffset(170,44)
-
-		Button.BackgroundColor3 = Theme.Card
-
-		Button.BorderSizePixel = 0
-
-		Button.AutoButtonColor = false
-
-		Button.Font = Theme.FontBold
-
-		Button.TextSize = 16
-
-		Button.Text = Icon .. "  " .. Name
-
-		Button.TextColor3 = Theme.Text
-
-		Button.Parent = NavContainer
-
-		local Corner = Instance.new("UICorner")
-
-		Corner.CornerRadius = UDim.new(0,12)
-
-		Corner.Parent = Button
-
-		Buttons[Name] = Button
-
-		return Button
-
-	end
-
-	local EnhancementsButton =
-		CreateTab("Enhancements","✨")
-
-	local ESPButton =
-		CreateTab("ESP","👁")
-
-	local UtilitiesButton =
-		CreateTab("Utilities","🛠")
-
-  	----------------------------------------------------------
-	-- Page Loader
-	----------------------------------------------------------
-
-	local CurrentPage
-
-	local function ClearPage()
-
-		if CurrentPage then
-
-			CurrentPage:Destroy()
-
-			CurrentPage = nil
-
-		end
-
-	end
-
-	local function SelectTab(Name)
-
-		CurrentTab = Name
-
-		for TabName, Button in pairs(Buttons) do
-
-			if TabName == Name then
-
-				Button.BackgroundColor3 = Theme.Accent
-				Button.TextColor3 = Theme.Background
-
-			else
-
-				Button.BackgroundColor3 = Theme.Card
-				Button.TextColor3 = Theme.Text
-
-			end
-
-		end
-
-		ClearPage()
-
-		CurrentPage = Instance.new("Frame")
-
-		CurrentPage.Name = Name
-
-		CurrentPage.BackgroundTransparency = 1
-
-		CurrentPage.Size = UDim2.fromScale(1,1)
-
-		CurrentPage.Parent = Content
-
-		if Name == "Enhancements" then
-
-			local Module = loadstring(game:HttpGet(
-
-				App.Config.Repository ..
-				"Modules/Players/Enhancements.lua"
-
-			))()
-
-			Module:Create(CurrentPage, App)
-
-		elseif Name == "ESP" then
-
-			local Module = loadstring(game:HttpGet(
-
-				App.Config.Repository ..
-				"Modules/Players/ESP.lua"
-
-			))()
-
-			Module:Create(CurrentPage, App)
-
-		elseif Name == "Utilities" then
-
-			local Module = loadstring(game:HttpGet(
-
-				App.Config.Repository ..
-				"Modules/Players/Utilities.lua"
-
-			))()
-
-			Module:Create(CurrentPage, App)
-
-		end
-
-  end
-	----------------------------------------------------------
-	-- Navigation Events
-	----------------------------------------------------------
-
-	EnhancementsButton.MouseButton1Click:Connect(function()
-
-		SelectTab("Enhancements")
-
-	end)
-
-	ESPButton.MouseButton1Click:Connect(function()
-
-		SelectTab("ESP")
-
-	end)
-
-	UtilitiesButton.MouseButton1Click:Connect(function()
-
-		SelectTab("Utilities")
-
-	end)
-
-	----------------------------------------------------------
-	-- Default Page
-	----------------------------------------------------------
-
-	SelectTab("Enhancements")
-
-end
-
-----------------------------------------------------------
--- Return Module
-----------------------------------------------------------
-
-return PlayersMain
-  
-]====],
-        [ [====[Modules/Players/Utilities.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// Utilities.lua
---//========================================================--
-
-local Utilities = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function Utilities:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- Utilities Card
-	----------------------------------------------------------
-
-	local Card = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,340)
-
-	)
-
-	Card.LayoutOrder = 1
-
-	Components:CreateTitle(
-
-		Card,
-		Theme,
-		"🛠 Player Utilities"
-
-	)
-
-	local Holder = Instance.new("Frame")
-
-	Holder.BackgroundTransparency = 1
-
-	Holder.Position = UDim2.fromOffset(20,55)
-
-	Holder.Size = UDim2.new(1,-40,1,-75)
-
-	Holder.Parent = Card
-
-	local HolderLayout = Instance.new("UIListLayout")
-
-	HolderLayout.Padding = UDim.new(0,12)
-
-	HolderLayout.Parent = Holder
-
-  	----------------------------------------------------------
-	-- Anti AFK
-	----------------------------------------------------------
-
-	local _, AntiAFK =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Anti AFK"
-
-		)
-
-	AntiAFK:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.AntiAFK then
-
-			if State then
-				App.Features.Player.AntiAFK:Enable()
-			else
-				App.Features.Player.AntiAFK:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Anti Lag
-	----------------------------------------------------------
-
-	local _, AntiLag =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Anti Lag"
-
-		)
-
-	AntiLag:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.AntiLag then
-
-			if State then
-				App.Features.Player.AntiLag:Enable()
-			else
-				App.Features.Player.AntiLag:Disable()
-			end
-
-		end
-
-	end)
-
-  	----------------------------------------------------------
-	-- Reset Character
-	----------------------------------------------------------
-
-	local ResetButton =
-		Components:CreateButton(
-
-			Holder,
-			Theme,
-			"🔄 Reset Character"
-
-		)
-
-	ResetButton.MouseButton1Click:Connect(function()
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.Reset then
-
-			App.Features.Player.Reset:Execute()
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Rejoin Server
-	----------------------------------------------------------
-
-	local RejoinButton =
-		Components:CreateButton(
-
-			Holder,
-			Theme,
-			"🌐 Rejoin Server"
-
-		)
-
-	RejoinButton.MouseButton1Click:Connect(function()
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.Rejoin then
-
-			App.Features.Player.Rejoin:Execute()
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Finished
-	----------------------------------------------------------
-
-end
-
-----------------------------------------------------------
--- Return Module
-----------------------------------------------------------
-
-return Utilities
-]====],
-        [ [====[Modules/Players.lua]====] ] = [====[local PlayersPage = {}
+        ["Modules/Players.lua"] = [====[local PlayersPage = {}
 
 local CATEGORIES = {
     {
@@ -30335,7 +29290,862 @@ end
 
 return PlayersPage
 ]====],
-        [ [====[Modules/Settings.lua]====] ] = [====[local Settings = {}
+        ["Modules/Players/ESP.lua"] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// ESP.lua
+--//========================================================--
+
+local ESP = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function ESP:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- ESP Card
+	----------------------------------------------------------
+
+	local Card = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,340)
+
+	)
+
+	Card.LayoutOrder = 1
+
+	Components:CreateTitle(
+
+		Card,
+		Theme,
+		"👁 Role ESP"
+
+	)
+
+	local Holder = Instance.new("Frame")
+
+	Holder.BackgroundTransparency = 1
+
+	Holder.Position = UDim2.fromOffset(20,55)
+
+	Holder.Size = UDim2.new(1,-40,1,-75)
+
+	Holder.Parent = Card
+
+	local HolderLayout = Instance.new("UIListLayout")
+
+	HolderLayout.Padding = UDim.new(0,12)
+
+	HolderLayout.Parent = Holder
+
+  	----------------------------------------------------------
+	-- Player ESP
+	----------------------------------------------------------
+
+	local _, PlayerESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Player ESP"
+
+		)
+
+	PlayerESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.PlayerESP then
+
+			if State then
+				App.Features.Player.PlayerESP:Enable()
+			else
+				App.Features.Player.PlayerESP:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Guard ESP
+	----------------------------------------------------------
+
+	local _, GuardESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Guard ESP"
+
+		)
+
+	GuardESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.GuardESP then
+
+			if State then
+				App.Features.Player.GuardESP:Enable()
+			else
+				App.Features.Player.GuardESP:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Detective ESP
+	----------------------------------------------------------
+
+	local _, DetectiveESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Detective ESP"
+
+		)
+
+	DetectiveESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.DetectiveESP then
+
+			if State then
+				App.Features.Player.DetectiveESP:Enable()
+			else
+				App.Features.Player.DetectiveESP:Disable()
+			end
+
+		end
+
+	end)
+
+  	----------------------------------------------------------
+	-- Frontman ESP
+	----------------------------------------------------------
+
+	local _, FrontmanESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Frontman ESP"
+
+		)
+
+	FrontmanESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.FrontmanESP then
+
+			if State then
+				App.Features.Player.FrontmanESP:Enable()
+			else
+				App.Features.Player.FrontmanESP:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Finished
+	----------------------------------------------------------
+
+end
+
+----------------------------------------------------------
+-- Return Module
+----------------------------------------------------------
+
+return ESP
+]====],
+        ["Modules/Players/Enhancements.lua"] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// Enhancements.lua
+--//========================================================--
+
+local Enhancements = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function Enhancements:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- Enhancement Card
+	----------------------------------------------------------
+
+	local Card = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,340)
+
+	)
+
+	Card.LayoutOrder = 1
+
+	Components:CreateTitle(
+
+		Card,
+		Theme,
+		"✨ Player Enhancements"
+
+	)
+
+	local Holder = Instance.new("Frame")
+
+	Holder.BackgroundTransparency = 1
+
+	Holder.Position = UDim2.fromOffset(20,55)
+
+	Holder.Size = UDim2.new(1,-40,1,-75)
+
+	Holder.Parent = Card
+
+	local HolderLayout = Instance.new("UIListLayout")
+
+	HolderLayout.Padding = UDim.new(0,12)
+
+	HolderLayout.Parent = Holder
+
+  	----------------------------------------------------------
+	-- Walk Speed
+	----------------------------------------------------------
+
+	local _, WalkSpeed =
+		Components:CreateSlider(
+
+			Holder,
+			Theme,
+			"Walk Speed",
+			16,
+			100,
+			16
+
+		)
+
+	WalkSpeed:OnChanged(function(Value)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.WalkSpeed then
+
+			App.Features.Player.WalkSpeed:Set(Value)
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Jump Power
+	----------------------------------------------------------
+
+	local _, JumpPower =
+		Components:CreateSlider(
+
+			Holder,
+			Theme,
+			"Jump Power",
+			50,
+			200,
+			50
+
+		)
+
+	JumpPower:OnChanged(function(Value)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.JumpPower then
+
+			App.Features.Player.JumpPower:Set(Value)
+
+		end
+
+	end)
+
+  	----------------------------------------------------------
+	-- Infinite Jump
+	----------------------------------------------------------
+
+	local _, InfiniteJump =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Infinite Jump"
+
+		)
+
+	InfiniteJump:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.InfiniteJump then
+
+			if State then
+				App.Features.Player.InfiniteJump:Enable()
+			else
+				App.Features.Player.InfiniteJump:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Noclip
+	----------------------------------------------------------
+
+	local _, Noclip =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Noclip"
+
+		)
+
+	Noclip:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.Noclip then
+
+			if State then
+				App.Features.Player.Noclip:Enable()
+			else
+				App.Features.Player.Noclip:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Finished
+	----------------------------------------------------------
+
+end
+
+return Enhancements
+]====],
+        ["Modules/Players/Main.lua"] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// Main.lua
+--//========================================================--
+
+local PlayersMain = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function PlayersMain:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Main Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- Top Navigation Card
+	----------------------------------------------------------
+
+	local NavCard = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,64)
+
+	)
+
+	NavCard.LayoutOrder = 1
+
+	----------------------------------------------------------
+	-- Navigation Container
+	----------------------------------------------------------
+
+	local NavContainer = Instance.new("Frame")
+
+	NavContainer.Name = "Navigation"
+
+	NavContainer.BackgroundTransparency = 1
+
+	NavContainer.Size = UDim2.new(1,-24,1,-16)
+
+	NavContainer.Position = UDim2.fromOffset(12,8)
+
+	NavContainer.Parent = NavCard
+
+	local NavLayout = Instance.new("UIListLayout")
+
+	NavLayout.FillDirection = Enum.FillDirection.Horizontal
+
+	NavLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+
+	NavLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+	NavLayout.Padding = UDim.new(0,14)
+
+	NavLayout.Parent = NavContainer
+
+	----------------------------------------------------------
+	-- Content Area
+	----------------------------------------------------------
+
+	local Content = Instance.new("Frame")
+
+	Content.Name = "Content"
+
+	Content.BackgroundTransparency = 1
+
+	Content.Size = UDim2.new(1,0,1,-80)
+
+	Content.AutomaticSize = Enum.AutomaticSize.Y
+
+	Content.LayoutOrder = 2
+
+	Content.Parent = Page
+
+	self.Content = Content
+	self.NavContainer = NavContainer
+
+  	----------------------------------------------------------
+	-- Navigation Buttons
+	----------------------------------------------------------
+
+	local CurrentTab
+
+	local Buttons = {}
+
+	local function CreateTab(Name, Icon)
+
+		local Button = Instance.new("TextButton")
+
+		Button.Name = Name
+
+		Button.Size = UDim2.fromOffset(170,44)
+
+		Button.BackgroundColor3 = Theme.Card
+
+		Button.BorderSizePixel = 0
+
+		Button.AutoButtonColor = false
+
+		Button.Font = Theme.FontBold
+
+		Button.TextSize = 16
+
+		Button.Text = Icon .. "  " .. Name
+
+		Button.TextColor3 = Theme.Text
+
+		Button.Parent = NavContainer
+
+		local Corner = Instance.new("UICorner")
+
+		Corner.CornerRadius = UDim.new(0,12)
+
+		Corner.Parent = Button
+
+		Buttons[Name] = Button
+
+		return Button
+
+	end
+
+	local EnhancementsButton =
+		CreateTab("Enhancements","✨")
+
+	local ESPButton =
+		CreateTab("ESP","👁")
+
+	local UtilitiesButton =
+		CreateTab("Utilities","🛠")
+
+  	----------------------------------------------------------
+	-- Page Loader
+	----------------------------------------------------------
+
+	local CurrentPage
+
+	local function ClearPage()
+
+		if CurrentPage then
+
+			CurrentPage:Destroy()
+
+			CurrentPage = nil
+
+		end
+
+	end
+
+	local function SelectTab(Name)
+
+		CurrentTab = Name
+
+		for TabName, Button in pairs(Buttons) do
+
+			if TabName == Name then
+
+				Button.BackgroundColor3 = Theme.Accent
+				Button.TextColor3 = Theme.Background
+
+			else
+
+				Button.BackgroundColor3 = Theme.Card
+				Button.TextColor3 = Theme.Text
+
+			end
+
+		end
+
+		ClearPage()
+
+		CurrentPage = Instance.new("Frame")
+
+		CurrentPage.Name = Name
+
+		CurrentPage.BackgroundTransparency = 1
+
+		CurrentPage.Size = UDim2.fromScale(1,1)
+
+		CurrentPage.Parent = Content
+
+		if Name == "Enhancements" then
+
+			local Module = loadstring(game:HttpGet(
+
+				App.Config.Repository ..
+				"Modules/Players/Enhancements.lua"
+
+			))()
+
+			Module:Create(CurrentPage, App)
+
+		elseif Name == "ESP" then
+
+			local Module = loadstring(game:HttpGet(
+
+				App.Config.Repository ..
+				"Modules/Players/ESP.lua"
+
+			))()
+
+			Module:Create(CurrentPage, App)
+
+		elseif Name == "Utilities" then
+
+			local Module = loadstring(game:HttpGet(
+
+				App.Config.Repository ..
+				"Modules/Players/Utilities.lua"
+
+			))()
+
+			Module:Create(CurrentPage, App)
+
+		end
+
+  end
+	----------------------------------------------------------
+	-- Navigation Events
+	----------------------------------------------------------
+
+	EnhancementsButton.MouseButton1Click:Connect(function()
+
+		SelectTab("Enhancements")
+
+	end)
+
+	ESPButton.MouseButton1Click:Connect(function()
+
+		SelectTab("ESP")
+
+	end)
+
+	UtilitiesButton.MouseButton1Click:Connect(function()
+
+		SelectTab("Utilities")
+
+	end)
+
+	----------------------------------------------------------
+	-- Default Page
+	----------------------------------------------------------
+
+	SelectTab("Enhancements")
+
+end
+
+----------------------------------------------------------
+-- Return Module
+----------------------------------------------------------
+
+return PlayersMain
+  
+]====],
+        ["Modules/Players/Utilities.lua"] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// Utilities.lua
+--//========================================================--
+
+local Utilities = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function Utilities:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- Utilities Card
+	----------------------------------------------------------
+
+	local Card = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,340)
+
+	)
+
+	Card.LayoutOrder = 1
+
+	Components:CreateTitle(
+
+		Card,
+		Theme,
+		"🛠 Player Utilities"
+
+	)
+
+	local Holder = Instance.new("Frame")
+
+	Holder.BackgroundTransparency = 1
+
+	Holder.Position = UDim2.fromOffset(20,55)
+
+	Holder.Size = UDim2.new(1,-40,1,-75)
+
+	Holder.Parent = Card
+
+	local HolderLayout = Instance.new("UIListLayout")
+
+	HolderLayout.Padding = UDim.new(0,12)
+
+	HolderLayout.Parent = Holder
+
+  	----------------------------------------------------------
+	-- Anti AFK
+	----------------------------------------------------------
+
+	local _, AntiAFK =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Anti AFK"
+
+		)
+
+	AntiAFK:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.AntiAFK then
+
+			if State then
+				App.Features.Player.AntiAFK:Enable()
+			else
+				App.Features.Player.AntiAFK:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Anti Lag
+	----------------------------------------------------------
+
+	local _, AntiLag =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Anti Lag"
+
+		)
+
+	AntiLag:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.AntiLag then
+
+			if State then
+				App.Features.Player.AntiLag:Enable()
+			else
+				App.Features.Player.AntiLag:Disable()
+			end
+
+		end
+
+	end)
+
+  	----------------------------------------------------------
+	-- Reset Character
+	----------------------------------------------------------
+
+	local ResetButton =
+		Components:CreateButton(
+
+			Holder,
+			Theme,
+			"🔄 Reset Character"
+
+		)
+
+	ResetButton.MouseButton1Click:Connect(function()
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.Reset then
+
+			App.Features.Player.Reset:Execute()
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Rejoin Server
+	----------------------------------------------------------
+
+	local RejoinButton =
+		Components:CreateButton(
+
+			Holder,
+			Theme,
+			"🌐 Rejoin Server"
+
+		)
+
+	RejoinButton.MouseButton1Click:Connect(function()
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.Rejoin then
+
+			App.Features.Player.Rejoin:Execute()
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Finished
+	----------------------------------------------------------
+
+end
+
+----------------------------------------------------------
+-- Return Module
+----------------------------------------------------------
+
+return Utilities
+]====],
+        ["Modules/Settings.lua"] = [====[local Settings = {}
 
 function Settings:Create(Page, App)
     App:BuildComingSoonPage(
@@ -30347,7 +30157,7 @@ end
 
 return Settings
 ]====],
-        [ [====[Modules/SubpageShell.lua]====] ] = [====[local UserInputService = game:GetService("UserInputService")
+        ["Modules/SubpageShell.lua"] = [====[local UserInputService = game:GetService("UserInputService")
 
 local SubpageShell = {}
 
@@ -30568,7 +30378,7 @@ end
 
 return SubpageShell
 ]====],
-        [ [====[Modules/UI.lua]====] ] = [====[local UIPage = {}
+        ["Modules/UI.lua"] = [====[local UIPage = {}
 
 local UserInputService = game:GetService('UserInputService')
 
@@ -32117,6 +31927,400 @@ function UIPage:Create(Page, App)
 end
 
 return UIPage
+]====],
+        ["Recorder.lua"] = [====[--// SquidNoMo standalone round recorder
+-- Execute this file separately from Main.lua. It intentionally does not build or
+-- depend on the SquidNoMo application interface.
+
+local REPOSITORY = "https://raw.githubusercontent.com/JaysScriptz/SquidNoMo/main/"
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then Environment = result end
+end
+
+local function httpGet(url, timeoutSeconds)
+    local complete, success, result = false, false, nil
+    task.spawn(function()
+        success, result = pcall(function() return game:HttpGet(url) end)
+        complete = true
+    end)
+    local started = os.clock()
+    local timeout = tonumber(timeoutSeconds) or 20
+    while not complete and os.clock() - started < timeout do task.wait(0.05) end
+    if not complete then error("HTTP request timed out: " .. tostring(url)) end
+    if not success then error("HTTP request failed: " .. tostring(result)) end
+    if type(result) ~= "string" or result == "" then error("HTTP response was empty: " .. tostring(url)) end
+    return result
+end
+
+local function compile(source, name)
+    local chunk, compileError = loadstring(source, "=" .. tostring(name or "SquidNoMoRecorder"))
+    if not chunk then error(tostring(name) .. " compile failed: " .. tostring(compileError)) end
+    local ok, result = pcall(chunk)
+    if not ok then error(tostring(name) .. " execution failed: " .. tostring(result)) end
+    return result
+end
+
+local function loadManifest()
+    local cached = Environment.__SquidNoMoBuildManifest
+    if type(cached) == "table" and cached.BuildNumber then return cached end
+    local nonce = tostring(math.floor(os.clock() * 1000000))
+    local manifest = compile(httpGet(REPOSITORY .. "BuildManifest.lua?recorder=" .. nonce, 18), "BuildManifest.lua")
+    if type(manifest) ~= "table" then error("BuildManifest.lua did not return a table") end
+    Environment.__SquidNoMoBuildManifest = manifest
+    return manifest
+end
+
+local Manifest = loadManifest()
+local BuildToken = tostring(Manifest.BuildToken or "")
+local BuildNumber = tonumber(Manifest.BuildNumber) or 0
+local Version = tostring(Manifest.Version or "SquidNoMo")
+
+local existingUI = Environment.__SquidNoMoStandaloneRecorderUI
+if type(existingUI) == "table" and existingUI.Gui and existingUI.Gui.Parent then
+    existingUI.Gui.Enabled = true
+    existingUI.Gui.DisplayOrder = 1000001
+    if type(existingUI.Restore) == "function" then pcall(existingUI.Restore) end
+    return existingUI.Recorder
+end
+
+local Sources = Environment.__SquidNoMoSourceBundle
+local sourceToken = tostring(Environment.__SquidNoMoSourceBundleToken or "")
+if type(Sources) ~= "table" or sourceToken ~= BuildToken then
+    local bundleName = tostring(Manifest.StartupBundle or "SourceBundle.lua")
+    local bundle = compile(httpGet(REPOSITORY .. bundleName .. "?recorder_build=" .. BuildToken, 30), bundleName)
+    if type(bundle) ~= "table" or type(bundle.Sources) ~= "table" then
+        error("SourceBundle.lua is invalid")
+    end
+    if tostring(bundle.BuildToken or "") ~= BuildToken then
+        error("Build mismatch between BuildManifest.lua and SourceBundle.lua")
+    end
+    Sources = bundle.Sources
+    Environment.__SquidNoMoSourceBundle = Sources
+    Environment.__SquidNoMoSourceBundleToken = BuildToken
+end
+
+local function loadBundled(path)
+    local source = Sources[path]
+    if type(source) ~= "string" or source == "" then error("Recorder bundle is missing " .. tostring(path)) end
+    return compile(source, path)
+end
+
+local Runtime = Environment.__SquidNoMoFeatureRuntime
+if type(Runtime) ~= "table"
+    or tostring(Runtime.Revision) ~= tostring(Manifest.FeatureRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= BuildNumber
+then
+    Runtime = loadBundled("Features/Shared/Runtime.lua")
+end
+
+local GameRuntime = Environment.__SquidNoMoGameRuntime
+if type(GameRuntime) ~= "table"
+    or tostring(GameRuntime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
+    or tonumber(GameRuntime.BuildNumber) ~= BuildNumber
+then
+    GameRuntime = loadBundled("Features/Games/GameRuntime.lua")
+end
+
+local Recorder = Environment.__SquidNoMoLearningRecorder
+if type(Recorder) ~= "table" or tonumber(Recorder.BuildNumber) ~= BuildNumber then
+    Recorder = loadBundled("Features/Shared/LearningRecorder.lua")
+end
+
+local recorderLoader = {
+    BuildVersion = Version,
+    BuildNumber = BuildNumber,
+    BuildRevision = tostring(Manifest.Revision or "unknown"),
+    Features = {Shared = {Runtime = Runtime, GameRuntime = GameRuntime}},
+}
+Recorder:Initialize(recorderLoader, nil)
+
+local function guiParent()
+    if type(gethui) == "function" then
+        local ok, parent = pcall(gethui)
+        if ok and parent then return parent end
+    end
+    return CoreGui
+end
+
+local function corner(parent, radius)
+    local value = Instance.new("UICorner")
+    value.CornerRadius = UDim.new(0, radius or 12)
+    value.Parent = parent
+    return value
+end
+
+local function stroke(parent, color, transparency, thickness)
+    local value = Instance.new("UIStroke")
+    value.Color = color
+    value.Transparency = transparency or 0
+    value.Thickness = thickness or 1
+    value.Parent = parent
+    return value
+end
+
+local function label(parent, text, size, position, options)
+    options = options or {}
+    local value = Instance.new("TextLabel")
+    value.BackgroundTransparency = 1
+    value.BorderSizePixel = 0
+    value.Text = tostring(text or "")
+    value.TextColor3 = options.Color or Color3.fromRGB(235, 239, 240)
+    value.Font = options.Font or Enum.Font.GothamMedium
+    value.TextSize = options.TextSize or 14
+    value.TextWrapped = options.Wrapped == true
+    value.TextXAlignment = options.XAlignment or Enum.TextXAlignment.Left
+    value.TextYAlignment = options.YAlignment or Enum.TextYAlignment.Center
+    value.Size = size
+    value.Position = position
+    value.ZIndex = options.ZIndex or 2
+    value.Parent = parent
+    return value
+end
+
+local function button(parent, text, size, position, color)
+    local value = Instance.new("TextButton")
+    value.AutoButtonColor = false
+    value.BackgroundColor3 = color or Color3.fromRGB(41, 164, 84)
+    value.BorderSizePixel = 0
+    value.Text = text
+    value.TextColor3 = Color3.new(1, 1, 1)
+    value.Font = Enum.Font.GothamBold
+    value.TextSize = 15
+    value.TextWrapped = true
+    value.Size = size
+    value.Position = position
+    value.ZIndex = 4
+    value.Parent = parent
+    corner(value, 11)
+    return value
+end
+
+local Profiles = {
+    "Red Light, Green Light",
+    "Dalgona",
+    "Pentathlon - Biseokchigi",
+    "Pentathlon - Ddakji",
+    "Pentathlon - Gonggi",
+    "Pentathlon - Jegichagi",
+    "Pentathlon - Paengi",
+    "Hide & Seek",
+    "Jump Rope",
+    "Mingle",
+    "Tug of War",
+    "Marbles",
+    "Glass Bridge",
+    "Rock, Paper, Scissors Minus One",
+    "Fight Nights",
+    "Rebellion",
+    "Sky Squid",
+    "Squid Game",
+    "Escape",
+}
+
+local selectedIndex = 1
+local mobile = UserInputService.TouchEnabled
+local gui = Instance.new("ScreenGui")
+gui.Name = "SquidNoMoStandaloneRecorder"
+gui.IgnoreGuiInset = true
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 1000001
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+if type(syn) == "table" and type(syn.protect_gui) == "function" then pcall(syn.protect_gui, gui) end
+gui.Parent = guiParent()
+
+local panel = Instance.new("Frame")
+panel.Name = "RecorderPanel"
+panel.AnchorPoint = Vector2.new(0.5, 0.5)
+panel.Position = UDim2.fromScale(0.5, 0.5)
+panel.Size = mobile and UDim2.new(0.92, 0, 0, 360) or UDim2.fromOffset(520, 360)
+panel.BackgroundColor3 = Color3.fromRGB(10, 16, 21)
+panel.BackgroundTransparency = 0.02
+panel.BorderSizePixel = 0
+panel.Active = true
+panel.Draggable = true
+panel.Parent = gui
+corner(panel, 18)
+stroke(panel, Color3.fromRGB(53, 226, 108), 0.06, 2)
+
+local constraint = Instance.new("UISizeConstraint")
+constraint.MinSize = Vector2.new(330, 350)
+constraint.MaxSize = Vector2.new(560, 380)
+constraint.Parent = panel
+
+local title = label(panel, "SQUIDNOMO ROUND RECORDER", UDim2.new(1, -116, 0, 28), UDim2.fromOffset(18, 12), {
+    Font = Enum.Font.GothamBlack, TextSize = 18, Color = Color3.fromRGB(58, 235, 113),
+})
+local versionLabel = label(panel, Version .. " • STANDALONE", UDim2.new(1, -116, 0, 18), UDim2.fromOffset(18, 39), {
+    Font = Enum.Font.GothamBold, TextSize = 11, Color = Color3.fromRGB(154, 163, 166),
+})
+
+local minimize = button(panel, "—", UDim2.fromOffset(42, 34), UDim2.new(1, -94, 0, 12), Color3.fromRGB(83, 64, 148))
+minimize.TextSize = 21
+local close = button(panel, "×", UDim2.fromOffset(42, 34), UDim2.new(1, -48, 0, 12), Color3.fromRGB(142, 48, 61))
+close.TextSize = 20
+
+local profileCard = Instance.new("Frame")
+profileCard.Position = UDim2.fromOffset(16, 70)
+profileCard.Size = UDim2.new(1, -32, 0, 78)
+profileCard.BackgroundColor3 = Color3.fromRGB(17, 27, 34)
+profileCard.BorderSizePixel = 0
+profileCard.Parent = panel
+corner(profileCard, 13)
+stroke(profileCard, Color3.fromRGB(68, 91, 103), 0.36, 1)
+
+label(profileCard, "RECORDING PROFILE", UDim2.new(1, -24, 0, 20), UDim2.fromOffset(12, 7), {
+    Font = Enum.Font.GothamBold, TextSize = 11, Color = Color3.fromRGB(135, 145, 151),
+})
+local previousProfile = button(profileCard, "◀", UDim2.fromOffset(48, 42), UDim2.fromOffset(10, 29), Color3.fromRGB(58, 73, 84))
+local nextProfile = button(profileCard, "▶", UDim2.fromOffset(48, 42), UDim2.new(1, -58, 0, 29), Color3.fromRGB(58, 73, 84))
+local profileLabel = label(profileCard, Profiles[selectedIndex], UDim2.new(1, -126, 0, 42), UDim2.fromOffset(63, 29), {
+    Font = Enum.Font.GothamBold, TextSize = mobile and 14 or 15, Color = Color3.fromRGB(245, 248, 249),
+    Wrapped = true, XAlignment = Enum.TextXAlignment.Center,
+})
+
+local statusCard = Instance.new("Frame")
+statusCard.Position = UDim2.fromOffset(16, 158)
+statusCard.Size = UDim2.new(1, -32, 0, 74)
+statusCard.BackgroundColor3 = Color3.fromRGB(17, 27, 34)
+statusCard.BorderSizePixel = 0
+statusCard.Parent = panel
+corner(statusCard, 13)
+
+local statusTitle = label(statusCard, "READY", UDim2.new(1, -24, 0, 22), UDim2.fromOffset(12, 8), {
+    Font = Enum.Font.GothamBlack, TextSize = 14, Color = Color3.fromRGB(58, 235, 113),
+})
+local statusDetail = label(statusCard, "Choose a profile, then tap START RECORDING before the round begins.", UDim2.new(1, -24, 0, 38), UDim2.fromOffset(12, 30), {
+    Font = Enum.Font.GothamMedium, TextSize = 12, Color = Color3.fromRGB(185, 193, 196), Wrapped = true,
+})
+
+local start = button(panel, "START RECORDING", UDim2.new(1, -32, 0, 50), UDim2.fromOffset(16, 242), Color3.fromRGB(42, 171, 86))
+local finish = button(panel, "FINISH & SAVE", UDim2.new(0.5, -20, 0, 48), UDim2.fromOffset(16, 300), Color3.fromRGB(43, 151, 100))
+local cancel = button(panel, "CANCEL", UDim2.new(0.5, -20, 0, 48), UDim2.new(0.5, 4, 0, 300), Color3.fromRGB(151, 51, 64))
+
+local bubble = Instance.new("TextButton")
+bubble.Name = "RecorderBubble"
+bubble.AnchorPoint = Vector2.new(1, 0)
+bubble.Position = UDim2.new(1, -16, 0, 72)
+bubble.Size = UDim2.fromOffset(230, 58)
+bubble.BackgroundColor3 = Color3.fromRGB(10, 16, 21)
+bubble.BorderSizePixel = 0
+bubble.Font = Enum.Font.GothamBold
+bubble.Text = "SquidNoMo Recorder • READY"
+bubble.TextColor3 = Color3.fromRGB(58, 235, 113)
+bubble.TextSize = 13
+bubble.Visible = false
+bubble.ZIndex = 10
+bubble.Parent = gui
+corner(bubble, 14)
+stroke(bubble, Color3.fromRGB(53, 226, 108), 0.08, 2)
+
+local function setEnabled(control, enabled)
+    control.Active = enabled
+    control.Selectable = enabled
+    control.BackgroundTransparency = enabled and 0 or 0.55
+    control.TextTransparency = enabled and 0 or 0.4
+end
+
+local function render(state)
+    state = state or Recorder:GetStatus()
+    local active = state.Active == true
+    profileLabel.Text = active and tostring(state.Game or Profiles[selectedIndex]) or Profiles[selectedIndex]
+    previousProfile.Visible = not active
+    nextProfile.Visible = not active
+    setEnabled(start, not active)
+    setEnabled(finish, active)
+    setEnabled(cancel, active)
+
+    if active then
+        local samples = tonumber(state.Samples) or 0
+        local events = tonumber(state.Events) or 0
+        statusTitle.Text = "● RECORDING"
+        statusTitle.TextColor3 = Color3.fromRGB(255, 93, 111)
+        statusDetail.Text = string.format("%d samples • %d events\nFinish only after completing the selected task successfully.", samples, events)
+        bubble.Text = string.format("● RECORDING • %d samples", samples)
+        bubble.TextColor3 = Color3.fromRGB(255, 93, 111)
+    else
+        statusTitle.Text = state.SavedPath and "SAVED" or "READY"
+        statusTitle.TextColor3 = state.SavedPath and Color3.fromRGB(58, 235, 113) or Color3.fromRGB(58, 235, 113)
+        statusDetail.Text = tostring(state.Message or "Choose a profile, then tap START RECORDING before the round begins.")
+        bubble.Text = state.SavedPath and ("Recorder • SAVED TO " .. tostring(state.SavedPath)) or "SquidNoMo Recorder • READY"
+        bubble.TextColor3 = Color3.fromRGB(58, 235, 113)
+    end
+end
+
+local function changeProfile(offset)
+    if Recorder.Active then return end
+    selectedIndex = ((selectedIndex - 1 + offset) % #Profiles) + 1
+    profileLabel.Text = Profiles[selectedIndex]
+end
+previousProfile.Activated:Connect(function() changeProfile(-1) end)
+nextProfile.Activated:Connect(function() changeProfile(1) end)
+
+start.Activated:Connect(function()
+    local ok, detail = Recorder:Start(Profiles[selectedIndex])
+    if not ok then
+        statusTitle.Text = "START FAILED"
+        statusTitle.TextColor3 = Color3.fromRGB(255, 100, 116)
+        statusDetail.Text = tostring(detail)
+    end
+    render()
+end)
+
+finish.Activated:Connect(function()
+    local ok, detail = Recorder:MarkSuccess()
+    render()
+    if not ok then
+        statusTitle.Text = "SAVE FAILED"
+        statusTitle.TextColor3 = Color3.fromRGB(255, 100, 116)
+        statusDetail.Text = tostring(detail)
+    else
+        statusDetail.Text = "Successful trace saved to " .. tostring(detail) .. ". Upload that JSON here."
+    end
+end)
+
+cancel.Activated:Connect(function()
+    local ok, detail = Recorder:Stop(false)
+    render()
+    if not ok then statusDetail.Text = tostring(detail) end
+end)
+
+local minimized = false
+local function setMinimized(state)
+    minimized = state == true
+    panel.Visible = not minimized
+    bubble.Visible = minimized
+end
+minimize.Activated:Connect(function() setMinimized(true) end)
+bubble.Activated:Connect(function() setMinimized(false) end)
+close.Activated:Connect(function()
+    if Recorder.Active then
+        setMinimized(true)
+    else
+        gui:Destroy()
+        Environment.__SquidNoMoStandaloneRecorderUI = nil
+    end
+end)
+
+local subscription = Recorder:Subscribe(render)
+gui.Destroying:Connect(function()
+    if subscription then pcall(function() subscription:Disconnect() end) end
+end)
+
+Environment.__SquidNoMoStandaloneRecorderUI = {
+    Gui = gui,
+    Recorder = Recorder,
+    Restore = function() setMinimized(false) end,
+}
+
+render()
+return Recorder
 ]====],
     },
 }

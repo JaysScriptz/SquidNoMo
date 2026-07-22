@@ -316,13 +316,11 @@ end
 
 Loader.FeatureCatalog = Load("Modules/FeatureCatalog.lua")
 Loader.FeatureManager = Load("Features/FeatureManager.lua")
-Loader.LearningRecorder = Load("Features/Shared/LearningRecorder.lua")
 Loader.App = Load("Core/App.lua")
 
 Loader.Home = Load("Modules/Home.lua")
 Loader.SubpageShell = Load("Modules/SubpageShell.lua")
 Loader.CategoryStrip = Load("Modules/CategoryStrip.lua")
-Loader.LearningPanel = Load("Modules/LearningPanel.lua")
 Loader.FeatureFolder = Load("Modules/FeatureFolder.lua")
 Loader.Games = Load("Modules/Games.lua")
 Loader.Players = Load("Modules/Players.lua")
@@ -493,9 +491,6 @@ if featuresLoaded then
         )
     end
 
-    if Loader.LearningRecorder and type(Loader.LearningRecorder.Initialize) == "function" then
-        Loader.LearningRecorder:Initialize(Loader, Loader.FeatureManager)
-    end
 
     print(
         "[Loader] Features initialized before page build:",

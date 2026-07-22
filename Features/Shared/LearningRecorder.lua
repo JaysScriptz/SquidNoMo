@@ -5,9 +5,18 @@ local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 
+local BootEnvironment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then BootEnvironment = result end
+end
+local BootManifest = type(BootEnvironment.__SquidNoMoBuildManifest) == "table"
+    and BootEnvironment.__SquidNoMoBuildManifest
+    or {}
+
 local Recorder = {
-    Revision = "demonstration-recorder-r2",
-    BuildNumber = 12,
+    Revision = "standalone-demonstration-recorder-r3",
+    BuildNumber = tonumber(BootManifest.BuildNumber) or 13,
     Active = false,
     Session = nil,
     Listeners = {},
@@ -164,6 +173,7 @@ end
 
 function Recorder:Initialize(Loader, Manager)
     self.Loader = Loader
+    self.BuildNumber = tonumber(Loader and Loader.BuildNumber) or self.BuildNumber
     self.Manager = Manager
     self.Runtime = Loader
         and Loader.Features
@@ -372,8 +382,8 @@ function Recorder:Start(gameName)
     self.Message = "Learning " .. gameName .. " — play the round normally."
     self.Session = {
         schema = 1,
-        build = self.Loader and self.Loader.BuildVersion or "1.1 beta 12",
-        buildNumber = self.Loader and self.Loader.BuildNumber or 12,
+        build = self.Loader and self.Loader.BuildVersion or "1.1 beta 13",
+        buildNumber = self.Loader and self.Loader.BuildNumber or 13,
         game = gameName,
         placeId = game.PlaceId,
         startedAtUnix = os.time(),

@@ -4,8 +4,8 @@
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 12,
-    Revision = "visible-learning-controls-r12",
+    BuildNumber = 13,
+    Revision = "standalone-learning-recorder-r13",
     FeatureRuntimeRevision = "adaptive-game-runtime-r10",
     GameRuntimeRevision = "game-modules-rlgl-learner-r10",
     PlayerRuntimeRevision = "player-runtime-r4",
@@ -15,6 +15,7 @@ local Manifest = {
     UIFeatureCount = 23,
     ExpectedRegistryTotal = 117,
     StartupBundle = "SourceBundle.lua",
+    StandaloneRecorder = "Recorder.lua",
     StartupTimeoutSeconds = 30,
     RequiredSharedFiles = {
         "Features/Shared/Runtime.lua",
