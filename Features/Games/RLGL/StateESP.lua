@@ -17,7 +17,7 @@ return Runtime:CreateFeature({
     Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.stateesp",
     Name = "State ESP",
-    Description = "Displays a clear local red, green, or uncertain signal without changing movement settings.",
+    Description = "Shows the detected RLGL state and the live signal source used to confirm red or green.",
     Handler = "StateHUD",
     Interval = 0.1,
     IdleInterval = 0.55,

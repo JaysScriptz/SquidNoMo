@@ -17,7 +17,7 @@ return Runtime:CreateFeature({
     Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.antistuck",
     Name = "Anti Stuck",
-    Description = "Checks real movement progress and applies one jump recovery only during confirmed green light.",
+    Description = "Recovers stalled movement only while the adaptive RLGL detector confirms green and never changes WalkSpeed.",
     Handler = "AntiStuck",
     StuckSeconds = 2.1,
     MinimumMovement = 0.4,

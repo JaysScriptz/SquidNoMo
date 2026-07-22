@@ -728,48 +728,68 @@ Handlers.StateHUD = function(feature)
         feature.Hud = label
         feature:_TrackInstance(gui)
     end
-    local state = Shared:GetRLGLState()
+    local state, signal = Shared:GetRLGLStateDetail()
+    local source = signal and signal.Source or "no live source"
     if state == "Green" then
         feature.Hud.Text = "GREEN LIGHT — MOVE"
         feature.Hud.TextColor3 = Color3.fromRGB(80, 255, 130)
-        return true, "Green light confirmed"
+        return true, "Green confirmed via " .. source
     elseif state == "Red" then
         feature.Hud.Text = "RED LIGHT — STOP"
         feature.Hud.TextColor3 = Color3.fromRGB(255, 78, 90)
-        return true, "Red light confirmed"
+        return true, "Red confirmed via " .. source
     end
     feature.Hud.Text = "SIGNAL UNCERTAIN — WAIT"
     feature.Hud.TextColor3 = Color3.fromRGB(255, 215, 85)
-    return false, "Waiting for an unambiguous light signal"
+    local scores = signal and string.format(" (R:%d G:%d)", signal.RedScore or 0, signal.GreenScore or 0) or ""
+    return false, "Waiting for live signal" .. scores
 end
 
 Handlers.RLGLMove = function(feature)
     local _, _, humanoid, root = getCharacter()
     if not humanoid or not root then return false, "Waiting for the local character" end
-    local state = Shared:GetRLGLState()
+    local state, signal = Shared:GetRLGLStateDetail()
     if state ~= "Green" then
-        Shared:StopMovement(feature)
-        return false, state == "Red" and "Red light — movement stopped" or "Signal uncertain — movement stopped"
+        Shared:StopMovement(feature, state == "Red")
+        if state == "Red" then
+            return false, "Red confirmed via " .. tostring(signal and signal.Source or "live detector")
+        end
+        local scores = signal and string.format("R:%d G:%d", signal.RedScore or 0, signal.GreenScore or 0) or "no score"
+        return false, "Signal uncertain — " .. scores
     end
+
     local target = findTarget(feature.Config, root.Position)
     local position = positionOf(target)
-    if not position then return false, "Waiting for the RLGL finish zone" end
+    local stopDistance = feature.Config.StopDistance or 8
+    local targetSource = "finish zone"
+    if not position then
+        target = Shared:GetRLGLDoll()
+        position = positionOf(target)
+        stopDistance = math.max(stopDistance, 16)
+        targetSource = "doll-side finish fallback"
+    end
+    if not position then return false, "Green confirmed; waiting for finish or doll target" end
+
     local moved, detail = Shared:MoveTo(position, feature, {
         Direct = true,
-        StopDistance = feature.Config.StopDistance or 8,
+        StopDistance = stopDistance,
         MovementPriority = feature.Config.MovementPriority or 95,
-        CommandInterval = 0.22,
-        LeaseDuration = 0.34,
+        CommandInterval = 0.18,
+        LeaseDuration = 0.30,
     })
-    return moved, moved and "Moving during confirmed green light" or detail
+    local source = signal and signal.Source or "live detector"
+    return moved, moved and ("Moving via " .. source .. " toward " .. targetSource) or detail
 end
 
 Handlers.AntiStuck = function(feature)
     local _, _, humanoid, root = getCharacter()
     if not humanoid or not root then return false, "Waiting for the local character" end
-    if Shared:GetRLGLState() ~= "Green" then
+    local state, signal = Shared:GetRLGLStateDetail()
+    if state ~= "Green" then
         feature.LastPosition, feature.LastProgressAt = root.Position, os.clock()
-        return false, "Recovery waits for green light"
+        return false, state == "Red"
+            and ("Recovery stopped: red via " .. tostring(signal and signal.Source or "live detector"))
+            or "Recovery waits for a confirmed green signal"
     end
     if humanoid.MoveDirection.Magnitude < 0.05 then
         feature.LastPosition, feature.LastProgressAt = root.Position, os.clock()

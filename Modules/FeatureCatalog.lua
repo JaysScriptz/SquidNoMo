@@ -38,14 +38,14 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.red_light_green_light.antistuck",
                     Name = "Anti Stuck",
-                    Description = "Checks real movement progress and applies one jump recovery only during confirmed green light.",
+                    Description = "Recovers stalled movement only while the adaptive RLGL detector confirms green and never changes WalkSpeed.",
                     Path = "Features/Games/RLGL/AntiStuck.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.red_light_green_light.automove",
                     Name = "Auto Move",
-                    Description = "Moves toward the verified finish only during confirmed green light and stops on red or uncertain signals.",
+                    Description = "Moves during green using live HUD values, doll orientation, doll audio, and crowd movement; stops immediately on red or uncertainty.",
                     Path = "Features/Games/RLGL/AutoMove.lua",
                     Category = "Experimental",
                 },
@@ -66,7 +66,7 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.red_light_green_light.stateesp",
                     Name = "State ESP",
-                    Description = "Displays a clear local red, green, or uncertain signal without changing movement settings.",
+                    Description = "Displays the detected RLGL state and the live signal source used to confirm red or green.",
                     Path = "Features/Games/RLGL/StateESP.lua",
                     Category = "Experimental",
                 },

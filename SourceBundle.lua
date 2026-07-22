@@ -1,7 +1,7 @@
 -- Generated SquidNoMo verified source bundle.
 -- Upload this file together with BuildManifest.lua and Main.lua.
 return {
-    BuildToken = [====[1_1_beta_8-all-game-modules-rebuilt-r8]====],
+    BuildToken = [====[1_1_beta_9-adaptive-rlgl-live-signals-r9]====],
     Sources = {
         [ [====[BuildManifest.lua]====] ] = [====[-- SquidNoMo deployment manifest.
 -- BuildNumber is advanced automatically by repository workflows whenever feature code changes.
@@ -9,10 +9,10 @@ return {
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 8,
-    Revision = "all-game-modules-rebuilt-r8",
-    FeatureRuntimeRevision = "adaptive-game-runtime-r8",
-    GameRuntimeRevision = "game-modules-from-scratch-r8",
+    BuildNumber = 9,
+    Revision = "adaptive-rlgl-live-signals-r9",
+    FeatureRuntimeRevision = "adaptive-game-runtime-r9",
+    GameRuntimeRevision = "game-modules-live-signals-r9",
     PlayerRuntimeRevision = "player-runtime-r4",
     FarmingRuntimeRevision = "farming-runtime-r2",
     CatalogFeatureCount = 68,
@@ -12588,48 +12588,68 @@ Handlers.StateHUD = function(feature)
         feature.Hud = label
         feature:_TrackInstance(gui)
     end
-    local state = Shared:GetRLGLState()
+    local state, signal = Shared:GetRLGLStateDetail()
+    local source = signal and signal.Source or "no live source"
     if state == "Green" then
         feature.Hud.Text = "GREEN LIGHT — MOVE"
         feature.Hud.TextColor3 = Color3.fromRGB(80, 255, 130)
-        return true, "Green light confirmed"
+        return true, "Green confirmed via " .. source
     elseif state == "Red" then
         feature.Hud.Text = "RED LIGHT — STOP"
         feature.Hud.TextColor3 = Color3.fromRGB(255, 78, 90)
-        return true, "Red light confirmed"
+        return true, "Red confirmed via " .. source
     end
     feature.Hud.Text = "SIGNAL UNCERTAIN — WAIT"
     feature.Hud.TextColor3 = Color3.fromRGB(255, 215, 85)
-    return false, "Waiting for an unambiguous light signal"
+    local scores = signal and string.format(" (R:%d G:%d)", signal.RedScore or 0, signal.GreenScore or 0) or ""
+    return false, "Waiting for live signal" .. scores
 end
 
 Handlers.RLGLMove = function(feature)
     local _, _, humanoid, root = getCharacter()
     if not humanoid or not root then return false, "Waiting for the local character" end
-    local state = Shared:GetRLGLState()
+    local state, signal = Shared:GetRLGLStateDetail()
     if state ~= "Green" then
-        Shared:StopMovement(feature)
-        return false, state == "Red" and "Red light — movement stopped" or "Signal uncertain — movement stopped"
+        Shared:StopMovement(feature, state == "Red")
+        if state == "Red" then
+            return false, "Red confirmed via " .. tostring(signal and signal.Source or "live detector")
+        end
+        local scores = signal and string.format("R:%d G:%d", signal.RedScore or 0, signal.GreenScore or 0) or "no score"
+        return false, "Signal uncertain — " .. scores
     end
+
     local target = findTarget(feature.Config, root.Position)
     local position = positionOf(target)
-    if not position then return false, "Waiting for the RLGL finish zone" end
+    local stopDistance = feature.Config.StopDistance or 8
+    local targetSource = "finish zone"
+    if not position then
+        target = Shared:GetRLGLDoll()
+        position = positionOf(target)
+        stopDistance = math.max(stopDistance, 16)
+        targetSource = "doll-side finish fallback"
+    end
+    if not position then return false, "Green confirmed; waiting for finish or doll target" end
+
     local moved, detail = Shared:MoveTo(position, feature, {
         Direct = true,
-        StopDistance = feature.Config.StopDistance or 8,
+        StopDistance = stopDistance,
         MovementPriority = feature.Config.MovementPriority or 95,
-        CommandInterval = 0.22,
-        LeaseDuration = 0.34,
+        CommandInterval = 0.18,
+        LeaseDuration = 0.30,
     })
-    return moved, moved and "Moving during confirmed green light" or detail
+    local source = signal and signal.Source or "live detector"
+    return moved, moved and ("Moving via " .. source .. " toward " .. targetSource) or detail
 end
 
 Handlers.AntiStuck = function(feature)
     local _, _, humanoid, root = getCharacter()
     if not humanoid or not root then return false, "Waiting for the local character" end
-    if Shared:GetRLGLState() ~= "Green" then
+    local state, signal = Shared:GetRLGLStateDetail()
+    if state ~= "Green" then
         feature.LastPosition, feature.LastProgressAt = root.Position, os.clock()
-        return false, "Recovery waits for green light"
+        return false, state == "Red"
+            and ("Recovery stopped: red via " .. tostring(signal and signal.Source or "live detector"))
+            or "Recovery waits for a confirmed green signal"
     end
     if humanoid.MoveDirection.Magnitude < 0.05 then
         feature.LastPosition, feature.LastProgressAt = root.Position, os.clock()
@@ -14382,7 +14402,7 @@ return Runtime:CreateFeature({
     Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.antistuck",
     Name = "Anti Stuck",
-    Description = "Checks real movement progress and applies one jump recovery only during confirmed green light.",
+    Description = "Recovers stalled movement only while the adaptive RLGL detector confirms green and never changes WalkSpeed.",
     Handler = "AntiStuck",
     StuckSeconds = 2.1,
     MinimumMovement = 0.4,
@@ -14409,7 +14429,7 @@ return Runtime:CreateFeature({
     Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.automove",
     Name = "Auto Move",
-    Description = "Moves toward the verified finish only during confirmed green light and stops on red or uncertain signals.",
+    Description = "Moves toward the finish during green using live HUD values, doll orientation, doll audio, and crowd movement; stops immediately on red or uncertainty.",
     Handler = "RLGLMove",
     TargetTokens = {"finish", "safe zone", "end zone", "goal", "finish line"},
     ExcludeTokens = {"start", "spawn"},
@@ -14501,7 +14521,7 @@ return Runtime:CreateFeature({
     Game = "Red Light, Green Light",
     Id = "mapped.games.red_light_green_light.stateesp",
     Name = "State ESP",
-    Description = "Displays a clear local red, green, or uncertain signal without changing movement settings.",
+    Description = "Shows the detected RLGL state and the live signal source used to confirm red or green.",
     Handler = "StateHUD",
     Interval = 0.1,
     IdleInterval = 0.55,
@@ -19791,12 +19811,12 @@ local function statusWord(value)
     if text == "red" or text == "redlight" or text == "red light" then return "Red" end
     if text == "green" or text == "greenlight" or text == "green light" then return "Green" end
     if string.find(text, "red light", 1, true) or string.find(text, "stop moving", 1, true)
-        or string.find(text, "movement forbidden", 1, true)
+        or string.find(text, "movement forbidden", 1, true) or string.find(text, "freeze", 1, true)
     then
         return "Red"
     end
     if string.find(text, "green light", 1, true) or string.find(text, "you may move", 1, true)
-        or string.find(text, "movement allowed", 1, true)
+        or string.find(text, "movement allowed", 1, true) or string.find(text, "go now", 1, true)
     then
         return "Green"
     end
@@ -19806,37 +19826,242 @@ end
 local function contextualStatusWord(value, context)
     local state = statusWord(value)
     if state then return state end
-    if not containsAny(context, {"light", "rlgl", "doll", "younghee", "mugunghwa", "signal", "phase", "round state"}) then
+    if not containsAny(context, {
+        "light", "rlgl", "doll", "younghee", "young hee", "yeonghee",
+        "mugunghwa", "signal", "phase", "round state", "can move", "movement"
+    }) then
         return nil
     end
     local text = lower(value)
-    if text == "stop" or text == "freeze" or text == "false" or text == "0" then return "Red" end
-    if text == "go" or text == "move" or text == "true" or text == "1" then return "Green" end
+    if text == "stop" or text == "freeze" or text == "false" or text == "0"
+        or text == "locked" or text == "watching"
+    then
+        return "Red"
+    end
+    if text == "go" or text == "move" or text == "true" or text == "1"
+        or text == "allowed" or text == "singing"
+    then
+        return "Green"
+    end
     return nil
 end
 
 local function rlglColorState(color)
     if typeof(color) ~= "Color3" then return nil end
     local r, g, b = color.R, color.G, color.B
-    if g >= 0.42 and g > r * 1.28 and g > b * 1.12 then return "Green" end
-    if r >= 0.48 and r > g * 1.30 and r > b * 1.12 then return "Red" end
+    if g >= 0.42 and g > r * 1.24 and g > b * 1.08 then return "Green" end
+    if r >= 0.46 and r > g * 1.24 and r > b * 1.08 then return "Red" end
     return nil
+end
+
+local RLGL_CONTEXT = {
+    "rlgl", "red light", "green light", "redlight", "greenlight",
+    "younghee", "young hee", "yeonghee", "mugunghwa", "robot doll", "doll signal"
+}
+local RLGL_DOLL_TOKENS = {
+    "younghee", "young hee", "yeonghee", "mugunghwa", "robot doll", "doll"
+}
+local RLGL_AMBIENT_SOUND_EXCLUDES = {
+    "gun", "shot", "rifle", "kill", "death", "hit", "impact", "music", "ambient", "lobby"
+}
+
+local function horizontalUnit(vector)
+    if typeof(vector) ~= "Vector3" then return nil end
+    local horizontal = Vector3.new(vector.X, 0, vector.Z)
+    if horizontal.Magnitude < 0.001 then return nil end
+    return horizontal.Unit
+end
+
+local function modelSize(instance)
+    if not instance then return Vector3.zero end
+    if instance:IsA("BasePart") then return instance.Size end
+    if instance:IsA("Model") then
+        local ok, size = pcall(function() return instance:GetExtentsSize() end)
+        if ok and typeof(size) == "Vector3" then return size end
+    end
+    return Vector3.zero
+end
+
+local function findActiveRLGLDoll()
+    local now = os.clock()
+    local cached = Runtime._RLGLDollCache
+    if cached and now - cached.Time < 0.8 and cached.Instance and cached.Instance.Parent then
+        return cached.Instance, cached.Part
+    end
+
+    local _, character, _, root = getCharacter()
+    local origin = root and root.Position
+    local seen = setmetatable({}, {__mode = "k"})
+    local best, bestPart, bestScore = nil, nil, -math.huge
+
+    local function consider(instance)
+        if not instance or not instance.Parent then return end
+        local candidate = instance:IsA("Model") and instance or instance:FindFirstAncestorOfClass("Model") or instance
+        if not candidate or seen[candidate] or (character and candidate == character) then return end
+        seen[candidate] = true
+        local text = instanceText(candidate) .. " " .. instanceText(instance)
+        if not containsAny(text, RLGL_DOLL_TOKENS) then return end
+        local position = getPosition(candidate)
+        if not position then return end
+        local score = 0
+        local name = lower(candidate.Name)
+        if containsAny(name, {"younghee", "young hee", "yeonghee", "mugunghwa"}) then score = score + 90 end
+        if containsAny(name, {"robot doll", "doll"}) then score = score + 48 end
+        if containsAny(text, {"younghee", "young hee", "yeonghee", "mugunghwa"}) then score = score + 36 end
+        local size = modelSize(candidate)
+        if size.Y >= 8 then score = score + math.min(size.Y, 40) * 1.5 end
+        if origin then
+            local distance = (position - origin).Magnitude
+            if distance >= 18 and distance <= 900 then score = score + 22 end
+            if distance < 8 then score = score - 50 end
+        end
+        if candidate:IsA("Model") and candidate:FindFirstChildOfClass("Humanoid") then score = score - 25 end
+
+        local part
+        if candidate:IsA("Model") then
+            part = candidate:FindFirstChild("Head", true)
+                or candidate:FindFirstChild("head", true)
+                or candidate.PrimaryPart
+                or candidate:FindFirstChildWhichIsA("BasePart", true)
+        elseif candidate:IsA("BasePart") then
+            part = candidate
+        end
+        if part and not part:IsA("BasePart") then part = nil end
+        if score > bestScore and part then
+            best, bestPart, bestScore = candidate, part, score
+        end
+    end
+
+    forEachIndexed("Workspace", {"Model", "BasePart"}, function(instance)
+        consider(instance)
+        return true
+    end)
+
+    Runtime._RLGLDollCache = {Time = now, Instance = best, Part = bestPart, Score = bestScore}
+    return best, bestPart
+end
+
+local function faceNormal(part)
+    if not part or not part:IsA("BasePart") then return nil end
+    local decal = part:FindFirstChildWhichIsA("Decal")
+    local face = decal and decal.Face
+    if face == Enum.NormalId.Back then return -part.CFrame.LookVector end
+    if face == Enum.NormalId.Right then return part.CFrame.RightVector end
+    if face == Enum.NormalId.Left then return -part.CFrame.RightVector end
+    if face == Enum.NormalId.Top then return part.CFrame.UpVector end
+    if face == Enum.NormalId.Bottom then return -part.CFrame.UpVector end
+    return part.CFrame.LookVector
+end
+
+local function dollFacingEvidence()
+    local _, _, _, root = getCharacter()
+    if not root then return nil end
+    local doll, part = findActiveRLGLDoll()
+    if not doll or not part then return nil end
+    local front = horizontalUnit(faceNormal(part))
+    local toPlayer = horizontalUnit(root.Position - part.Position)
+    if not front or not toPlayer then return nil end
+
+    local dot = front:Dot(toPlayer)
+    local now = os.clock()
+    local sample = Runtime._RLGLDollFacingSample
+    if not sample or sample.Part ~= part then
+        sample = {Part = part, Dot = dot, ChangedAt = now, StableAt = now}
+        Runtime._RLGLDollFacingSample = sample
+        return nil
+    end
+    if math.abs(dot - (sample.Dot or dot)) >= 0.20 then
+        sample.ChangedAt = now
+    end
+    sample.Dot = dot
+    if now - (sample.ChangedAt or now) < 0.18 then
+        return nil
+    end
+
+    if dot >= 0.24 then
+        return "Red", 10, doll, string.format("doll facing players (%.2f)", dot)
+    elseif dot <= -0.10 then
+        return "Green", 9, doll, string.format("doll facing away (%.2f)", dot)
+    end
+    return nil
+end
+
+local function dollSoundEvidence()
+    local doll = findActiveRLGLDoll()
+    if not doll then return nil end
+    local now = os.clock()
+    local cache = Runtime._RLGLDollSoundCache
+    if not cache or cache.Doll ~= doll or now - cache.Time > 1.0 then
+        local sounds = {}
+        local descendants = doll:GetDescendants()
+        for i = 1, math.min(#descendants, 180) do
+            local instance = descendants[i]
+            if instance:IsA("Sound") and not containsAny(instanceText(instance), RLGL_AMBIENT_SOUND_EXCLUDES) then
+                table.insert(sounds, instance)
+            end
+        end
+        cache = {Doll = doll, Time = now, Sounds = sounds}
+        Runtime._RLGLDollSoundCache = cache
+    end
+    local playing = false
+    local chosen
+    for _, instance in ipairs(cache.Sounds) do
+        if instance and instance.Parent and instance.Playing and instance.Volume > 0.01 then
+            playing, chosen = true, instance
+            break
+        end
+    end
+    if playing then
+        Runtime._RLGLDollSongSeenAt = now
+        return "Green", 6, chosen, "doll song/audio playing"
+    end
+    if Runtime._RLGLDollSongSeenAt and now - Runtime._RLGLDollSongSeenAt < 0.75 then
+        return nil -- brief turn-around transition; stay conservative
+    end
+    return nil
+end
+
+local function crowdMovementEvidence()
+    local now = os.clock()
+    local cached = Runtime._RLGLCrowdCache
+    if cached and now - cached.Time < 0.14 then
+        return cached.State, cached.Weight, nil, cached.Source
+    end
+    local player, _, _, root = getCharacter()
+    if not player or not root then return nil end
+    local total, moving = 0, 0
+    for _, other in ipairs(Players:GetPlayers()) do
+        if other ~= player then
+            local character = other.Character
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            local otherRoot = character and character:FindFirstChild("HumanoidRootPart")
+            if humanoid and humanoid.Health > 0 and otherRoot and (otherRoot.Position - root.Position).Magnitude <= 360 then
+                total = total + 1
+                local velocity = Vector3.new(otherRoot.AssemblyLinearVelocity.X, 0, otherRoot.AssemblyLinearVelocity.Z).Magnitude
+                if velocity >= 2.0 or humanoid.MoveDirection.Magnitude >= 0.22 then moving = moving + 1 end
+            end
+        end
+    end
+    if total < 3 then return nil end
+    local ratio = moving / total
+    local state, weight, source
+    if moving >= 2 and ratio >= 0.25 then
+        Runtime._RLGLCrowdMotionSeenAt = now
+        state, weight, source = "Green", 4, string.format("crowd moving (%d/%d)", moving, total)
+    elseif moving == 0 and Runtime._RLGLCrowdMotionSeenAt and now - Runtime._RLGLCrowdMotionSeenAt <= 2.5 then
+        state, weight, source = "Red", 3, string.format("crowd stopped (%d tracked)", total)
+    end
+    Runtime._RLGLCrowdCache = {Time = now, State = state, Weight = weight, Source = source}
+    return state, weight, nil, source
 end
 
 local function discoverRLGLSignals()
     local candidates = {}
-    local explicitContext = {
-        "rlgl", "red light", "green light", "redlight", "greenlight",
-        "younghee", "young hee", "yeonghee", "mugunghwa", "doll signal"
-    }
-    local stateNames = {"light", "signal", "traffic", "doll", "red", "green"}
+    local stateNames = {"light", "signal", "traffic", "doll", "red", "green", "canmove", "moveallowed"}
 
-    -- Workspace values are live-map evidence. ReplicatedStorage often contains
-    -- dormant values for every minigame, so only explicit RLGL context is allowed
-    -- there; generic objects named State/Phase no longer create false signals.
     forEachIndexed("Workspace", {"ValueBase"}, function(instance)
         local context = instanceText(instance)
-        if containsAny(context, explicitContext)
+        if containsAny(context, RLGL_CONTEXT)
             or (containsAny(instance.Name, stateNames) and contextualStatusWord(instance.Value, context))
         then
             table.insert(candidates, instance)
@@ -19845,9 +20070,7 @@ local function discoverRLGLSignals()
     end)
     forEachIndexed("ReplicatedStorage", {"ValueBase"}, function(instance)
         local context = instanceText(instance)
-        if containsAny(context, explicitContext) then
-            table.insert(candidates, instance)
-        end
+        if containsAny(context, RLGL_CONTEXT) then table.insert(candidates, instance) end
         return true
     end)
 
@@ -19871,8 +20094,8 @@ local function discoverRLGLSignals()
         end
         local history = Runtime._RLGLColorHistory[instance]
         local flippedColorSignal = history and history.SeenRed and history.SeenGreen
-        if containsAny(context, explicitContext)
-            or (containsAny(context, {"light", "signal", "doll"}) and statusWord(rawText))
+        if containsAny(context, RLGL_CONTEXT)
+            or (containsAny(context, {"light", "signal", "doll", "move"}) and statusWord(rawText))
             or flippedColorSignal
         then
             table.insert(candidates, instance)
@@ -19881,7 +20104,7 @@ local function discoverRLGLSignals()
     end)
 
     forEachIndexed("Workspace", {"Sound"}, function(instance)
-        if instance.Playing and containsAny(instanceText(instance), explicitContext) then
+        if instance.Playing and containsAny(instanceText(instance), RLGL_CONTEXT) then
             table.insert(candidates, instance)
         end
         return true
@@ -19892,48 +20115,64 @@ local function discoverRLGLSignals()
     return candidates
 end
 
-local function findStatusText(tokens)
+local function addRLGLScore(result, state, weight, instance, source)
+    if not state or not weight or weight <= 0 then return end
+    result.Scores[state] = result.Scores[state] + weight
+    table.insert(result.Evidence, {State = state, Weight = weight, Instance = instance, Source = source})
+    if weight > result.BestWeight[state] then
+        result.BestWeight[state] = weight
+        result.BestInstance[state] = instance
+        result.BestSource[state] = source
+    end
+end
+
+local function findStatusText()
     local now = os.clock()
     local cached = Runtime._StatusTextCache
-    if cached and now - cached.Time < 0.08 then return cached.Value, cached.Instance end
+    if cached and now - cached.Time < 0.08 then
+        return cached.Value, cached.Instance, cached.Detail
+    end
 
+    local result = {
+        Scores = {Red = 0, Green = 0},
+        BestInstance = {Red = nil, Green = nil},
+        BestWeight = {Red = 0, Green = 0},
+        BestSource = {Red = nil, Green = nil},
+        Evidence = {},
+    }
     local candidates = Runtime._RLGLSignalCandidates
-    if not candidates or now - (Runtime._RLGLSignalsScannedAt or 0) > 1.2 then
+    if not candidates or now - (Runtime._RLGLSignalsScannedAt or 0) > 0.9 then
         candidates = discoverRLGLSignals()
     end
 
-    local scores = {Red = 0, Green = 0}
-    local bestInstance = {Red = nil, Green = nil}
-    local bestWeight = {Red = 0, Green = 0}
     local liveCount = 0
     for _, instance in ipairs(candidates) do
         if instance and instance.Parent then
             liveCount = liveCount + 1
-            local state, weight
+            local state, weight, source
             if instance:IsA("ValueBase") then
                 local context = instanceText(instance)
                 state = contextualStatusWord(instance.Value, context)
-                weight = state and (containsAny(context, {"rlgl", "red light", "green light", "younghee", "mugunghwa"}) and 9 or 5) or 0
+                weight = state and (containsAny(context, RLGL_CONTEXT) and 13 or 8) or 0
+                source = "live value: " .. tostring(instance.Name)
                 if instance:IsA("BoolValue") then
                     local name = lower(instance.Name)
                     if string.find(name, "red", 1, true) then
-                        state, weight = instance.Value and "Red" or "Green", 9
-                    elseif string.find(name, "green", 1, true) then
-                        state, weight = instance.Value and "Green" or "Red", 9
+                        state, weight = instance.Value and "Red" or "Green", 13
+                    elseif string.find(name, "green", 1, true) or string.find(name, "canmove", 1, true) then
+                        state, weight = instance.Value and "Green" or "Red", 13
                     end
                 end
             elseif instance:IsA("Sound") then
-                -- In RLGL the doll/song audio is normally active during the move
-                -- window. This is supporting evidence only and cannot beat a live
-                -- red HUD/value signal by itself.
-                state, weight = instance.Playing and "Green" or nil, instance.Playing and 3 or 0
+                state, weight, source = instance.Playing and "Green" or nil, instance.Playing and 5 or 0, "named RLGL audio"
             elseif isVisibleGui(instance) then
                 local rawText = (instance:IsA("TextLabel") or instance:IsA("TextButton")) and instance.Text or ""
                 local context = instanceText(instance)
                 state = contextualStatusWord(rawText, context)
-                weight = state and 7 or 0
+                weight = state and 11 or 0
+                source = state and "visible HUD text" or nil
                 local history = Runtime._RLGLColorHistory and Runtime._RLGLColorHistory[instance]
-                local colorAllowed = containsAny(context, {"light", "signal", "doll", "rlgl"})
+                local colorAllowed = containsAny(context, {"light", "signal", "doll", "rlgl", "move"})
                     or (history and history.SeenRed and history.SeenGreen)
                 if not state and colorAllowed then
                     local okText, textColor = pcall(function() return instance.TextColor3 end)
@@ -19942,47 +20181,76 @@ local function findStatusText(tokens)
                     state = (okText and rlglColorState(textColor))
                         or (okBackground and rlglColorState(backgroundColor))
                         or (okImage and rlglColorState(imageColor))
-                    weight = state and (history and history.SeenRed and history.SeenGreen and 7 or 5) or 0
+                    weight = state and (history and history.SeenRed and history.SeenGreen and 9 or 6) or 0
+                    source = state and "switching HUD color" or nil
                 end
             end
-            if state and weight and weight > 0 then
-                scores[state] = scores[state] + weight
-                if weight > bestWeight[state] then
-                    bestWeight[state] = weight
-                    bestInstance[state] = instance
-                end
-            end
+            addRLGLScore(result, state, weight, instance, source)
         end
     end
 
-    if liveCount == 0 or now - (Runtime._RLGLSignalsScannedAt or 0) > 0.55 then
+    local state, weight, instance, source = dollFacingEvidence()
+    addRLGLScore(result, state, weight, instance, source)
+    state, weight, instance, source = dollSoundEvidence()
+    addRLGLScore(result, state, weight, instance, source)
+    state, weight, instance, source = crowdMovementEvidence()
+    addRLGLScore(result, state, weight, instance, source)
+
+    if liveCount == 0 or now - (Runtime._RLGLSignalsScannedAt or 0) > 0.50 then
         Runtime._RLGLSignalCandidates = nil
     end
 
-    local value, instance
-    local margin = math.abs(scores.Red - scores.Green)
-    if scores.Red >= 5 and scores.Red > scores.Green and margin >= 2 then
-        value, instance = "Red", bestInstance.Red
-    elseif scores.Green >= 5 and scores.Green > scores.Red and margin >= 2 then
-        value, instance = "Green", bestInstance.Green
+    local value, selectedInstance, selectedSource
+    local margin = math.abs(result.Scores.Red - result.Scores.Green)
+    if result.Scores.Red >= 7 and result.Scores.Red > result.Scores.Green and margin >= 2 then
+        value, selectedInstance, selectedSource = "Red", result.BestInstance.Red, result.BestSource.Red
+    elseif result.Scores.Green >= 7 and result.Scores.Green > result.Scores.Red and margin >= 2 then
+        value, selectedInstance, selectedSource = "Green", result.BestInstance.Green, result.BestSource.Green
     end
-    Runtime._StatusTextCache = {Time = now, Value = value, Instance = instance, Scores = scores}
-    return value, instance
+
+    local detail = {
+        State = value,
+        Source = selectedSource or "no decisive live signal",
+        RedScore = result.Scores.Red,
+        GreenScore = result.Scores.Green,
+        Doll = findActiveRLGLDoll(),
+    }
+    Runtime._StatusTextCache = {Time = now, Value = value, Instance = selectedInstance, Detail = detail}
+    return value, selectedInstance, detail
 end
 
-function Runtime:GetRLGLState()
-    local candidate = findStatusText({"light", "status", "state"})
+function Runtime:GetRLGLStateDetail()
+    local candidate, instance, detail = findStatusText()
     local now = os.clock()
     if candidate ~= self._RLGLCandidate then
         self._RLGLCandidate = candidate
         self._RLGLCandidateAt = now
     end
-    if candidate and now - (self._RLGLCandidateAt or now) >= 0.10 then
+
+    -- A red signal is safety-critical and is applied immediately. Green needs a
+    -- short confirmation window to avoid moving during the doll's turn animation.
+    local required = candidate == "Red" and 0.02 or 0.13
+    if candidate and now - (self._RLGLCandidateAt or now) >= required then
         self._RLGLStableState = candidate
-    elseif not candidate and now - (self._RLGLCandidateAt or now) >= 0.35 then
+        self._RLGLStableDetail = detail
+    elseif not candidate and now - (self._RLGLCandidateAt or now) >= 0.60 then
         self._RLGLStableState = nil
+        self._RLGLStableDetail = detail
     end
-    return self._RLGLStableState
+
+    local stableDetail = self._RLGLStableDetail or detail or {}
+    stableDetail.Instance = instance
+    stableDetail.State = self._RLGLStableState
+    return self._RLGLStableState, stableDetail
+end
+
+function Runtime:GetRLGLState()
+    local state = self:GetRLGLStateDetail()
+    return state
+end
+
+function Runtime:GetRLGLDoll()
+    return findActiveRLGLDoll()
 end
 
 local function startRLGLAutoMove(feature)
@@ -24828,14 +25096,14 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.red_light_green_light.antistuck",
                     Name = "Anti Stuck",
-                    Description = "Checks real movement progress and applies one jump recovery only during confirmed green light.",
+                    Description = "Recovers stalled movement only while the adaptive RLGL detector confirms green and never changes WalkSpeed.",
                     Path = "Features/Games/RLGL/AntiStuck.lua",
                     Category = "Experimental",
                 },
                 {
                     Id = "mapped.games.red_light_green_light.automove",
                     Name = "Auto Move",
-                    Description = "Moves toward the verified finish only during confirmed green light and stops on red or uncertain signals.",
+                    Description = "Moves during green using live HUD values, doll orientation, doll audio, and crowd movement; stops immediately on red or uncertainty.",
                     Path = "Features/Games/RLGL/AutoMove.lua",
                     Category = "Experimental",
                 },
@@ -24856,7 +25124,7 @@ FeatureCatalog.Pages = {
                 {
                     Id = "mapped.games.red_light_green_light.stateesp",
                     Name = "State ESP",
-                    Description = "Displays a clear local red, green, or uncertain signal without changing movement settings.",
+                    Description = "Displays the detected RLGL state and the live signal source used to confirm red or green.",
                     Path = "Features/Games/RLGL/StateESP.lua",
                     Category = "Experimental",
                 },
