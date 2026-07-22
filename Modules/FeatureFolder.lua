@@ -323,6 +323,7 @@ function FeatureFolder:Render(Page, App, options)
         end
 
         button.Activated:Connect(function()
+            if Page:GetAttribute("SquidNoMoTouchDragging") then return end
             if busy then return end
             busy = true
 
@@ -377,6 +378,7 @@ function FeatureFolder:Render(Page, App, options)
             end
 
             render()
+            if type(App.QueueSettingsSave) == "function" then App:QueueSettingsSave() end
             busy = false
         end)
 

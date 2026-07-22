@@ -39,6 +39,33 @@ end
 
 Environment.__SquidNoMoBuildManifest = BuildManifest
 
+local function resolveQueueOnTeleport()
+    if type(queue_on_teleport) == "function" then return queue_on_teleport end
+    if type(queueonteleport) == "function" then return queueonteleport end
+    if type(syn) == "table" and type(syn.queue_on_teleport) == "function" then return syn.queue_on_teleport end
+    if type(fluxus) == "table" and type(fluxus.queue_on_teleport) == "function" then return fluxus.queue_on_teleport end
+    return nil
+end
+
+local function queueSelfForTeleport()
+    local queue = resolveQueueOnTeleport()
+    if type(queue) ~= "function" then return false end
+    local key = "__SquidNoMoTeleportQueued_" .. tostring(game.JobId) .. "_" .. BUILD_TOKEN
+    if Environment[key] == true then return true end
+    local queuedSource = string.format([=[
+repeat task.wait(0.1) until game:IsLoaded()
+local ok, err = pcall(function()
+    loadstring(game:HttpGet(%q .. "?squidnomo_teleport=" .. tostring(math.floor(os.clock() * 1000000))))()
+end)
+if not ok then warn("[SquidNoMo] Automatic reload failed: " .. tostring(err)) end
+]=], REPOSITORY .. "Main.lua")
+    local ok = pcall(queue, queuedSource)
+    if ok then Environment[key] = true end
+    return ok
+end
+
+queueSelfForTeleport()
+
 local previous = Environment.__SquidNoMoBootstrap
 if type(previous) == "table" and previous.Loading == true then
     if type(previous.SetStatus) == "function" then

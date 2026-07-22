@@ -189,6 +189,18 @@ local function getCharacter()
     return player, character, humanoid, root
 end
 
+local function getGuiParent()
+    if type(gethui) == "function" then
+        local ok, result = pcall(gethui)
+        if ok and result then return result end
+    end
+    local coreGui
+    pcall(function() coreGui = game:GetService("CoreGui") end)
+    if coreGui then return coreGui end
+    local player = getLocalPlayer()
+    return player and player:FindFirstChildOfClass("PlayerGui") or nil
+end
+
 local function getLocalContextText()
     local player, character = getCharacter()
     if not player then return "" end
@@ -1533,6 +1545,9 @@ function FeatureMethods:_Loop(interval, callback)
         local contextAllowed, contextDetail = Runtime:FeatureContextAllowed(owner)
         if not contextAllowed then
             Runtime:StopMovement(owner)
+            if type(owner.OnContextBlocked) == "function" then
+                pcall(owner.OnContextBlocked, owner, contextDetail)
+            end
             owner:_SetStatus("Waiting", contextDetail)
             return false
         end
@@ -1570,6 +1585,7 @@ function FeatureMethods:_Clear()
     self.Instances = {}
     if type(self.Restore) == "function" then pcall(self.Restore, self) end
     self.Restore = nil
+    self.OnContextBlocked = nil
 end
 
 local function addHighlight(feature, target, config)
@@ -2687,7 +2703,9 @@ local function startRadar(feature)
     gui.ResetOnSpawn = false
     gui.IgnoreGuiInset = true
     gui.DisplayOrder = 999985
-    gui.Parent = getGuiParent()
+    local guiParent = getGuiParent()
+    if not guiParent then error("no compatible GUI parent is available") end
+    gui.Parent = guiParent
     feature:_TrackInstance(gui)
 
     local frame = Instance.new("Frame")
@@ -2812,9 +2830,12 @@ local function startRadar(feature)
             end
         end
 
-        for target, dot in pairs(feature.RadarDots) do
-            if not seen[target] or not target.Parent then
-                dot.Visible = false
+        for target, dot in pairs(self.RadarDots) do
+            local alive = false
+            pcall(function() alive = target ~= nil and target.Parent ~= nil end)
+            if not seen[target] or not alive then
+                if dot and dot.Parent then dot.Visible = false end
+                if not alive then self.RadarDots[target] = nil end
             end
         end
         return count > 0, count > 0 and ("Radar tracking " .. count .. " target(s)") or "Waiting for radar targets"
@@ -3495,7 +3516,9 @@ function Runtime:ValidateFeatureConfig(config)
         Interact = true, ToolAura = true, Timing = true, GuiAction = true,
         AutoJump = true, RopeBypass = true, Boundary = true, RoomAssist = true,
         AimActivate = true, Radar = true, CourseAssist = true, SafeTileWalk = true,
-        GlassESP = true, TaskChain = true,
+        GlassESP = true, TaskChain = true, StateHUD = true, AntiStuck = true,
+        JumpBoost = true, AntiFall = true, RLGLAutoMove = true, Evasion = true,
+        Disguise = true, PositionKeeper = true, RPSAutoPlay = true,
     }
     if targetKinds[config.Kind] then
         local hasSelector = (type(config.TargetTokens) == "table" and #config.TargetTokens > 0)
@@ -3504,12 +3527,214 @@ function Runtime:ValidateFeatureConfig(config)
             or (type(config.ToolTokens) == "table" and #config.ToolTokens > 0)
             or config.Kind == "RoomAssist" or config.Kind == "SafeTileWalk"
             or config.Kind == "GlassESP" or config.Kind == "Radar"
-            or config.Kind == "TaskChain" or config.PlayerMode == true
+            or config.Kind == "TaskChain" or config.Kind == "StateHUD"
+            or config.Kind == "AntiStuck" or config.Kind == "JumpBoost"
+            or config.Kind == "AntiFall" or config.Kind == "RLGLAutoMove"
+            or config.Kind == "Evasion" or config.Kind == "Disguise"
+            or config.Kind == "PositionKeeper" or config.Kind == "RPSAutoPlay"
+            or config.PlayerMode == true
         if not hasSelector then
             return false, "feature has no target, action, or tool selector"
         end
     end
     return true
+end
+
+local function startToolActivate(feature)
+    feature:_Loop(feature.Config.Interval or 0.3, function(self)
+        local tool = Runtime:FindTool(self.Config.ToolTokens or self.Config.TargetTokens or {})
+        if not tool then return false, self.Config.WaitingMessage or "Waiting for the required tool" end
+        local cooldown = self.Config.ActionCooldown or math.max(self.Config.Interval or 0.3, 0.3)
+        if os.clock() - (self.LastAction or 0) < cooldown then
+            return true, "Tool equipped — action cooling down"
+        end
+        local ok, detail = Runtime:ActivateTool(self.Config.ToolTokens or self.Config.TargetTokens or {}, self, {
+            Resource = "ToolAction",
+            Priority = self.Config.ActionPriority or 45,
+            Duration = cooldown,
+        })
+        if ok then self.LastAction = os.clock() end
+        return ok, ok and ("Activated " .. tostring(tool.Name)) or detail
+    end)
+end
+
+local function startGuiHighlight(feature)
+    feature.GuiTarget = nil
+    feature.GuiStroke = nil
+
+    local function clear(self)
+        if self.GuiStroke then pcall(function() self.GuiStroke:Destroy() end) end
+        self.GuiStroke = nil
+        self.GuiTarget = nil
+    end
+    feature.OnContextBlocked = clear
+    feature.Restore = clear
+
+    feature:_Loop(feature.Config.Interval or 0.2, function(self)
+        local target = findVisibleGui(self.Config.TargetTokens or {}, {"GuiObject"})
+        if not target then
+            clear(self)
+            return false, self.Config.WaitingMessage or "Waiting for the matching interface"
+        end
+        if self.GuiTarget ~= target or not self.GuiStroke or not self.GuiStroke.Parent then
+            clear(self)
+            local stroke = Instance.new("UIStroke")
+            stroke.Name = "SquidNoMoGuiHighlight"
+            stroke.Color = self.Config.Color or Color3.fromRGB(60, 220, 255)
+            stroke.Thickness = self.Config.Thickness or 3
+            stroke.Transparency = self.Config.Transparency or 0.02
+            stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+            stroke.Parent = target
+            self.GuiTarget = target
+            self.GuiStroke = stroke
+            self:_TrackInstance(stroke)
+        end
+        return true, "Highlighting " .. tostring(target.Name)
+    end)
+end
+
+local function startStateHUD(feature)
+    local parent = getGuiParent()
+    if not parent then error("no compatible GUI parent is available") end
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "SquidNoMo_StateHUD_" .. feature.Id
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 999986
+    gui.Parent = parent
+    feature:_TrackInstance(gui)
+
+    local label = Instance.new("TextLabel")
+    label.AnchorPoint = Vector2.new(0.5, 0)
+    label.Position = UDim2.new(0.5, 0, 0, 76)
+    label.Size = UDim2.fromOffset(220, 44)
+    label.BackgroundColor3 = Color3.fromRGB(12, 14, 19)
+    label.BackgroundTransparency = 0.08
+    label.BorderSizePixel = 0
+    label.Font = Enum.Font.GothamBlack
+    label.Text = "RLGL: WAITING"
+    label.TextSize = 18
+    label.TextColor3 = Color3.fromRGB(255, 210, 80)
+    label.Parent = gui
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = label
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1.5
+    stroke.Transparency = 0.15
+    stroke.Color = label.TextColor3
+    stroke.Parent = label
+
+    feature.OnContextBlocked = function(self, detail)
+        label.Text = "RLGL: WAITING"
+        label.TextColor3 = Color3.fromRGB(255, 210, 80)
+        stroke.Color = label.TextColor3
+    end
+    feature:_Loop(feature.Config.Interval or 0.12, function(self)
+        local state = Runtime:GetRLGLState()
+        if state == "Green" then
+            label.Text = "RLGL: GREEN — MOVE"
+            label.TextColor3 = Color3.fromRGB(70, 255, 130)
+            stroke.Color = label.TextColor3
+            return true, "Green light visible"
+        elseif state == "Red" then
+            label.Text = "RLGL: RED — STOP"
+            label.TextColor3 = Color3.fromRGB(255, 78, 92)
+            stroke.Color = label.TextColor3
+            return true, "Red light visible"
+        end
+        label.Text = "RLGL: SIGNAL UNCERTAIN"
+        label.TextColor3 = Color3.fromRGB(255, 210, 80)
+        stroke.Color = label.TextColor3
+        return false, "Waiting for an unambiguous red/green signal"
+    end)
+end
+
+local function startAntiStuck(feature)
+    feature.LastPosition = nil
+    feature.LastProgressAt = os.clock()
+    feature.OnContextBlocked = function(self)
+        self.LastPosition = nil
+        self.LastProgressAt = os.clock()
+    end
+    feature:_Loop(feature.Config.Interval or 0.35, function(self)
+        local _, _, humanoid, root = getCharacter()
+        if not humanoid or not root then return false, "Waiting for the local character" end
+        local state = Runtime:GetRLGLState()
+        if state ~= "Green" then
+            self.LastPosition = root.Position
+            self.LastProgressAt = os.clock()
+            return false, state == "Red" and "Red light — recovery paused" or "Waiting for a confirmed green light"
+        end
+        if humanoid.MoveDirection.Magnitude < 0.05 then
+            self.LastPosition = root.Position
+            self.LastProgressAt = os.clock()
+            return true, "Green light — standing still by choice"
+        end
+        local current = root.Position
+        if not self.LastPosition or (current - self.LastPosition).Magnitude >= (self.Config.MinimumMovement or 0.3) then
+            self.LastPosition = current
+            self.LastProgressAt = os.clock()
+            return true, "Movement progress detected"
+        end
+        if os.clock() - (self.LastProgressAt or os.clock()) >= (self.Config.StuckSeconds or 2.2) then
+            humanoid.Jump = true
+            pcall(humanoid.ChangeState, humanoid, Enum.HumanoidStateType.Jumping)
+            local direction = humanoid.MoveDirection.Magnitude > 0.05 and humanoid.MoveDirection.Unit or root.CFrame.LookVector
+            local velocity = root.AssemblyLinearVelocity
+            root.AssemblyLinearVelocity = Vector3.new(
+                velocity.X + direction.X * (self.Config.RecoveryVelocity or 5),
+                math.max(velocity.Y, 10),
+                velocity.Z + direction.Z * (self.Config.RecoveryVelocity or 5)
+            )
+            self.LastPosition = current
+            self.LastProgressAt = os.clock()
+            return true, "Applied a one-time jump recovery"
+        end
+        return true, "Checking movement progress"
+    end)
+end
+
+local function startJumpBoost(feature)
+    feature.OriginalHumanoid = nil
+    feature.OriginalUseJumpPower = nil
+    feature.OriginalJumpPower = nil
+    feature.OriginalJumpHeight = nil
+
+    local function restore(self)
+        local humanoid = self.OriginalHumanoid
+        if humanoid and humanoid.Parent then
+            pcall(function()
+                if self.OriginalUseJumpPower ~= nil then humanoid.UseJumpPower = self.OriginalUseJumpPower end
+                if self.OriginalJumpPower ~= nil then humanoid.JumpPower = self.OriginalJumpPower end
+                if self.OriginalJumpHeight ~= nil then humanoid.JumpHeight = self.OriginalJumpHeight end
+            end)
+        end
+        self.OriginalHumanoid = nil
+        self.OriginalUseJumpPower = nil
+        self.OriginalJumpPower = nil
+        self.OriginalJumpHeight = nil
+    end
+    feature.Restore = restore
+    feature.OnContextBlocked = restore
+
+    feature:_Loop(feature.Config.Interval or 0.35, function(self)
+        local _, _, humanoid = getCharacter()
+        if not humanoid then return false, "Waiting for the local character" end
+        if self.OriginalHumanoid ~= humanoid then
+            restore(self)
+            self.OriginalHumanoid = humanoid
+            self.OriginalUseJumpPower = humanoid.UseJumpPower
+            self.OriginalJumpPower = humanoid.JumpPower
+            self.OriginalJumpHeight = humanoid.JumpHeight
+        end
+        if humanoid.UseJumpPower then
+            humanoid.JumpPower = math.max(humanoid.JumpPower, self.Config.JumpPower or 78)
+            return true, "Jump power boosted for Jump Rope"
+        end
+        humanoid.JumpHeight = math.max(humanoid.JumpHeight, self.Config.JumpHeight or 13)
+        return true, "Jump height boosted for Jump Rope"
+    end)
 end
 
 local starters = {

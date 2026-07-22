@@ -26,7 +26,7 @@ local FarmingRuntime = {
 }
 
 local FeatureRuntime = Environment.__SquidNoMoFeatureRuntime
-local expectedFeatureRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r3")
+local expectedFeatureRevision = tostring(Manifest.FeatureRuntimeRevision or "compatibility-runtime-r4")
 if type(FeatureRuntime) ~= "table"
     or FeatureRuntime.Revision ~= expectedFeatureRevision
     or tonumber(FeatureRuntime.BuildNumber) ~= BUILD_NUMBER

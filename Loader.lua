@@ -106,6 +106,51 @@ Loader.BuildNumber = BUILD_NUMBER
 Loader.BuildRevision = BUILD_REVISION
 Loader.Manifest = BuildManifest
 
+local function ResolveQueueOnTeleport()
+    if type(queue_on_teleport) == "function" then return queue_on_teleport end
+    if type(queueonteleport) == "function" then return queueonteleport end
+    if type(syn) == "table" and type(syn.queue_on_teleport) == "function" then
+        return syn.queue_on_teleport
+    end
+    if type(fluxus) == "table" and type(fluxus.queue_on_teleport) == "function" then
+        return fluxus.queue_on_teleport
+    end
+    return nil
+end
+
+function Loader:QueueReloadAfterTeleport()
+    local queue = ResolveQueueOnTeleport()
+    if type(queue) ~= "function" then
+        self.TeleportPersistenceAvailable = false
+        return false, "queue_on_teleport is unavailable in this executor"
+    end
+
+    local queueKey = "__SquidNoMoTeleportQueued_" .. tostring(game.JobId) .. "_" .. BUILD_TOKEN
+    if Environment[queueKey] == true then
+        self.TeleportPersistenceAvailable = true
+        return true, "already queued"
+    end
+
+    local source = string.format([=[
+repeat task.wait(0.1) until game:IsLoaded()
+local ok, err = pcall(function()
+    loadstring(game:HttpGet(%q .. "?squidnomo_teleport=" .. tostring(math.floor(os.clock() * 1000000))))()
+end)
+if not ok then warn("[SquidNoMo] Automatic reload failed: " .. tostring(err)) end
+]=], REPOSITORY .. "Main.lua")
+
+    local ok, err = pcall(queue, source)
+    if not ok then
+        self.TeleportPersistenceAvailable = false
+        return false, tostring(err)
+    end
+    Environment[queueKey] = true
+    self.TeleportPersistenceAvailable = true
+    return true, "queued"
+end
+
+Loader:QueueReloadAfterTeleport()
+
 local Bootstrap = Environment.__SquidNoMoBootstrap
 local loadStep = 0
 local estimatedSteps = 73
@@ -241,13 +286,18 @@ Loader.Footer = Load("Modules/Home/Footer.lua")
 
 local function GetOrCreateSession()
     local session = Environment.__SquidNoMoSession
+    local acceptedByServer = Environment.__SquidNoMoTermsAcceptedByServer
+    if type(acceptedByServer) ~= "table" then
+        acceptedByServer = {}
+        Environment.__SquidNoMoTermsAcceptedByServer = acceptedByServer
+    end
 
     if type(session) ~= "table"
         or session.JobId ~= game.JobId
     then
         session = {
             JobId = game.JobId,
-            TermsAccepted = false,
+            TermsAccepted = acceptedByServer[game.JobId] == true,
             UserClosed = false,
             DetectionStatus = "UNKNOWN",
             DetectionDetail =
@@ -260,7 +310,7 @@ local function GetOrCreateSession()
             ReducedMotionEnabled = false,
             RememberLastPageEnabled = true,
             AutoCenterOnResizeEnabled = true,
-            AutoApplyPerGameEnabled = false,
+            AutoApplyPerGameEnabled = true,
             LightweightModeEnabled = true,
             UserScale = 1.0,
             BubbleSize = nil,
@@ -282,6 +332,9 @@ local function GetOrCreateSession()
         Environment.__SquidNoMoSession = session
     end
 
+    if acceptedByServer[game.JobId] == true then
+        session.TermsAccepted = true
+    end
     return session
 end
 
@@ -299,6 +352,8 @@ if type(savedApp) == "table" then
         "ReducedMotionEnabled",
         "RememberLastPageEnabled",
         "AutoCenterOnResizeEnabled",
+        "AutoApplyPerGameEnabled",
+        "LightweightModeEnabled",
         "UserScale",
         "BubbleSize",
         "WindowOpacity",
@@ -415,6 +470,21 @@ if Session.CharacterConnection then
 end
 
 if LocalPlayer then
+    if Session.TeleportConnection then
+        pcall(function() Session.TeleportConnection:Disconnect() end)
+        Session.TeleportConnection = nil
+    end
+    Session.TeleportConnection = LocalPlayer.OnTeleport:Connect(function(state)
+        if state == Enum.TeleportState.Started or state == Enum.TeleportState.InProgress then
+            pcall(function()
+                if Loader.App and type(Loader.App.SavePersistentSettingsNow) == "function" then
+                    Loader.App:SavePersistentSettingsNow(false)
+                end
+            end)
+            pcall(function() Loader:QueueReloadAfterTeleport() end)
+        end
+    end)
+
     Session.CharacterConnection = LocalPlayer.CharacterAdded:Connect(function()
         task.wait(1)
 

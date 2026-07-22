@@ -291,6 +291,7 @@ local function createToggle(
                 end
             end
             notify(App)
+            if type(App.QueueSettingsSave) == "function" then App:QueueSettingsSave() end
             render()
         end
     end)
@@ -907,103 +908,9 @@ local function buildUtilities(
 end
 
 local function installTouchScrollFallback(Page, App)
-    if Page:GetAttribute("SquidNoMoTouchScrollInstalled") then return end
-    Page:SetAttribute("SquidNoMoTouchScrollInstalled", true)
-
-    local UserInputService = game:GetService("UserInputService")
-    local activeTouch = nil
-    local startPosition = nil
-    local startCanvas = nil
-    local dragging = false
-    local connections = {}
-
-    local function inside(point)
-        local minimum = Page.AbsolutePosition
-        local maximum = minimum + Page.AbsoluteSize
-        return point.X >= minimum.X and point.X <= maximum.X
-            and point.Y >= minimum.Y and point.Y <= maximum.Y
+    if type(App.InstallPageTouchScroll) == "function" then
+        App:InstallPageTouchScroll(Page)
     end
-
-    local function maxCanvasY()
-        local canvasHeight = Page.AbsoluteCanvasSize.Y
-        local windowHeight = Page.AbsoluteWindowSize.Y
-        if windowHeight <= 0 then windowHeight = Page.AbsoluteSize.Y end
-        return math.max(0, canvasHeight - windowHeight)
-    end
-
-    local function beginTouch(input)
-        if input.UserInputType ~= Enum.UserInputType.Touch or not Page.Visible then return end
-        if activeTouch or not inside(input.Position) then return end
-        activeTouch = input
-        startPosition = input.Position
-        startCanvas = Page.CanvasPosition
-        dragging = false
-    end
-
-    local function moveTouch(input)
-        if not activeTouch or not startPosition or not startCanvas then return end
-        if input.UserInputType ~= Enum.UserInputType.Touch then return end
-        local delta = input.Position - startPosition
-        if not dragging and math.abs(delta.Y) >= 7 and math.abs(delta.Y) > math.abs(delta.X) * 1.08 then
-            dragging = true
-            -- Keep native scrolling enabled. Disabling it mid-gesture can leave
-            -- Roblox mobile ScrollingFrames permanently stuck after a child control
-            -- consumes the touch. The fallback only mirrors CanvasPosition.
-            Page.ScrollingEnabled = true
-        end
-        if dragging then
-            Page.CanvasPosition = Vector2.new(
-                0,
-                math.clamp(startCanvas.Y - delta.Y, 0, maxCanvasY())
-            )
-        end
-    end
-
-    local function endTouch(input)
-        if not activeTouch then return end
-        if input == activeTouch or input.UserInputType == Enum.UserInputType.Touch then
-            activeTouch = nil
-            startPosition = nil
-            startCanvas = nil
-            dragging = false
-            Page.ScrollingEnabled = true
-        end
-    end
-
-    table.insert(connections, UserInputService.InputBegan:Connect(function(input)
-        beginTouch(input)
-    end))
-    table.insert(connections, UserInputService.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            moveTouch(input)
-        elseif input.UserInputType == Enum.UserInputType.MouseWheel and Page.Visible and inside(input.Position) then
-            Page.CanvasPosition = Vector2.new(
-                0,
-                math.clamp(Page.CanvasPosition.Y - input.Position.Z * 54, 0, maxCanvasY())
-            )
-        end
-    end))
-    table.insert(connections, UserInputService.InputEnded:Connect(endTouch))
-
-    -- Roblox also exposes dedicated touch signals on mobile. Registering them as
-    -- a fallback covers executors that do not forward touch updates through the
-    -- generic InputChanged event consistently.
-    pcall(function()
-        table.insert(connections, UserInputService.TouchStarted:Connect(beginTouch))
-        table.insert(connections, UserInputService.TouchMoved:Connect(moveTouch))
-        table.insert(connections, UserInputService.TouchEnded:Connect(endTouch))
-    end)
-
-    table.insert(connections, Page:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(function()
-        Page.CanvasPosition = Vector2.new(0, math.clamp(Page.CanvasPosition.Y, 0, maxCanvasY()))
-    end))
-
-    Page.Destroying:Connect(function()
-        Page.ScrollingEnabled = true
-        for _, connection in ipairs(connections) do
-            pcall(function() connection:Disconnect() end)
-        end
-    end)
 end
 
 function PlayersPage:Create(Page, App)

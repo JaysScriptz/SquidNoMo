@@ -11,7 +11,7 @@ local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table"
     or {}
 local BUILD_NUMBER = tonumber(Manifest.BuildNumber) or 0
 local BUILD_TOKEN = tostring(Manifest.BuildToken or BUILD_NUMBER)
-local expectedRevision = tostring(Manifest.PlayerRuntimeRevision or "player-runtime-r2")
+local expectedRevision = tostring(Manifest.PlayerRuntimeRevision or "player-runtime-r3")
 
 local Runtime = Environment.__SquidNoMoPlayerRuntime
 if type(Runtime) ~= "table"

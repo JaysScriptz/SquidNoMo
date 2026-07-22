@@ -9,7 +9,7 @@ FeatureManager._nextListenerId = 0
 FeatureManager.AutoApplyPerGameEnabled = false
 FeatureManager.LightweightModeEnabled = true
 FeatureManager.DetectedGameCategory = nil
-FeatureManager._gameWatcherOwner = {Enabled = false, Name = "Auto Apply per Game"}
+FeatureManager._gameWatcherOwner = {Enabled = true, Name = "Game mode monitor"}
 
 local validCategories = {
     Safe = true,
@@ -144,6 +144,7 @@ function FeatureManager:Initialize(Loader)
         self:RegisterCatalog(Loader.FeatureCatalog)
     end
 
+    self:_EnsureGameWatcher()
     self:Notify()
     return Features
 end
@@ -210,7 +211,8 @@ function FeatureManager:_ApplyDetectedGame(force)
         return 0
     end
 
-    if not force and detected == self.DetectedGameCategory then return 0 end
+    local categoryChanged = detected ~= self.DetectedGameCategory
+    if not force and not categoryChanged then return 0 end
     self.DetectedGameCategory = detected
 
     self.SuppressPersistence = true
@@ -234,26 +236,42 @@ function FeatureManager:_ApplyDetectedGame(force)
         end
     end
     self.SuppressPersistence = false
-    self:Notify()
+    if changed > 0 or categoryChanged then self:Notify(true) end
     return changed
+end
+
+function FeatureManager:_EnsureGameWatcher()
+    local runtime = self.Features and self.Features.Shared and self.Features.Shared.Runtime
+    local scheduler = runtime and runtime.Scheduler
+    local owner = self._gameWatcherOwner
+    owner.Enabled = true
+    if not scheduler or type(scheduler.Add) ~= "function" then return false end
+    if type(scheduler.Remove) == "function" then scheduler:Remove(owner) end
+    scheduler:Add(owner, 0.65, 0.9, function()
+        local detected = type(runtime.DetectGameCategory) == "function" and runtime:DetectGameCategory() or nil
+        if detected then
+            self._lastDetectedAt = os.clock()
+            local categoryChanged = detected ~= self.DetectedGameCategory
+            if self.AutoApplyPerGameEnabled then
+                -- Reconcile every poll so a newly toggled profile cannot remain
+                -- active under the wrong game while the detected category is stable.
+                self:_ApplyDetectedGame(true)
+            elseif categoryChanged then
+                self.DetectedGameCategory = detected
+                self:Notify(true)
+            end
+            return true
+        end
+        return false
+    end)
+    return true
 end
 
 function FeatureManager:SetAutoApplyPerGameEnabled(state)
     self.AutoApplyPerGameEnabled = state == true
-    local runtime = self.Features and self.Features.Shared and self.Features.Shared.Runtime
-    local scheduler = runtime and runtime.Scheduler
-    local owner = self._gameWatcherOwner
-    owner.Enabled = self.AutoApplyPerGameEnabled
-
-    if scheduler and type(scheduler.Remove) == "function" then scheduler:Remove(owner) end
-    if self.AutoApplyPerGameEnabled and scheduler and type(scheduler.Add) == "function" then
-        scheduler:Add(owner, 1.5, 1.5, function()
-            self:_ApplyDetectedGame(false)
-            return true
-        end)
+    self:_EnsureGameWatcher()
+    if self.AutoApplyPerGameEnabled then
         self:_ApplyDetectedGame(true)
-    elseif not self.AutoApplyPerGameEnabled then
-        self.DetectedGameCategory = nil
     end
     self:Notify()
     return true
@@ -722,7 +740,7 @@ function FeatureManager:ResetAll()
     return count
 end
 
-function FeatureManager:Notify()
+function FeatureManager:Notify(skipPersistence)
     local snapshot = self:GetSnapshot()
 
     for id, callback in pairs(self.Listeners) do
@@ -732,7 +750,8 @@ function FeatureManager:Notify()
         end
     end
 
-    if not self.SuppressPersistence
+    if not skipPersistence
+        and not self.SuppressPersistence
         and type(self.PersistenceCallback) == "function"
     then
         pcall(self.PersistenceCallback, snapshot)

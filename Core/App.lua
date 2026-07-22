@@ -644,6 +644,11 @@ end
 function App:GetOrCreateSession()
     local environment = self:GetSessionEnvironment()
     local session = environment.__SquidNoMoSession
+    local acceptedByServer = environment.__SquidNoMoTermsAcceptedByServer
+    if type(acceptedByServer) ~= "table" then
+        acceptedByServer = {}
+        environment.__SquidNoMoTermsAcceptedByServer = acceptedByServer
+    end
 
     if type(session) ~= "table" or session.JobId ~= game.JobId then
         if type(session) == "table" and session.CharacterConnection then
@@ -654,7 +659,7 @@ function App:GetOrCreateSession()
 
         session = {
             JobId = game.JobId,
-            TermsAccepted = false,
+            TermsAccepted = acceptedByServer[game.JobId] == true,
             UserClosed = false,
             DetectionStatus = "UNKNOWN",
             DetectionDetail = "No status signal has been reported.",
@@ -666,7 +671,7 @@ function App:GetOrCreateSession()
             ReducedMotionEnabled = false,
             RememberLastPageEnabled = true,
             AutoCenterOnResizeEnabled = true,
-            AutoApplyPerGameEnabled = false,
+            AutoApplyPerGameEnabled = true,
             LightweightModeEnabled = true,
             UserScale = 1.0,
             BubbleSize = nil,
@@ -682,6 +687,9 @@ function App:GetOrCreateSession()
         environment.__SquidNoMoSession = session
     end
 
+    if acceptedByServer[game.JobId] == true then
+        session.TermsAccepted = true
+    end
     return session
 end
 
@@ -889,7 +897,7 @@ function App:Init(loader)
     self.AutoCenterOnResizeEnabled =
         self.Session.AutoCenterOnResizeEnabled ~= false
     self.AutoApplyPerGameEnabled =
-        self.Session.AutoApplyPerGameEnabled == true
+        self.Session.AutoApplyPerGameEnabled ~= false
     self.LightweightModeEnabled =
         self.Session.LightweightModeEnabled ~= false
 
@@ -2925,6 +2933,115 @@ function App:RegisterPage(name, icon, builder, order)
     return definition
 end
 
+function App:InstallPageTouchScroll(page)
+    if not page or page:GetAttribute("SquidNoMoUniversalScroll") then return end
+    page:SetAttribute("SquidNoMoUniversalScroll", true)
+
+    local activeTouch = nil
+    local startPosition = nil
+    local startCanvas = nil
+    local vertical = false
+    local lastManualUpdate = 0
+
+    local function vector2(position)
+        return Vector2.new(position.X, position.Y)
+    end
+
+    local function inside(position)
+        local point = vector2(position)
+        local minimum = page.AbsolutePosition
+        local maximum = minimum + page.AbsoluteSize
+        return point.X >= minimum.X and point.X <= maximum.X
+            and point.Y >= minimum.Y and point.Y <= maximum.Y
+    end
+
+    local function maxCanvasY()
+        local canvasHeight = page.AbsoluteCanvasSize.Y
+        if canvasHeight <= 0 then
+            canvasHeight = page.CanvasSize.Y.Offset + page.CanvasSize.Y.Scale * page.AbsoluteSize.Y
+        end
+        local windowHeight = page.AbsoluteWindowSize.Y
+        if windowHeight <= 0 then windowHeight = page.AbsoluteSize.Y end
+        return math.max(0, canvasHeight - windowHeight)
+    end
+
+    local function beginTouch(input)
+        if input.UserInputType ~= Enum.UserInputType.Touch or not page.Visible then return end
+        if activeTouch or not inside(input.Position) then return end
+        activeTouch = input
+        startPosition = vector2(input.Position)
+        startCanvas = page.CanvasPosition
+        vertical = false
+    end
+
+    local function moveTouch(input)
+        if not activeTouch or not startPosition or not startCanvas or not page.Visible then return end
+        if input.UserInputType ~= Enum.UserInputType.Touch then return end
+        local position = vector2(input.Position)
+        local delta = position - startPosition
+        if not vertical and math.abs(delta.Y) >= 8 and math.abs(delta.Y) > math.abs(delta.X) * 1.05 then
+            vertical = true
+            page:SetAttribute("SquidNoMoTouchDragging", true)
+        end
+        if vertical and os.clock() - lastManualUpdate >= 0.008 then
+            lastManualUpdate = os.clock()
+            page.CanvasPosition = Vector2.new(
+                0,
+                math.clamp(startCanvas.Y - delta.Y, 0, maxCanvasY())
+            )
+        end
+    end
+
+    local function endTouch(input)
+        if not activeTouch then return end
+        if input == activeTouch or input.UserInputType == Enum.UserInputType.Touch then
+            activeTouch = nil
+            startPosition = nil
+            startCanvas = nil
+            vertical = false
+            task.defer(function()
+                if page and page.Parent then page:SetAttribute("SquidNoMoTouchDragging", false) end
+            end)
+        end
+    end
+
+    self:Track(UserInputService.InputBegan:Connect(beginTouch))
+    self:Track(UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            moveTouch(input)
+        elseif input.UserInputType == Enum.UserInputType.MouseWheel and page.Visible and inside(input.Position) then
+            page.CanvasPosition = Vector2.new(
+                0,
+                math.clamp(page.CanvasPosition.Y - input.Position.Z * 56, 0, maxCanvasY())
+            )
+        end
+    end))
+    self:Track(UserInputService.InputEnded:Connect(endTouch))
+
+    pcall(function()
+        local panStart = nil
+        self:Track(page.TouchPan:Connect(function(_, totalTranslation, _, state)
+            if not page.Visible then return end
+            if state == Enum.UserInputState.Begin then
+                panStart = page.CanvasPosition
+            elseif state == Enum.UserInputState.Change and panStart then
+                if math.abs(totalTranslation.Y) > math.abs(totalTranslation.X) then
+                    page:SetAttribute("SquidNoMoTouchDragging", true)
+                    page.CanvasPosition = Vector2.new(
+                        0,
+                        math.clamp(panStart.Y - totalTranslation.Y, 0, maxCanvasY())
+                    )
+                end
+            elseif state == Enum.UserInputState.End or state == Enum.UserInputState.Cancel then
+                panStart = nil
+                task.defer(function()
+                    if page and page.Parent then page:SetAttribute("SquidNoMoTouchDragging", false) end
+                end)
+            end
+        end))
+    end)
+end
+
 function App:CreatePage(name)
     local page = Instance.new("ScrollingFrame")
     page.Name = name
@@ -2950,6 +3067,7 @@ function App:CreatePage(name)
     page.Visible = false
     page.ZIndex = 1006
     page.Parent = self.PageContainer
+    self:InstallPageTouchScroll(page)
 
     self.Pages[name] = page
     return page
@@ -5357,6 +5475,12 @@ end
 
 
 function App:CreateTermsModal()
+    local environment = self:GetSessionEnvironment()
+    local acceptedByServer = environment.__SquidNoMoTermsAcceptedByServer
+    if type(acceptedByServer) == "table" and acceptedByServer[game.JobId] == true then
+        self.TermsAccepted = true
+        if self.Session then self.Session.TermsAccepted = true end
+    end
     if self.TermsAccepted or not self.Window then
         return
     end
@@ -5597,6 +5721,13 @@ Only continue if you fully understand and accept these risks.]=]
         end
 
         self.TermsAccepted = true
+        local environment = self:GetSessionEnvironment()
+        local acceptedByServer = environment.__SquidNoMoTermsAcceptedByServer
+        if type(acceptedByServer) ~= "table" then
+            acceptedByServer = {}
+            environment.__SquidNoMoTermsAcceptedByServer = acceptedByServer
+        end
+        acceptedByServer[game.JobId] = true
         if self.Session then
             self.Session.TermsAccepted = true
         end

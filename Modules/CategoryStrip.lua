@@ -242,6 +242,7 @@ function CategoryStrip:Create(Page, App, options)
 
         App:BindButtonFeedback(button, accent)
         button.Activated:Connect(function()
+            if Page:GetAttribute("SquidNoMoTouchDragging") then return end
             renderSelection(index)
         end)
 
@@ -274,6 +275,19 @@ function CategoryStrip:Create(Page, App, options)
         Card = card,
         Scroller = scroller,
         Select = renderSelection,
+        SelectByName = function(name)
+            for index, item in ipairs(items) do
+                if item.Name == name then
+                    if selectedIndex ~= index then renderSelection(index) end
+                    return true
+                end
+            end
+            return false
+        end,
+        SelectedName = function()
+            local item = items[selectedIndex]
+            return item and item.Name or nil
+        end,
         SelectedIndex = function()
             return selectedIndex
         end,
