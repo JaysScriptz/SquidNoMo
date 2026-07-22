@@ -673,6 +673,11 @@ function UIPage:Create(Page, App)
         return
     end
 
+    local shell = App.Loader.SubpageShell:Create(Page, App, {
+        PageName = 'UI',
+        HeaderHeight = App:IsMobile() and 100 or 106,
+    })
+
     local draft = manager:Clone(App.UIStyleProfile)
     local selectedCategory = App.Session.SelectedUICategory
         or 'Layout & Scale'
@@ -1491,7 +1496,7 @@ function UIPage:Create(Page, App)
         contentRoot.Name = 'UICustomizationContent'
         contentRoot.Position = UDim2.fromOffset(
             pagePadding,
-            pagePadding + barHeight + 16
+            pagePadding
         )
         contentRoot.Size = UDim2.new(
             1,
@@ -1501,7 +1506,7 @@ function UIPage:Create(Page, App)
         )
         contentRoot.BackgroundTransparency = 1
         contentRoot.BorderSizePixel = 0
-        contentRoot.Parent = Page
+        contentRoot.Parent = shell.Content
 
         createScopeToolbar(contentRoot, 0)
 
@@ -1521,9 +1526,14 @@ function UIPage:Create(Page, App)
         end
 
         createActionBar(contentRoot, 1168)
+        shell.Content.CanvasPosition = Vector2.zero
+        shell:SetContentHeight(1260 + (pagePadding * 2), App:IsMobile() and 46 or 30)
     end
 
     App.Loader.CategoryStrip:Create(Page, App, {
+        Parent = shell.Header,
+        GestureOwner = Page,
+        ClearParent = false,
         PageName = 'UI',
         SessionKey = 'SelectedUICategory',
         DefaultName = selectedCategory,

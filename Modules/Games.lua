@@ -7,7 +7,20 @@ function GamesPage:Create(Page, App)
     local alive = true
     local lastDetected = nil
 
+    local shell = App.Loader.SubpageShell:Create(Page, App, {
+        PageName = "Games",
+        HeaderHeight = App:IsMobile() and 100 or 106,
+        ToolbarHeight = App:IsMobile() and 68 or 64,
+    })
+
+    local learning = App.Loader.LearningPanel:Create(shell.Toolbar, App, {
+        GameName = categories[1] and categories[1].Name or "Red Light, Green Light",
+    })
+
     local selector = App.Loader.CategoryStrip:Create(Page, App, {
+        Parent = shell.Header,
+        GestureOwner = Page,
+        ClearParent = false,
         PageName = "Games",
         SessionKey = "SelectedGameCategory",
         DefaultName = categories[1] and categories[1].Name or "Red Light, Green Light",
@@ -15,11 +28,14 @@ function GamesPage:Create(Page, App)
         ButtonWidth = 190,
         Items = categories,
         OnSelected = function(item, _, userInitiated)
+            if learning and learning.SetGame then learning.SetGame(item.Name) end
             if userInitiated and manager and type(manager.SetManualGameCategory) == "function" then
                 manager:SetManualGameCategory(item.Name)
             end
-            App.Loader.FeatureFolder:Render(Page, App, {
+            shell:ResetScroll()
+            App.Loader.FeatureFolder:Render(shell.Content, App, {
                 PageName = "Games",
+                TopY = 0,
                 Features = item.Features or {},
             })
         end,
@@ -41,9 +57,6 @@ function GamesPage:Create(Page, App)
         connection = manager:Subscribe(followDetectedGame)
     end
 
-    -- Do not depend solely on registry notifications. The mode detector runs while
-    -- the page is open and immediately changes the visible subpage after a round
-    -- transition, even when no feature state changed.
     task.spawn(function()
         while alive and Page.Parent do
             followDetectedGame()

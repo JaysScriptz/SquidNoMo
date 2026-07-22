@@ -909,100 +909,45 @@ local function buildUtilities(
     end
 end
 
-local function installTouchScrollFallback(Page, App)
-    if type(App.InstallPageTouchScroll) == "function" then
-        App:InstallPageTouchScroll(Page)
-    end
-end
-
 function PlayersPage:Create(Page, App)
-    installTouchScrollFallback(Page, App)
-    Page.CanvasPosition = Vector2.zero
+    local shell = App.Loader.SubpageShell:Create(Page, App, {
+        PageName = "Players",
+        HeaderHeight = App:IsMobile() and 100 or 106,
+    })
+    local selected = App.Session.SelectedPlayerCategory or "Movement & Camera"
 
-    local selected =
-        App.Session.SelectedPlayerCategory
-        or "Movement & Camera"
-
-    local selector =
-        App.Loader.CategoryStrip:Create(
-            Page,
-            App,
-            {
-                PageName = "Players",
-                SessionKey =
-                    "SelectedPlayerCategory",
-                DefaultName =
-                    "Movement & Camera",
-                ScrollerName =
-                    "PlayerCategoryScroller",
-                ButtonWidth = 220,
-                Items = CATEGORIES,
-                OnSelected = function(item)
-                    selected = item.Name
-                    Page.CanvasPosition = Vector2.zero
-
-                    local old =
-                        Page:FindFirstChild(
-                            "PlayerSubpageContent"
-                        )
-                    if old then
-                        old:Destroy()
-                    end
-
-                    local selectorRoot =
-                        Page:FindFirstChild(
-                            "PlayersCategoryRoot"
-                        )
-                    local topY = 128
-
-                    if selectorRoot then
-                        topY =
-                            selectorRoot
-                                .Position.Y.Offset
-                            + selectorRoot
-                                .Size.Y.Offset
-                            + 12
-                    end
-
-                    if item.Name
-                        == "Movement & Camera"
-                    then
-                        buildMovement(
-                            Page,
-                            App,
-                            topY
-                        )
-                    elseif item.Name
-                        == "Player ESP"
-                    then
-                        buildESP(
-                            Page,
-                            App,
-                            topY
-                        )
-                    else
-                        buildUtilities(
-                            Page,
-                            App,
-                            topY
-                        )
-                    end
-                end,
-            }
-        )
+    local selector = App.Loader.CategoryStrip:Create(Page, App, {
+        Parent = shell.Header,
+        GestureOwner = Page,
+        ClearParent = false,
+        PageName = "Players",
+        SessionKey = "SelectedPlayerCategory",
+        DefaultName = "Movement & Camera",
+        ScrollerName = "PlayerCategoryScroller",
+        ButtonWidth = 220,
+        Items = CATEGORIES,
+        OnSelected = function(item)
+            selected = item.Name
+            shell:ClearContent()
+            if item.Name == "Movement & Camera" then
+                buildMovement(shell.Content, App, 0)
+            elseif item.Name == "Player ESP" then
+                buildESP(shell.Content, App, 0)
+            else
+                buildUtilities(shell.Content, App, 0)
+            end
+            shell:ResetScroll()
+        end,
+    })
 
     if selector and selector.Select then
         local index = 1
-
-        for itemIndex, item in ipairs(
-            CATEGORIES
-        ) do
+        for itemIndex, item in ipairs(CATEGORIES) do
             if item.Name == selected then
                 index = itemIndex
                 break
             end
         end
-
         selector.Select(index)
     end
 end

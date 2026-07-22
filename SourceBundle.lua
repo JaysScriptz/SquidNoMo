@@ -1,7 +1,7 @@
 -- Generated SquidNoMo verified source bundle.
 -- Upload this file together with BuildManifest.lua and Main.lua.
 return {
-    BuildToken = [====[1_1_beta_10-rlgl-adaptive-signal-learner-r10]====],
+    BuildToken = [====[1_1_beta_11-ui-overhaul-demonstration-learning-r11]====],
     Sources = {
         [ [====[BuildManifest.lua]====] ] = [====[-- SquidNoMo deployment manifest.
 -- BuildNumber is advanced automatically by repository workflows whenever feature code changes.
@@ -9,8 +9,8 @@ return {
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 10,
-    Revision = "rlgl-adaptive-signal-learner-r10",
+    BuildNumber = 11,
+    Revision = "ui-overhaul-demonstration-learning-r11",
     FeatureRuntimeRevision = "adaptive-game-runtime-r10",
     GameRuntimeRevision = "game-modules-rlgl-learner-r10",
     PlayerRuntimeRevision = "player-runtime-r4",
@@ -26,6 +26,7 @@ local Manifest = {
         "Features/Games/GameRuntime.lua",
         "Features/Shared/PlayerRuntime.lua",
         "Features/Shared/RoleService.lua",
+        "Features/Shared/LearningRecorder.lua",
         "Features/Farming/FarmingRuntime.lua",
         "Features/Player/AutoPickUpBaby.lua",
     },
@@ -3027,6 +3028,7 @@ function App:InstallPageTouchScroll(page)
     end
 
     local function beginTouch(input)
+        if page:GetAttribute("SquidNoMoDedicatedShell") then return end
         if input.UserInputType ~= Enum.UserInputType.Touch
             or not page.Visible
             or activeTouch
@@ -14429,6 +14431,72 @@ return Runtime:CreateFeature({
     IdleInterval = 0.65,
 })
 ]====],
+        [ [====[Features/Games/Rebellion/FrontmanNavigator.lua]====] ] = [====[local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then Environment = result end
+end
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
+if type(Runtime) ~= "table"
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
+then
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
+end
+
+
+return Runtime:CreateFeature({
+    Game = "Rebellion",
+    Id = "mapped.games.rebellion.frontmannavigator",
+    Name = "Frontman Navigator",
+    Description = "Pathfinds toward the confirmed Frontman, command room, control room, or final Rebellion objective.",
+    Handler = "PathTo",
+    TargetTokens = {"frontman", "front man", "command room", "control room", "host", "office"},
+    ExcludeTokens = {"poster", "icon", "shop"},
+    TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
+    StopDistance = 9,
+    Interact = true,
+    InteractDistance = 12,
+    MovementPriority = 72,
+    Interval = 0.4,
+    IdleInterval = 0.9,
+    WaitingMessage = "Waiting for the Frontman objective",
+})
+]====],
+        [ [====[Features/Games/Rebellion/GuardCombat.lua]====] ] = [====[local Environment = _G
+if type(getgenv) == "function" then
+    local ok, result = pcall(getgenv)
+    if ok and type(result) == "table" then Environment = result end
+end
+local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
+local Runtime = Environment.__SquidNoMoGameRuntime
+if type(Runtime) ~= "table"
+    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
+    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
+then
+    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
+end
+
+
+return Runtime:CreateFeature({
+    Game = "Rebellion",
+    Id = "mapped.games.rebellion.guardcombat",
+    Name = "Guard Combat",
+    Description = "Targets confirmed guard or soldier characters and activates an equipped combat tool at a controlled rate.",
+    Handler = "ToolAura",
+    PlayerTokens = {"guard", "staff", "soldier"},
+    TargetTokens = {"guard", "staff", "soldier"},
+    IncludeNPCs = true,
+    ToolTokens = {"gun", "rifle", "pistol", "bat", "weapon"},
+    Range = 16,
+    FaceTarget = true,
+    ActionCooldown = 0.28,
+    ActionPriority = 72,
+    Interval = 0.2,
+    IdleInterval = 0.75,
+})
+]====],
         [ [====[Features/Games/RLGL/AntiStuck.lua]====] ] = [====[local Environment = _G
 if type(getgenv) == "function" then
     local ok, result = pcall(getgenv)
@@ -14571,72 +14639,6 @@ return Runtime:CreateFeature({
     Handler = "StateHUD",
     Interval = 0.1,
     IdleInterval = 0.55,
-})
-]====],
-        [ [====[Features/Games/Rebellion/FrontmanNavigator.lua]====] ] = [====[local Environment = _G
-if type(getgenv) == "function" then
-    local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then Environment = result end
-end
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
-local Runtime = Environment.__SquidNoMoGameRuntime
-if type(Runtime) ~= "table"
-    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
-    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
-then
-    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
-end
-
-
-return Runtime:CreateFeature({
-    Game = "Rebellion",
-    Id = "mapped.games.rebellion.frontmannavigator",
-    Name = "Frontman Navigator",
-    Description = "Pathfinds toward the confirmed Frontman, command room, control room, or final Rebellion objective.",
-    Handler = "PathTo",
-    TargetTokens = {"frontman", "front man", "command room", "control room", "host", "office"},
-    ExcludeTokens = {"poster", "icon", "shop"},
-    TargetClasses = {"Model", "BasePart", "ProximityPrompt"},
-    StopDistance = 9,
-    Interact = true,
-    InteractDistance = 12,
-    MovementPriority = 72,
-    Interval = 0.4,
-    IdleInterval = 0.9,
-    WaitingMessage = "Waiting for the Frontman objective",
-})
-]====],
-        [ [====[Features/Games/Rebellion/GuardCombat.lua]====] ] = [====[local Environment = _G
-if type(getgenv) == "function" then
-    local ok, result = pcall(getgenv)
-    if ok and type(result) == "table" then Environment = result end
-end
-local Manifest = type(Environment.__SquidNoMoBuildManifest) == "table" and Environment.__SquidNoMoBuildManifest or {}
-local Runtime = Environment.__SquidNoMoGameRuntime
-if type(Runtime) ~= "table"
-    or tostring(Runtime.Revision) ~= tostring(Manifest.GameRuntimeRevision or "")
-    or tonumber(Runtime.BuildNumber) ~= tonumber(Manifest.BuildNumber)
-then
-    error("SquidNoMo game runtime is unavailable; deploy and execute the complete current build")
-end
-
-
-return Runtime:CreateFeature({
-    Game = "Rebellion",
-    Id = "mapped.games.rebellion.guardcombat",
-    Name = "Guard Combat",
-    Description = "Targets confirmed guard or soldier characters and activates an equipped combat tool at a controlled rate.",
-    Handler = "ToolAura",
-    PlayerTokens = {"guard", "staff", "soldier"},
-    TargetTokens = {"guard", "staff", "soldier"},
-    IncludeNPCs = true,
-    ToolTokens = {"gun", "rifle", "pistol", "bat", "weapon"},
-    Range = 16,
-    FaceTarget = true,
-    ActionCooldown = 0.28,
-    ActionPriority = 72,
-    Interval = 0.2,
-    IdleInterval = 0.75,
 })
 ]====],
         [ [====[Features/Games/RockPaperScissors/AutoPlay.lua]====] ] = [====[local Environment = _G
@@ -16404,6 +16406,519 @@ return Runtime:CreateFeature({
     Max = 120,
     Interval = 0.1,
 })
+]====],
+        [ [====[Features/Shared/LearningRecorder.lua]====] ] = [====[local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+
+local Recorder = {
+    Revision = "demonstration-recorder-r1",
+    BuildNumber = 11,
+    Active = false,
+    Session = nil,
+    Listeners = {},
+    Connections = {},
+}
+
+local function environment()
+    local value = _G
+    if type(getgenv) == "function" then
+        local ok, result = pcall(getgenv)
+        if ok and type(result) == "table" then value = result end
+    end
+    return value
+end
+
+local function round(value, places)
+    local factor = 10 ^ (places or 2)
+    return math.floor((tonumber(value) or 0) * factor + 0.5) / factor
+end
+
+local function vector(value)
+    if typeof(value) ~= "Vector3" then return nil end
+    return {x = round(value.X, 2), y = round(value.Y, 2), z = round(value.Z, 2)}
+end
+
+local function color(value)
+    if typeof(value) ~= "Color3" then return nil end
+    return {r = round(value.R, 3), g = round(value.G, 3), b = round(value.B, 3)}
+end
+
+local function sanitizeName(value)
+    value = string.lower(tostring(value or "game"))
+    value = string.gsub(value, "[^%w]+", "_")
+    value = string.gsub(value, "^_+", "")
+    value = string.gsub(value, "_+$", "")
+    return value ~= "" and value or "game"
+end
+
+local function safeValue(value)
+    local valueType = typeof(value)
+    if valueType == "Vector3" then return vector(value) end
+    if valueType == "Color3" then return color(value) end
+    if valueType == "CFrame" then
+        return {position = vector(value.Position), look = vector(value.LookVector)}
+    end
+    if type(value) == "string" or type(value) == "number" or type(value) == "boolean" then
+        return value
+    end
+    return tostring(value)
+end
+
+local function characterState()
+    local character = LocalPlayer and LocalPlayer.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not root then return nil end
+    return {
+        position = vector(root.Position),
+        velocity = vector(root.AssemblyLinearVelocity),
+        look = vector(root.CFrame.LookVector),
+        move = vector(humanoid.MoveDirection),
+        state = tostring(humanoid:GetState()),
+        floor = tostring(humanoid.FloorMaterial),
+        jump = humanoid.Jump == true,
+        health = round(humanoid.Health, 1),
+    }
+end
+
+
+local function isFeatureEnabled(feature)
+    if type(feature) ~= "table" then return false end
+    if type(feature.IsEnabled) == "function" then
+        local ok, value = pcall(feature.IsEnabled, feature)
+        if ok then return value == true end
+    end
+    return feature.Enabled == true or feature.Active == true
+end
+
+local function setFeatureEnabled(feature, state)
+    if type(feature) ~= "table" then return false end
+    local method = state and feature.Enable or feature.Disable
+    if type(method) == "function" then
+        local ok, result = pcall(method, feature)
+        return ok and result ~= false
+    end
+    if type(feature.Toggle) == "function" then
+        local ok, result = pcall(feature.Toggle, feature, state)
+        return ok and result ~= false
+    end
+    return false
+end
+
+local function appendUnique(list, seen, value, maximum)
+    value = tostring(value or "")
+    value = string.gsub(value, "%s+", " ")
+    if value == "" or seen[value] or #list >= maximum then return end
+    seen[value] = true
+    table.insert(list, value)
+end
+
+function Recorder:_SuspendAutomation()
+    local manager = self.Manager
+    if type(manager) ~= "table" then return end
+    self.Suspended = {
+        AutoApply = manager.AutoApplyPerGameEnabled == true,
+        Features = {},
+    }
+    manager.AutoApplyPerGameEnabled = false
+    for id, entry in pairs(manager.Registry or {}) do
+        if entry.PageName == "Games" or entry.PageName == "Farming" then
+            local feature = entry.Feature
+            if type(feature) == "table" and isFeatureEnabled(feature) then
+                self.Suspended.Features[id] = true
+                setFeatureEnabled(feature, false)
+            end
+        end
+    end
+end
+
+function Recorder:_RestoreAutomation()
+    local suspended = self.Suspended
+    self.Suspended = nil
+    local manager = self.Manager
+    if type(suspended) ~= "table" or type(manager) ~= "table" then return end
+    for id in pairs(suspended.Features or {}) do
+        local entry = manager.Registry and manager.Registry[id]
+        if entry and type(entry.Feature) == "table" then
+            setFeatureEnabled(entry.Feature, true)
+        end
+    end
+    manager.AutoApplyPerGameEnabled = suspended.AutoApply == true
+    if manager.AutoApplyPerGameEnabled and type(manager._ApplyDetectedGame) == "function" then
+        pcall(manager._ApplyDetectedGame, manager, true)
+    end
+end
+
+function Recorder:_Notify()
+    for _, callback in pairs(self.Listeners) do
+        pcall(callback, self:GetStatus())
+    end
+end
+
+function Recorder:Subscribe(callback)
+    if type(callback) ~= "function" then return nil end
+    local key = {}
+    self.Listeners[key] = callback
+    pcall(callback, self:GetStatus())
+    return {
+        Disconnect = function()
+            self.Listeners[key] = nil
+        end,
+    }
+end
+
+function Recorder:Initialize(Loader, Manager)
+    self.Loader = Loader
+    self.Manager = Manager
+    self.Runtime = Loader
+        and Loader.Features
+        and Loader.Features.Shared
+        and Loader.Features.Shared.Runtime
+    self.GameRuntime = Loader
+        and Loader.Features
+        and Loader.Features.Shared
+        and Loader.Features.Shared.GameRuntime
+    environment().__SquidNoMoLearningRecorder = self
+    return self
+end
+
+function Recorder:GetStatus()
+    local session = self.Session
+    return {
+        Active = self.Active == true,
+        Game = session and session.game or nil,
+        StartedAt = session and session.startedAtClock or nil,
+        Samples = session and #session.samples or 0,
+        Events = session and #session.events or 0,
+        SavedPath = session and session.savedPath or nil,
+        Success = session and session.success == true or false,
+        Message = self.Message or "Ready to learn one demonstrated round.",
+    }
+end
+
+function Recorder:_Event(kind, data)
+    if not self.Session then return end
+    local item = {
+        t = round(os.clock() - self.Session.startedAtClock, 3),
+        kind = tostring(kind),
+        data = data,
+    }
+    table.insert(self.Session.events, item)
+end
+
+function Recorder:_Disconnect()
+    for _, connection in ipairs(self.Connections) do
+        pcall(function() connection:Disconnect() end)
+    end
+    self.Connections = {}
+end
+
+function Recorder:_VisibleSummary()
+    local runtime = self.Runtime
+    if type(runtime) ~= "table" or type(runtime.GetVisualSnapshot) ~= "function" then return {} end
+    local ok, snapshot = pcall(runtime.GetVisualSnapshot, runtime, true)
+    if not ok or type(snapshot) ~= "table" then return {} end
+    local results, seen = {}, {}
+    for _, item in ipairs(snapshot.Items or {}) do
+        local text = tostring(item.RawText or "")
+        if #text > 0 and #text <= 120 then appendUnique(results, seen, text, 36) end
+    end
+    table.sort(results)
+    return results
+end
+
+function Recorder:_NearbySummary(root)
+    local runtime = self.Runtime
+    if type(runtime) ~= "table" or type(runtime.FindTargets) ~= "function" then return {} end
+    local ok, targets = pcall(runtime.FindTargets, runtime, {
+        Scope = "Workspace",
+        TargetClasses = {"ProximityPrompt", "Tool", "Sound", "ValueBase", "ClickDetector"},
+        MaxTargets = 320,
+        CacheTTL = 0.25,
+    })
+    if not ok or type(targets) ~= "table" then return {} end
+
+    local results = {}
+    for _, target in ipairs(targets) do
+        if #results >= 32 then break end
+        local position
+        pcall(function()
+            local parent = (target:IsA("ProximityPrompt") or target:IsA("ClickDetector"))
+                and target.Parent
+                or target
+            if parent:IsA("BasePart") then
+                position = parent.Position
+            elseif parent:IsA("Model") then
+                position = parent:GetPivot().Position
+            elseif parent.Parent and parent.Parent:IsA("BasePart") then
+                position = parent.Parent.Position
+            end
+        end)
+        local distance = root and position and (position - root.Position).Magnitude or nil
+        local include = distance == nil or distance <= 140
+        if target:IsA("Sound") then include = target.Playing == true end
+        if target:IsA("ProximityPrompt") then include = target.Enabled == true and include end
+        if include then
+            local entry = {
+                class = target.ClassName,
+                name = target.Name,
+                parent = target.Parent and target.Parent.Name or nil,
+                distance = distance and round(distance, 1) or nil,
+            }
+            if target:IsA("ProximityPrompt") then
+                entry.action = target.ActionText
+                entry.object = target.ObjectText
+            elseif target:IsA("ValueBase") then
+                entry.value = safeValue(target.Value)
+            elseif target:IsA("Sound") then
+                entry.playing = target.Playing
+                entry.soundId = target.SoundId
+                entry.time = round(target.TimePosition, 2)
+            end
+            table.insert(results, entry)
+        end
+    end
+    return results
+end
+
+function Recorder:_StateSummary()
+    local result = {}
+    local objects = {LocalPlayer, LocalPlayer and LocalPlayer.Character, Workspace}
+    for _, object in ipairs(objects) do
+        if object then
+            local attributes = {}
+            for name, value in pairs(object:GetAttributes()) do
+                local key = string.lower(tostring(name))
+                if string.find(key, "game", 1, true)
+                    or string.find(key, "round", 1, true)
+                    or string.find(key, "mode", 1, true)
+                    or string.find(key, "stage", 1, true)
+                    or string.find(key, "state", 1, true)
+                    or string.find(key, "light", 1, true)
+                then
+                    attributes[name] = safeValue(value)
+                end
+            end
+            if next(attributes) then
+                result[object.Name] = attributes
+            end
+        end
+    end
+    return result
+end
+
+function Recorder:_Sample(force)
+    if not self.Active or not self.Session then return end
+    local character = LocalPlayer and LocalPlayer.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    local detected, score, detail
+    if self.GameRuntime and type(self.GameRuntime.DetectGame) == "function" then
+        pcall(function()
+            detected, score, detail = self.GameRuntime:DetectGame(force == true)
+        end)
+    end
+
+    local rlglState, rlglDetail
+    if self.Session.game == "Red Light, Green Light"
+        and self.Runtime
+        and type(self.Runtime.GetRLGLStateDetail) == "function"
+    then
+        pcall(function()
+            rlglState, rlglDetail = self.Runtime:GetRLGLStateDetail()
+        end)
+    end
+
+    local movement = characterState()
+    local sample = {
+        t = round(os.clock() - self.Session.startedAtClock, 3),
+        detectedGame = detected,
+        detectionScore = round(score or 0, 1),
+        detectionDetail = detail,
+        rlglState = rlglState,
+        rlglDetail = rlglDetail,
+        movement = movement,
+    }
+
+    if force then
+        local visible = self:_VisibleSummary()
+        local visibleSignature = table.concat(visible, "|")
+        sample.nearby = self:_NearbySummary(root)
+        sample.state = self:_StateSummary()
+        sample.timer = self.Runtime and type(self.Runtime.GetRoundTimerSeconds) == "function"
+            and self.Runtime:GetRoundTimerSeconds()
+            or nil
+        sample.phase = self.Runtime and type(self.Runtime.GetRoundPhase) == "function"
+            and self.Runtime:GetRoundPhase()
+            or nil
+        if visibleSignature ~= self.Session.lastVisibleSignature then
+            sample.visibleText = visible
+            self.Session.lastVisibleSignature = visibleSignature
+        end
+        self.Session.lastContext = {
+            timer = sample.timer,
+            phase = sample.phase,
+        }
+    elseif self.Session.lastContext then
+        sample.timer = self.Session.lastContext.timer
+        sample.phase = self.Session.lastContext.phase
+    end
+
+    table.insert(self.Session.samples, sample)
+end
+
+function Recorder:Start(gameName)
+    if self.Active then return false, "A learning round is already active." end
+    gameName = tostring(gameName or "")
+    if gameName == "" then return false, "Select a game before learning." end
+
+    self:_Disconnect()
+    self:_SuspendAutomation()
+    self.Active = true
+    self.Message = "Learning " .. gameName .. " — play the round normally."
+    self.Session = {
+        schema = 1,
+        build = self.Loader and self.Loader.BuildVersion or "1.1 beta 11",
+        buildNumber = self.Loader and self.Loader.BuildNumber or 11,
+        game = gameName,
+        placeId = game.PlaceId,
+        startedAtUnix = os.time(),
+        startedAtClock = os.clock(),
+        compatibility = self.Runtime and type(self.Runtime.GetCompatibilitySummary) == "function"
+            and self.Runtime:GetCompatibilitySummary()
+            or {},
+        samples = {},
+        events = {},
+        success = false,
+    }
+
+    table.insert(self.Connections, UserInputService.InputBegan:Connect(function(input, processed)
+        if not self.Active then return end
+        self:_Event("input_begin", {
+            type = tostring(input.UserInputType),
+            key = tostring(input.KeyCode),
+            processed = processed == true,
+            position = {x = round(input.Position.X, 1), y = round(input.Position.Y, 1)},
+        })
+    end))
+    table.insert(self.Connections, UserInputService.InputEnded:Connect(function(input, processed)
+        if not self.Active then return end
+        self:_Event("input_end", {
+            type = tostring(input.UserInputType),
+            key = tostring(input.KeyCode),
+            processed = processed == true,
+        })
+    end))
+    if LocalPlayer then
+        table.insert(self.Connections, LocalPlayer.CharacterAdded:Connect(function(character)
+            self:_Event("character_added", {name = character.Name})
+        end))
+    end
+
+    self:_Event("learning_started", {game = gameName})
+    self:_Sample(true)
+    local token = self.Session
+    task.spawn(function()
+        local lastHeavy = 0
+        while self.Active and self.Session == token do
+            local now = os.clock()
+            local heavy = now - lastHeavy >= 0.75
+            self:_Sample(heavy)
+            if heavy then
+                lastHeavy = now
+                local text = self.Runtime and type(self.Runtime.GetVisibleText) == "function"
+                    and string.lower(tostring(self.Runtime:GetVisibleText() or ""))
+                    or ""
+                if string.find(text, "you survived", 1, true)
+                    or string.find(text, "qualified", 1, true)
+                    or string.find(text, "victory", 1, true)
+                    or string.find(text, "game complete", 1, true)
+                then
+                    task.defer(function()
+                        if self.Active and self.Session == token then self:MarkSuccess() end
+                    end)
+                    break
+                end
+            end
+            task.wait(0.22)
+        end
+    end)
+    self:_Notify()
+    return true
+end
+
+function Recorder:_Save()
+    if not self.Session then return false, "No learning session is available." end
+    self.Session.endedAtUnix = os.time()
+    self.Session.duration = round(os.clock() - self.Session.startedAtClock, 3)
+    self.Session.startedAtClock = nil
+    self.Session.lastVisibleSignature = nil
+    self.Session.lastContext = nil
+
+    local ok, encoded = pcall(HttpService.JSONEncode, HttpService, self.Session)
+    if not ok then return false, tostring(encoded) end
+
+    local fileName = string.format(
+        "SquidNoMo_Learning_%s_%s.json",
+        sanitizeName(self.Session.game),
+        tostring(os.time())
+    )
+    local path = fileName
+    if type(makefolder) == "function" and type(writefile) == "function" then
+        pcall(function()
+            if type(isfolder) ~= "function" or not isfolder("SquidNoMo") then makefolder("SquidNoMo") end
+            if type(isfolder) ~= "function" or not isfolder("SquidNoMo/Learning") then makefolder("SquidNoMo/Learning") end
+            path = "SquidNoMo/Learning/" .. fileName
+        end)
+    end
+
+    if type(writefile) == "function" then
+        local writeOk, writeError = pcall(writefile, path, encoded)
+        if not writeOk then return false, tostring(writeError) end
+        self.Session.savedPath = path
+        return true, path
+    end
+    if type(setclipboard) == "function" then
+        local copyOk, copyError = pcall(setclipboard, encoded)
+        if copyOk then
+            self.Session.savedPath = "clipboard"
+            return true, "clipboard"
+        end
+        return false, tostring(copyError)
+    end
+    environment().__SquidNoMoLastLearningTrace = encoded
+    self.Session.savedPath = "executor memory"
+    return true, "executor memory"
+end
+
+function Recorder:Stop(success)
+    if not self.Active or not self.Session then return false, "No learning round is active." end
+    self:_Sample(true)
+    self.Session.success = success == true
+    self:_Event(success and "round_success" or "learning_stopped", {})
+    self.Active = false
+    self:_Disconnect()
+    self:_RestoreAutomation()
+    local ok, detail = self:_Save()
+    if ok then
+        self.Message = success
+            and ("Successful round saved to " .. tostring(detail) .. ". Upload that JSON so the module can be rewritten.")
+            or ("Learning trace saved to " .. tostring(detail) .. ".")
+    else
+        self.Message = "Could not save the learning trace: " .. tostring(detail)
+    end
+    self:_Notify()
+    return ok, detail
+end
+
+function Recorder:MarkSuccess()
+    return self:Stop(true)
+end
+
+return Recorder
 ]====],
         [ [====[Features/Shared/PlayerRuntime.lua]====] ] = [====[-- SquidNoMo player feature runtime
 -- Shared implementation for every module under Features/Player.
@@ -23888,7 +24403,7 @@ Loader:QueueReloadAfterTeleport()
 
 local Bootstrap = Environment.__SquidNoMoBootstrap
 local loadStep = 0
-local estimatedSteps = 73
+local estimatedSteps = 77
 
 local function ReportLoading(message, progress)
     if type(Bootstrap) == "table" and type(Bootstrap.SetStatus) == "function" then
@@ -24012,10 +24527,13 @@ end
 
 Loader.FeatureCatalog = Load("Modules/FeatureCatalog.lua")
 Loader.FeatureManager = Load("Features/FeatureManager.lua")
+Loader.LearningRecorder = Load("Features/Shared/LearningRecorder.lua")
 Loader.App = Load("Core/App.lua")
 
 Loader.Home = Load("Modules/Home.lua")
+Loader.SubpageShell = Load("Modules/SubpageShell.lua")
 Loader.CategoryStrip = Load("Modules/CategoryStrip.lua")
+Loader.LearningPanel = Load("Modules/LearningPanel.lua")
 Loader.FeatureFolder = Load("Modules/FeatureFolder.lua")
 Loader.Games = Load("Modules/Games.lua")
 Loader.Players = Load("Modules/Players.lua")
@@ -24184,6 +24702,10 @@ if featuresLoaded then
             .. tostring(actualTotal)
             .. ". Upload the complete repository build."
         )
+    end
+
+    if Loader.LearningRecorder and type(Loader.LearningRecorder.Initialize) == "function" then
+        Loader.LearningRecorder:Initialize(Loader, Loader.FeatureManager)
     end
 
     print(
@@ -24977,14 +25499,14 @@ return result
         [ [====[Modules/CategoryStrip.lua]====] ] = [====[local CategoryStrip = {}
 
 local function makeCorner(parent, radius)
-    local corner = Instance.new('UICorner')
+    local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, radius or 13)
     corner.Parent = parent
     return corner
 end
 
 local function makeStroke(parent, color, thickness, transparency)
-    local stroke = Instance.new('UIStroke')
+    local stroke = Instance.new("UIStroke")
     stroke.Color = color
     stroke.Thickness = thickness or 1
     stroke.Transparency = transparency or 0
@@ -24993,85 +25515,54 @@ local function makeStroke(parent, color, thickness, transparency)
 end
 
 function CategoryStrip:Create(Page, App, options)
-    Page:ClearAllChildren()
     options = options or {}
+    local parent = options.Parent or Page
+    local gestureOwner = options.GestureOwner or Page
+    if options.ClearParent ~= false then parent:ClearAllChildren() end
 
     local items = options.Items or {}
-    local pageName = options.PageName or 'Games'
-    local sessionKey = options.SessionKey or 'SelectedCategory'
-    local defaultName = options.DefaultName
-        or (items[1] and items[1].Name)
+    local pageName = options.PageName or "Games"
+    local sessionKey = options.SessionKey or "SelectedCategory"
+    local defaultName = options.DefaultName or (items[1] and items[1].Name)
     local accent = App:GetPageAccent(pageName)
-    local pagePadding = App:GetUIStyleValue(
-        pageName,
-        'PagePadding',
-        'MainPage'
+    local pagePadding = options.Parent and 0 or (
+        App:GetUIStyleValue(pageName, "PagePadding", "MainPage") or App.Profile.ContentPadding
     )
-    local buttonWidth = App:GetUIStyleValue(
-        pageName,
-        'CategoryBubbleWidth',
-        'Subpage'
-    ) or options.ButtonWidth or 190
-    if App:IsMobile() then
-        buttonWidth = math.max(buttonWidth, 176)
-    end
-    local buttonHeight = App:GetUIStyleValue(
-        pageName,
-        'CategoryBubbleHeight',
-        'Subpage'
-    ) or 66
-    local barHeight = App:GetUIStyleValue(
-        pageName,
-        'CategoryBarHeight',
-        'Subpage'
-    ) or 108
-    local gap = App:GetUIStyleValue(
-        pageName,
-        'CategoryGap',
-        'Subpage'
-    ) or 10
-    local scrollbar = App:GetUIStyleValue(
-        pageName,
-        'ScrollbarThickness',
-        'Subpage'
-    ) or 5
+    local buttonWidth = App:GetUIStyleValue(pageName, "CategoryBubbleWidth", "Subpage")
+        or options.ButtonWidth
+        or 190
+    if App:IsMobile() then buttonWidth = math.max(buttonWidth, 176) end
+    local buttonHeight = App:GetUIStyleValue(pageName, "CategoryBubbleHeight", "Subpage") or 66
+    local barHeight = options.Parent and parent.AbsoluteSize.Y or (
+        App:GetUIStyleValue(pageName, "CategoryBarHeight", "Subpage") or 108
+    )
+    if barHeight <= 0 then barHeight = App:IsMobile() and 98 or 104 end
+    local gap = App:GetUIStyleValue(pageName, "CategoryGap", "Subpage") or 10
+    local scrollbar = App:GetUIStyleValue(pageName, "ScrollbarThickness", "Subpage") or 5
 
-    local root = Instance.new('Frame')
-    root.Name = pageName .. 'CategoryRoot'
-    root:SetAttribute('SquidNoMoSubpage', true)
-    root.Position = UDim2.fromOffset(pagePadding, pagePadding)
-    root.Size = UDim2.new(
-        1,
-        -(pagePadding * 2),
-        0,
-        barHeight + 4
-    )
+    local root = Instance.new("Frame")
+    root.Name = pageName .. "CategoryRoot"
+    root:SetAttribute("SquidNoMoSubpage", true)
+    root.Position = options.Parent and UDim2.fromOffset(0, 0) or UDim2.fromOffset(pagePadding, pagePadding)
+    root.Size = options.Parent
+        and UDim2.fromScale(1, 1)
+        or UDim2.new(1, -(pagePadding * 2), 0, barHeight + 4)
     root.BackgroundTransparency = 1
     root.BorderSizePixel = 0
-    root.Parent = Page
+    root.Parent = parent
 
-    local card = App:CreateCard(
-        root,
-        UDim2.new(1, 0, 0, barHeight),
-        {
-            Color = App.Colors.Card,
-            BorderColor = accent,
-            BorderTransparency = 0.08,
-            Radius = App:GetUIStyleValue(
-                pageName,
-                'CardRadius',
-                'Subpage'
-            ),
-        }
-    )
-    card.Position = UDim2.fromOffset(0, 0)
+    local card = App:CreateCard(root, UDim2.fromScale(1, 1), {
+        Color = App.Colors.Card,
+        BorderColor = accent,
+        BorderTransparency = 0.08,
+        Radius = App:GetUIStyleValue(pageName, "CardRadius", "Subpage"),
+    })
     card.ClipsDescendants = true
 
-    local scroller = Instance.new('ScrollingFrame')
-    scroller.Name = options.ScrollerName
-        or (pageName .. 'CategoryScroller')
-    scroller.Position = UDim2.fromOffset(12, 10)
-    scroller.Size = UDim2.new(1, -24, 1, -20)
+    local scroller = Instance.new("ScrollingFrame")
+    scroller.Name = options.ScrollerName or (pageName .. "CategoryScroller")
+    scroller.Position = UDim2.fromOffset(12, 8)
+    scroller.Size = UDim2.new(1, -24, 1, -16)
     scroller.BackgroundTransparency = 1
     scroller.BorderSizePixel = 0
     scroller.CanvasSize = UDim2.fromOffset(0, 0)
@@ -25079,19 +25570,20 @@ function CategoryStrip:Create(Page, App, options)
     scroller.ScrollingDirection = Enum.ScrollingDirection.X
     scroller.ScrollBarThickness = scrollbar
     scroller.ScrollBarImageColor3 = accent
+    scroller.ScrollBarImageTransparency = 0.08
     scroller.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
     scroller.Active = true
     scroller.ZIndex = 1012
     scroller.Parent = card
 
-    local paddingObject = Instance.new('UIPadding')
+    local paddingObject = Instance.new("UIPadding")
     paddingObject.PaddingLeft = UDim.new(0, 2)
     paddingObject.PaddingRight = UDim.new(0, 2)
-    paddingObject.PaddingTop = UDim.new(0, 4)
-    paddingObject.PaddingBottom = UDim.new(0, 8)
+    paddingObject.PaddingTop = UDim.new(0, 3)
+    paddingObject.PaddingBottom = UDim.new(0, 7)
     paddingObject.Parent = scroller
 
-    local layout = Instance.new('UIListLayout')
+    local layout = Instance.new("UIListLayout")
     layout.FillDirection = Enum.FillDirection.Horizontal
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
     layout.VerticalAlignment = Enum.VerticalAlignment.Center
@@ -25105,142 +25597,79 @@ function CategoryStrip:Create(Page, App, options)
     local function renderSelection(index, userInitiated)
         selectedIndex = index
         local item = items[index]
-        if not item then
-            return
-        end
+        if not item then return end
 
-        if App.Session then
-            App.Session[sessionKey] = item.Name
-        end
-
-        if type(App.QueueSettingsSave) == 'function' then
-            App:QueueSettingsSave()
-        end
+        if App.Session then App.Session[sessionKey] = item.Name end
+        if type(App.QueueSettingsSave) == "function" then App:QueueSettingsSave() end
 
         for refIndex, ref in ipairs(refs) do
             local selected = refIndex == selectedIndex
-            ref.Button.BackgroundColor3 = selected
-                and accent
-                or App.Colors.CardAlt
-            ref.Button.BackgroundTransparency = selected
-                and 0.08
-                or 0.28
-            ref.Stroke.Color = selected
-                and accent
-                or App.Colors.BorderSoft
-            ref.Stroke.Transparency = selected
-                and 0.02
-                or 0.55
-            ref.Stroke.Thickness = selected
-                and 2
-                or App:GetUIStyleValue(
-                    pageName,
-                    'BorderThickness',
-                    'Subpage'
-                )
-            ref.Title.TextColor3 = selected
-                and Color3.fromRGB(255, 255, 255)
-                or App.Colors.Text
-            ref.Code.TextColor3 = selected
-                and Color3.fromRGB(255, 255, 255)
-                or accent
+            ref.Button.BackgroundColor3 = selected and accent or App.Colors.CardAlt
+            ref.Button.BackgroundTransparency = selected and 0.08 or 0.28
+            ref.Stroke.Color = selected and accent or App.Colors.BorderSoft
+            ref.Stroke.Transparency = selected and 0.02 or 0.55
+            ref.Stroke.Thickness = selected and 2
+                or App:GetUIStyleValue(pageName, "BorderThickness", "Subpage")
+            ref.Title.TextColor3 = selected and Color3.new(1, 1, 1) or App.Colors.Text
+            ref.Code.TextColor3 = selected and Color3.new(1, 1, 1) or accent
         end
 
-        if type(options.OnSelected) == 'function' then
+        if type(options.OnSelected) == "function" then
             pcall(options.OnSelected, item, index, userInitiated == true)
         end
     end
 
     for index, item in ipairs(items) do
-        local button = Instance.new('TextButton')
-        button.Name = pageName
-            .. 'Category_'
-            .. tostring(index)
-        button.Size = UDim2.fromOffset(
-            options.ButtonWidth or buttonWidth,
-            buttonHeight
-        )
+        local button = Instance.new("TextButton")
+        button.Name = pageName .. "Category_" .. tostring(index)
+        button.Size = UDim2.fromOffset(options.ButtonWidth or buttonWidth, buttonHeight)
         button.BackgroundColor3 = App.Colors.CardAlt
         button.BackgroundTransparency = 0.28
         button.BorderSizePixel = 0
         button.AutoButtonColor = false
-        button.Text = ''
+        button.Text = ""
         button.LayoutOrder = index
         button.ZIndex = 1013
         button.Parent = scroller
-        makeCorner(
-            button,
-            App:GetUIStyleValue(
-                pageName,
-                'ButtonRadius',
-                'Subpage'
-            )
-        )
+        makeCorner(button, App:GetUIStyleValue(pageName, "ButtonRadius", "Subpage"))
 
         local outline = makeStroke(
             button,
             App.Colors.BorderSoft,
-            App:GetUIStyleValue(
-                pageName,
-                'BorderThickness',
-                'Subpage'
-            ),
+            App:GetUIStyleValue(pageName, "BorderThickness", "Subpage"),
             0.55
         )
 
-        local code = App:CreateText(
-            button,
-            item.Short or tostring(index),
-            UDim2.fromOffset(90, 18),
-            UDim2.fromOffset(12, 8),
-            {
-                Font = Enum.Font.GothamBlack,
-                TextSize = App:IsMobile() and 12 or 11,
-                Color = accent,
-                ZIndex = 1014,
-            }
-        )
+        local code = App:CreateText(button, item.Short or tostring(index), UDim2.fromOffset(90, 18), UDim2.fromOffset(12, 8), {
+            Font = Enum.Font.GothamBlack,
+            TextSize = App:IsMobile() and 12 or 11,
+            Color = accent,
+            ZIndex = 1014,
+        })
 
-        local title = App:CreateText(
-            button,
-            item.Name,
-            UDim2.new(1, -24, 0, buttonHeight - 28),
-            UDim2.fromOffset(12, 25),
-            {
-                Font = Enum.Font.GothamBold,
-                TextSize = App:IsMobile() and 14 or 13,
-                Color = App.Colors.Text,
-                Wrapped = true,
-                YAlignment = Enum.TextYAlignment.Center,
-                ZIndex = 1014,
-            }
-        )
+        local title = App:CreateText(button, item.Name, UDim2.new(1, -24, 0, buttonHeight - 28), UDim2.fromOffset(12, 25), {
+            Font = Enum.Font.GothamBold,
+            TextSize = App:IsMobile() and 14 or 13,
+            Color = App.Colors.Text,
+            Wrapped = true,
+            YAlignment = Enum.TextYAlignment.Center,
+            ZIndex = 1014,
+        })
 
         App:BindButtonFeedback(button, accent)
         button.Activated:Connect(function()
-            if Page:GetAttribute("SquidNoMoTouchDragging") then return end
+            if gestureOwner and gestureOwner:GetAttribute("SquidNoMoTouchDragging") then return end
             renderSelection(index, true)
         end)
 
-        refs[index] = {
-            Button = button,
-            Stroke = outline,
-            Title = title,
-            Code = code,
-        }
+        refs[index] = {Button = button, Stroke = outline, Title = title, Code = code}
     end
 
     local saved = App.Session and App.Session[sessionKey]
-    local target = type(saved) == 'string'
-        and saved
-        or defaultName
-
-    if type(target) == 'string' then
+    local target = type(saved) == "string" and saved or defaultName
+    if type(target) == "string" then
         for index, item in ipairs(items) do
-            if item.Name == target then
-                selectedIndex = index
-                break
-            end
+            if item.Name == target then selectedIndex = index break end
         end
     end
 
@@ -25264,9 +25693,7 @@ function CategoryStrip:Create(Page, App, options)
             local item = items[selectedIndex]
             return item and item.Name or nil
         end,
-        SelectedIndex = function()
-            return selectedIndex
-        end,
+        SelectedIndex = function() return selectedIndex end,
     }
 end
 
@@ -25277,8 +25704,15 @@ return CategoryStrip
 function DetectivePage:Create(Page, App)
     local catalog = App.Loader.FeatureCatalog
     local categories = catalog and catalog:GetCategories("Detective") or {}
+    local shell = App.Loader.SubpageShell:Create(Page, App, {
+        PageName = "Detective",
+        HeaderHeight = App:IsMobile() and 100 or 106,
+    })
 
     App.Loader.CategoryStrip:Create(Page, App, {
+        Parent = shell.Header,
+        GestureOwner = Page,
+        ClearParent = false,
         PageName = "Detective",
         SessionKey = "SelectedDetectiveCategory",
         DefaultName = categories[1] and categories[1].Name or "Island Navigation",
@@ -25286,8 +25720,10 @@ function DetectivePage:Create(Page, App)
         ButtonWidth = 240,
         Items = categories,
         OnSelected = function(item)
-            App.Loader.FeatureFolder:Render(Page, App, {
+            shell:ResetScroll()
+            App.Loader.FeatureFolder:Render(shell.Content, App, {
                 PageName = "Detective",
+                TopY = 0,
                 Features = item.Features or {},
             })
         end,
@@ -25309,11 +25745,16 @@ function FarmingPage:Create(Page, App)
         end
     end
 
-    -- Farming intentionally uses one continuous toggle page. There is no
-    -- category strip because each controller already selects its own task.
-    App.Loader.FeatureFolder:Render(Page, App, {
+    local shell = App.Loader.SubpageShell:Create(Page, App, {
         PageName = "Farming",
-        TopY = App:IsMobile() and 18 or 22,
+        HeaderHeight = 0,
+        Gap = 0,
+    })
+    shell.Header.Visible = false
+
+    App.Loader.FeatureFolder:Render(shell.Content, App, {
+        PageName = "Farming",
+        TopY = 0,
         Features = features,
     })
 end
@@ -26474,7 +26915,20 @@ function GamesPage:Create(Page, App)
     local alive = true
     local lastDetected = nil
 
+    local shell = App.Loader.SubpageShell:Create(Page, App, {
+        PageName = "Games",
+        HeaderHeight = App:IsMobile() and 100 or 106,
+        ToolbarHeight = App:IsMobile() and 68 or 64,
+    })
+
+    local learning = App.Loader.LearningPanel:Create(shell.Toolbar, App, {
+        GameName = categories[1] and categories[1].Name or "Red Light, Green Light",
+    })
+
     local selector = App.Loader.CategoryStrip:Create(Page, App, {
+        Parent = shell.Header,
+        GestureOwner = Page,
+        ClearParent = false,
         PageName = "Games",
         SessionKey = "SelectedGameCategory",
         DefaultName = categories[1] and categories[1].Name or "Red Light, Green Light",
@@ -26482,11 +26936,14 @@ function GamesPage:Create(Page, App)
         ButtonWidth = 190,
         Items = categories,
         OnSelected = function(item, _, userInitiated)
+            if learning and learning.SetGame then learning.SetGame(item.Name) end
             if userInitiated and manager and type(manager.SetManualGameCategory) == "function" then
                 manager:SetManualGameCategory(item.Name)
             end
-            App.Loader.FeatureFolder:Render(Page, App, {
+            shell:ResetScroll()
+            App.Loader.FeatureFolder:Render(shell.Content, App, {
                 PageName = "Games",
+                TopY = 0,
                 Features = item.Features or {},
             })
         end,
@@ -26508,9 +26965,6 @@ function GamesPage:Create(Page, App)
         connection = manager:Subscribe(followDetectedGame)
     end
 
-    -- Do not depend solely on registry notifications. The mode detector runs while
-    -- the page is open and immediately changes the visible subpage after a round
-    -- transition, even when no feature state changed.
     task.spawn(function()
         while alive and Page.Parent do
             followDetectedGame()
@@ -26531,8 +26985,15 @@ return GamesPage
 function GuardsPage:Create(Page, App)
     local catalog = App.Loader.FeatureCatalog
     local categories = catalog and catalog:GetCategories("Guards") or {}
+    local shell = App.Loader.SubpageShell:Create(Page, App, {
+        PageName = "Guards",
+        HeaderHeight = App:IsMobile() and 100 or 106,
+    })
 
     App.Loader.CategoryStrip:Create(Page, App, {
+        Parent = shell.Header,
+        GestureOwner = Page,
+        ClearParent = false,
         PageName = "Guards",
         SessionKey = "SelectedGuardCategory",
         DefaultName = categories[1] and categories[1].Name or "Game Moderation",
@@ -26540,8 +27001,10 @@ function GuardsPage:Create(Page, App)
         ButtonWidth = 220,
         Items = categories,
         OnSelected = function(item)
-            App.Loader.FeatureFolder:Render(Page, App, {
+            shell:ResetScroll()
+            App.Loader.FeatureFolder:Render(shell.Content, App, {
                 PageName = "Guards",
+                TopY = 0,
                 Features = item.Features or {},
             })
         end,
@@ -26549,6 +27012,46 @@ function GuardsPage:Create(Page, App)
 end
 
 return GuardsPage
+]====],
+        [ [====[Modules/Home.lua]====] ] = [====[local Home = {}
+
+function Home:Create(Page, App)
+
+	local Components = App.Components
+
+	local HeroBanner = App.Loader.HeroBanner
+	local FeatureGroups = App.Loader.FeatureGroups
+	local ServerStatus = App.Loader.ServerStatus
+	local NOMOAI = App.Loader.NOMOAI
+	local SupportDevelopment = App.Loader.SupportDevelopment
+	local DevelopmentGoal = App.Loader.DevelopmentGoal
+	local Supporters = App.Loader.Supporters
+	local ImportantNotice = App.Loader.ImportantNotice
+	local Footer = App.Loader.Footer
+
+
+	HeroBanner:Create(Page, App)
+
+	local Row1 = Components:CreateHorizontalContainer(Page)
+	Row1.LayoutOrder = 2
+
+	FeatureGroups:Create(Row1, App)
+	ServerStatus:Create(Row1, App)
+	NOMOAI:Create(Row1, App)
+
+	local Row2 = Components:CreateHorizontalContainer(Page)
+	Row2.LayoutOrder = 3
+
+	SupportDevelopment:Create(Row2, App)
+	DevelopmentGoal:Create(Row2, App)
+	Supporters:Create(Row2, App)
+
+	ImportantNotice:Create(Page, App)
+	Footer:Create(Page, App)
+
+end
+
+return Home
 ]====],
         [ [====[Modules/Home/DevelopmentGoal.lua]====] ] = [====[local DevelopmentGoal = {}
 
@@ -27817,900 +28320,143 @@ end
 
 return Supporters
 ]====],
-        [ [====[Modules/Home.lua]====] ] = [====[local Home = {}
+        [ [====[Modules/LearningPanel.lua]====] ] = [====[local LearningPanel = {}
 
-function Home:Create(Page, App)
-
-	local Components = App.Components
-
-	local HeroBanner = App.Loader.HeroBanner
-	local FeatureGroups = App.Loader.FeatureGroups
-	local ServerStatus = App.Loader.ServerStatus
-	local NOMOAI = App.Loader.NOMOAI
-	local SupportDevelopment = App.Loader.SupportDevelopment
-	local DevelopmentGoal = App.Loader.DevelopmentGoal
-	local Supporters = App.Loader.Supporters
-	local ImportantNotice = App.Loader.ImportantNotice
-	local Footer = App.Loader.Footer
-
-
-	HeroBanner:Create(Page, App)
-
-	local Row1 = Components:CreateHorizontalContainer(Page)
-	Row1.LayoutOrder = 2
-
-	FeatureGroups:Create(Row1, App)
-	ServerStatus:Create(Row1, App)
-	NOMOAI:Create(Row1, App)
-
-	local Row2 = Components:CreateHorizontalContainer(Page)
-	Row2.LayoutOrder = 3
-
-	SupportDevelopment:Create(Row2, App)
-	DevelopmentGoal:Create(Row2, App)
-	Supporters:Create(Row2, App)
-
-	ImportantNotice:Create(Page, App)
-	Footer:Create(Page, App)
-
+local function corner(parent, radius)
+    local value = Instance.new("UICorner")
+    value.CornerRadius = UDim.new(0, radius or 12)
+    value.Parent = parent
 end
 
-return Home
-]====],
-        [ [====[Modules/Players/ESP.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// ESP.lua
---//========================================================--
-
-local ESP = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function ESP:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- ESP Card
-	----------------------------------------------------------
-
-	local Card = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,340)
-
-	)
-
-	Card.LayoutOrder = 1
-
-	Components:CreateTitle(
-
-		Card,
-		Theme,
-		"👁 Role ESP"
-
-	)
-
-	local Holder = Instance.new("Frame")
-
-	Holder.BackgroundTransparency = 1
-
-	Holder.Position = UDim2.fromOffset(20,55)
-
-	Holder.Size = UDim2.new(1,-40,1,-75)
-
-	Holder.Parent = Card
-
-	local HolderLayout = Instance.new("UIListLayout")
-
-	HolderLayout.Padding = UDim.new(0,12)
-
-	HolderLayout.Parent = Holder
-
-  	----------------------------------------------------------
-	-- Player ESP
-	----------------------------------------------------------
-
-	local _, PlayerESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Player ESP"
-
-		)
-
-	PlayerESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.PlayerESP then
-
-			if State then
-				App.Features.Player.PlayerESP:Enable()
-			else
-				App.Features.Player.PlayerESP:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Guard ESP
-	----------------------------------------------------------
-
-	local _, GuardESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Guard ESP"
-
-		)
-
-	GuardESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.GuardESP then
-
-			if State then
-				App.Features.Player.GuardESP:Enable()
-			else
-				App.Features.Player.GuardESP:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Detective ESP
-	----------------------------------------------------------
-
-	local _, DetectiveESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Detective ESP"
-
-		)
-
-	DetectiveESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.DetectiveESP then
-
-			if State then
-				App.Features.Player.DetectiveESP:Enable()
-			else
-				App.Features.Player.DetectiveESP:Disable()
-			end
-
-		end
-
-	end)
-
-  	----------------------------------------------------------
-	-- Frontman ESP
-	----------------------------------------------------------
-
-	local _, FrontmanESP =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Frontman ESP"
-
-		)
-
-	FrontmanESP:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.FrontmanESP then
-
-			if State then
-				App.Features.Player.FrontmanESP:Enable()
-			else
-				App.Features.Player.FrontmanESP:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Finished
-	----------------------------------------------------------
-
+local function button(parent, text, color, order)
+    local value = Instance.new("TextButton")
+    value.LayoutOrder = order
+    value.Size = UDim2.fromOffset(104, 42)
+    value.BackgroundColor3 = color
+    value.BorderSizePixel = 0
+    value.AutoButtonColor = false
+    value.Text = text
+    value.TextColor3 = Color3.new(1, 1, 1)
+    value.Font = Enum.Font.GothamBold
+    value.TextSize = 13
+    value.Parent = parent
+    corner(value, 10)
+    return value
 end
 
-----------------------------------------------------------
--- Return Module
-----------------------------------------------------------
-
-return ESP
-]====],
-        [ [====[Modules/Players/Enhancements.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// Enhancements.lua
---//========================================================--
-
-local Enhancements = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function Enhancements:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- Enhancement Card
-	----------------------------------------------------------
-
-	local Card = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,340)
-
-	)
-
-	Card.LayoutOrder = 1
-
-	Components:CreateTitle(
-
-		Card,
-		Theme,
-		"✨ Player Enhancements"
-
-	)
-
-	local Holder = Instance.new("Frame")
-
-	Holder.BackgroundTransparency = 1
-
-	Holder.Position = UDim2.fromOffset(20,55)
-
-	Holder.Size = UDim2.new(1,-40,1,-75)
-
-	Holder.Parent = Card
-
-	local HolderLayout = Instance.new("UIListLayout")
-
-	HolderLayout.Padding = UDim.new(0,12)
-
-	HolderLayout.Parent = Holder
-
-  	----------------------------------------------------------
-	-- Walk Speed
-	----------------------------------------------------------
-
-	local _, WalkSpeed =
-		Components:CreateSlider(
-
-			Holder,
-			Theme,
-			"Walk Speed",
-			16,
-			100,
-			16
-
-		)
-
-	WalkSpeed:OnChanged(function(Value)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.WalkSpeed then
-
-			App.Features.Player.WalkSpeed:Set(Value)
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Jump Power
-	----------------------------------------------------------
-
-	local _, JumpPower =
-		Components:CreateSlider(
-
-			Holder,
-			Theme,
-			"Jump Power",
-			50,
-			200,
-			50
-
-		)
-
-	JumpPower:OnChanged(function(Value)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.JumpPower then
-
-			App.Features.Player.JumpPower:Set(Value)
-
-		end
-
-	end)
-
-  	----------------------------------------------------------
-	-- Infinite Jump
-	----------------------------------------------------------
-
-	local _, InfiniteJump =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Infinite Jump"
-
-		)
-
-	InfiniteJump:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.InfiniteJump then
-
-			if State then
-				App.Features.Player.InfiniteJump:Enable()
-			else
-				App.Features.Player.InfiniteJump:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Noclip
-	----------------------------------------------------------
-
-	local _, Noclip =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Noclip"
-
-		)
-
-	Noclip:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.Noclip then
-
-			if State then
-				App.Features.Player.Noclip:Enable()
-			else
-				App.Features.Player.Noclip:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Finished
-	----------------------------------------------------------
-
+function LearningPanel:Create(Parent, App, options)
+    options = options or {}
+    local recorder = App.Loader and App.Loader.LearningRecorder
+    local accent = App:GetPageAccent("Games")
+    local selectedGame = options.GameName or "Red Light, Green Light"
+
+    local card = App:CreateCard(Parent, UDim2.fromScale(1, 1), {
+        Color = App.Colors.Card,
+        BorderColor = accent,
+        BorderTransparency = 0.18,
+        Radius = 13,
+    })
+    card.ClipsDescendants = true
+
+    local title = App:CreateText(card, "ONE-ROUND LEARNING", UDim2.fromOffset(190, 18), UDim2.fromOffset(14, 8), {
+        Font = Enum.Font.GothamBlack,
+        TextSize = App:IsMobile() and 12 or 11,
+        Color = accent,
+        ZIndex = 1014,
+    })
+
+    local gameLabel = App:CreateText(card, selectedGame, UDim2.new(0.30, -20, 0, 22), UDim2.fromOffset(14, 27), {
+        Font = Enum.Font.GothamBold,
+        TextSize = App:IsMobile() and 14 or 13,
+        Color = App.Colors.Text,
+        ZIndex = 1014,
+    })
+    gameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+
+    local status = App:CreateText(card, "Play one round manually, then mark success.", UDim2.new(0.30, -16, 0, 36), UDim2.new(0.30, 0, 0, 13), {
+        Font = Enum.Font.GothamMedium,
+        TextSize = App:IsMobile() and 12 or 11,
+        Color = App.Colors.Muted,
+        Wrapped = true,
+        ZIndex = 1014,
+    })
+
+    local actions = Instance.new("Frame")
+    actions.AnchorPoint = Vector2.new(1, 0.5)
+    actions.Position = UDim2.new(1, -12, 0.5, 0)
+    actions.Size = UDim2.new(0.40, 0, 0, 44)
+    actions.BackgroundTransparency = 1
+    actions.Parent = card
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.Padding = UDim.new(0, 8)
+    layout.Parent = actions
+
+    local learn = button(actions, "LEARN", accent, 1)
+    local success = button(actions, "SUCCESS", Color3.fromRGB(48, 190, 105), 2)
+    local stop = button(actions, "STOP", Color3.fromRGB(185, 66, 76), 3)
+
+    local function render(nextStatus)
+        nextStatus = nextStatus or (recorder and recorder:GetStatus()) or {}
+        local active = nextStatus.Active == true
+        gameLabel.Text = active and tostring(nextStatus.Game or selectedGame) or selectedGame
+        status.Text = tostring(nextStatus.Message or "Play one round manually, then mark success.")
+        status.TextColor3 = active and Color3.fromRGB(255, 214, 84) or App.Colors.Muted
+        learn.Visible = not active
+        success.Visible = active
+        stop.Visible = active
+    end
+
+    learn.Activated:Connect(function()
+        if not recorder then return end
+        local ok, detail = recorder:Start(selectedGame)
+        if not ok and App.Notifications and type(App.Notifications.Error) == "function" then
+            App.Notifications:Error("Learning", tostring(detail), 5)
+        end
+        render()
+    end)
+
+    success.Activated:Connect(function()
+        if not recorder then return end
+        local ok, detail = recorder:MarkSuccess()
+        if App.Notifications then
+            local method = ok and App.Notifications.Success or App.Notifications.Error
+            if type(method) == "function" then
+                method(App.Notifications, "Learning", tostring(detail), 6)
+            end
+        end
+        render()
+    end)
+
+    stop.Activated:Connect(function()
+        if not recorder then return end
+        recorder:Stop(false)
+        render()
+    end)
+
+    App:BindButtonFeedback(learn, accent)
+    App:BindButtonFeedback(success, Color3.fromRGB(48, 190, 105))
+    App:BindButtonFeedback(stop, Color3.fromRGB(185, 66, 76))
+
+    local connection = recorder and recorder:Subscribe(render) or nil
+    card.Destroying:Connect(function()
+        if connection then pcall(function() connection:Disconnect() end) end
+    end)
+
+    render()
+    return {
+        Root = card,
+        SetGame = function(name)
+            selectedGame = tostring(name or selectedGame)
+            if not recorder or not recorder.Active then gameLabel.Text = selectedGame end
+        end,
+    }
 end
 
-return Enhancements
-]====],
-        [ [====[Modules/Players/Main.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// Main.lua
---//========================================================--
-
-local PlayersMain = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function PlayersMain:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Main Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- Top Navigation Card
-	----------------------------------------------------------
-
-	local NavCard = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,64)
-
-	)
-
-	NavCard.LayoutOrder = 1
-
-	----------------------------------------------------------
-	-- Navigation Container
-	----------------------------------------------------------
-
-	local NavContainer = Instance.new("Frame")
-
-	NavContainer.Name = "Navigation"
-
-	NavContainer.BackgroundTransparency = 1
-
-	NavContainer.Size = UDim2.new(1,-24,1,-16)
-
-	NavContainer.Position = UDim2.fromOffset(12,8)
-
-	NavContainer.Parent = NavCard
-
-	local NavLayout = Instance.new("UIListLayout")
-
-	NavLayout.FillDirection = Enum.FillDirection.Horizontal
-
-	NavLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-
-	NavLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-
-	NavLayout.Padding = UDim.new(0,14)
-
-	NavLayout.Parent = NavContainer
-
-	----------------------------------------------------------
-	-- Content Area
-	----------------------------------------------------------
-
-	local Content = Instance.new("Frame")
-
-	Content.Name = "Content"
-
-	Content.BackgroundTransparency = 1
-
-	Content.Size = UDim2.new(1,0,1,-80)
-
-	Content.AutomaticSize = Enum.AutomaticSize.Y
-
-	Content.LayoutOrder = 2
-
-	Content.Parent = Page
-
-	self.Content = Content
-	self.NavContainer = NavContainer
-
-  	----------------------------------------------------------
-	-- Navigation Buttons
-	----------------------------------------------------------
-
-	local CurrentTab
-
-	local Buttons = {}
-
-	local function CreateTab(Name, Icon)
-
-		local Button = Instance.new("TextButton")
-
-		Button.Name = Name
-
-		Button.Size = UDim2.fromOffset(170,44)
-
-		Button.BackgroundColor3 = Theme.Card
-
-		Button.BorderSizePixel = 0
-
-		Button.AutoButtonColor = false
-
-		Button.Font = Theme.FontBold
-
-		Button.TextSize = 16
-
-		Button.Text = Icon .. "  " .. Name
-
-		Button.TextColor3 = Theme.Text
-
-		Button.Parent = NavContainer
-
-		local Corner = Instance.new("UICorner")
-
-		Corner.CornerRadius = UDim.new(0,12)
-
-		Corner.Parent = Button
-
-		Buttons[Name] = Button
-
-		return Button
-
-	end
-
-	local EnhancementsButton =
-		CreateTab("Enhancements","✨")
-
-	local ESPButton =
-		CreateTab("ESP","👁")
-
-	local UtilitiesButton =
-		CreateTab("Utilities","🛠")
-
-  	----------------------------------------------------------
-	-- Page Loader
-	----------------------------------------------------------
-
-	local CurrentPage
-
-	local function ClearPage()
-
-		if CurrentPage then
-
-			CurrentPage:Destroy()
-
-			CurrentPage = nil
-
-		end
-
-	end
-
-	local function SelectTab(Name)
-
-		CurrentTab = Name
-
-		for TabName, Button in pairs(Buttons) do
-
-			if TabName == Name then
-
-				Button.BackgroundColor3 = Theme.Accent
-				Button.TextColor3 = Theme.Background
-
-			else
-
-				Button.BackgroundColor3 = Theme.Card
-				Button.TextColor3 = Theme.Text
-
-			end
-
-		end
-
-		ClearPage()
-
-		CurrentPage = Instance.new("Frame")
-
-		CurrentPage.Name = Name
-
-		CurrentPage.BackgroundTransparency = 1
-
-		CurrentPage.Size = UDim2.fromScale(1,1)
-
-		CurrentPage.Parent = Content
-
-		if Name == "Enhancements" then
-
-			local Module = loadstring(game:HttpGet(
-
-				App.Config.Repository ..
-				"Modules/Players/Enhancements.lua"
-
-			))()
-
-			Module:Create(CurrentPage, App)
-
-		elseif Name == "ESP" then
-
-			local Module = loadstring(game:HttpGet(
-
-				App.Config.Repository ..
-				"Modules/Players/ESP.lua"
-
-			))()
-
-			Module:Create(CurrentPage, App)
-
-		elseif Name == "Utilities" then
-
-			local Module = loadstring(game:HttpGet(
-
-				App.Config.Repository ..
-				"Modules/Players/Utilities.lua"
-
-			))()
-
-			Module:Create(CurrentPage, App)
-
-		end
-
-  end
-	----------------------------------------------------------
-	-- Navigation Events
-	----------------------------------------------------------
-
-	EnhancementsButton.MouseButton1Click:Connect(function()
-
-		SelectTab("Enhancements")
-
-	end)
-
-	ESPButton.MouseButton1Click:Connect(function()
-
-		SelectTab("ESP")
-
-	end)
-
-	UtilitiesButton.MouseButton1Click:Connect(function()
-
-		SelectTab("Utilities")
-
-	end)
-
-	----------------------------------------------------------
-	-- Default Page
-	----------------------------------------------------------
-
-	SelectTab("Enhancements")
-
-end
-
-----------------------------------------------------------
--- Return Module
-----------------------------------------------------------
-
-return PlayersMain
-  
-]====],
-        [ [====[Modules/Players/Utilities.lua]====] ] = [====[--//========================================================--
---// SquidNoMo
---// 1.1 beta 1
---// Players
---// Utilities.lua
---//========================================================--
-
-local Utilities = {}
-
-----------------------------------------------------------
--- Create
-----------------------------------------------------------
-
-function Utilities:Create(Page, App)
-
-	local Theme = App.Theme
-	local Components = App.Components
-
-	Page:ClearAllChildren()
-
-	----------------------------------------------------------
-	-- Layout
-	----------------------------------------------------------
-
-	local Layout = Instance.new("UIListLayout")
-
-	Layout.FillDirection = Enum.FillDirection.Vertical
-	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	Layout.SortOrder = Enum.SortOrder.LayoutOrder
-	Layout.Padding = UDim.new(0,16)
-
-	Layout.Parent = Page
-
-	----------------------------------------------------------
-	-- Utilities Card
-	----------------------------------------------------------
-
-	local Card = Components:CreateCard(
-
-		Page,
-		Theme,
-		UDim2.new(1,0,0,340)
-
-	)
-
-	Card.LayoutOrder = 1
-
-	Components:CreateTitle(
-
-		Card,
-		Theme,
-		"🛠 Player Utilities"
-
-	)
-
-	local Holder = Instance.new("Frame")
-
-	Holder.BackgroundTransparency = 1
-
-	Holder.Position = UDim2.fromOffset(20,55)
-
-	Holder.Size = UDim2.new(1,-40,1,-75)
-
-	Holder.Parent = Card
-
-	local HolderLayout = Instance.new("UIListLayout")
-
-	HolderLayout.Padding = UDim.new(0,12)
-
-	HolderLayout.Parent = Holder
-
-  	----------------------------------------------------------
-	-- Anti AFK
-	----------------------------------------------------------
-
-	local _, AntiAFK =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Anti AFK"
-
-		)
-
-	AntiAFK:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.AntiAFK then
-
-			if State then
-				App.Features.Player.AntiAFK:Enable()
-			else
-				App.Features.Player.AntiAFK:Disable()
-			end
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Anti Lag
-	----------------------------------------------------------
-
-	local _, AntiLag =
-		Components:CreateToggle(
-
-			Holder,
-			Theme,
-			"Anti Lag"
-
-		)
-
-	AntiLag:OnChanged(function(State)
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.AntiLag then
-
-			if State then
-				App.Features.Player.AntiLag:Enable()
-			else
-				App.Features.Player.AntiLag:Disable()
-			end
-
-		end
-
-	end)
-
-  	----------------------------------------------------------
-	-- Reset Character
-	----------------------------------------------------------
-
-	local ResetButton =
-		Components:CreateButton(
-
-			Holder,
-			Theme,
-			"🔄 Reset Character"
-
-		)
-
-	ResetButton.MouseButton1Click:Connect(function()
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.Reset then
-
-			App.Features.Player.Reset:Execute()
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Rejoin Server
-	----------------------------------------------------------
-
-	local RejoinButton =
-		Components:CreateButton(
-
-			Holder,
-			Theme,
-			"🌐 Rejoin Server"
-
-		)
-
-	RejoinButton.MouseButton1Click:Connect(function()
-
-		if App.Features
-		and App.Features.Player
-		and App.Features.Player.Rejoin then
-
-			App.Features.Player.Rejoin:Execute()
-
-		end
-
-	end)
-
-	----------------------------------------------------------
-	-- Finished
-	----------------------------------------------------------
-
-end
-
-----------------------------------------------------------
--- Return Module
-----------------------------------------------------------
-
-return Utilities
+return LearningPanel
 ]====],
         [ [====[Modules/Players.lua]====] ] = [====[local PlayersPage = {}
 
@@ -29623,105 +29369,905 @@ local function buildUtilities(
     end
 end
 
-local function installTouchScrollFallback(Page, App)
-    if type(App.InstallPageTouchScroll) == "function" then
-        App:InstallPageTouchScroll(Page)
-    end
-end
-
 function PlayersPage:Create(Page, App)
-    installTouchScrollFallback(Page, App)
-    Page.CanvasPosition = Vector2.zero
+    local shell = App.Loader.SubpageShell:Create(Page, App, {
+        PageName = "Players",
+        HeaderHeight = App:IsMobile() and 100 or 106,
+    })
+    local selected = App.Session.SelectedPlayerCategory or "Movement & Camera"
 
-    local selected =
-        App.Session.SelectedPlayerCategory
-        or "Movement & Camera"
-
-    local selector =
-        App.Loader.CategoryStrip:Create(
-            Page,
-            App,
-            {
-                PageName = "Players",
-                SessionKey =
-                    "SelectedPlayerCategory",
-                DefaultName =
-                    "Movement & Camera",
-                ScrollerName =
-                    "PlayerCategoryScroller",
-                ButtonWidth = 220,
-                Items = CATEGORIES,
-                OnSelected = function(item)
-                    selected = item.Name
-                    Page.CanvasPosition = Vector2.zero
-
-                    local old =
-                        Page:FindFirstChild(
-                            "PlayerSubpageContent"
-                        )
-                    if old then
-                        old:Destroy()
-                    end
-
-                    local selectorRoot =
-                        Page:FindFirstChild(
-                            "PlayersCategoryRoot"
-                        )
-                    local topY = 128
-
-                    if selectorRoot then
-                        topY =
-                            selectorRoot
-                                .Position.Y.Offset
-                            + selectorRoot
-                                .Size.Y.Offset
-                            + 12
-                    end
-
-                    if item.Name
-                        == "Movement & Camera"
-                    then
-                        buildMovement(
-                            Page,
-                            App,
-                            topY
-                        )
-                    elseif item.Name
-                        == "Player ESP"
-                    then
-                        buildESP(
-                            Page,
-                            App,
-                            topY
-                        )
-                    else
-                        buildUtilities(
-                            Page,
-                            App,
-                            topY
-                        )
-                    end
-                end,
-            }
-        )
+    local selector = App.Loader.CategoryStrip:Create(Page, App, {
+        Parent = shell.Header,
+        GestureOwner = Page,
+        ClearParent = false,
+        PageName = "Players",
+        SessionKey = "SelectedPlayerCategory",
+        DefaultName = "Movement & Camera",
+        ScrollerName = "PlayerCategoryScroller",
+        ButtonWidth = 220,
+        Items = CATEGORIES,
+        OnSelected = function(item)
+            selected = item.Name
+            shell:ClearContent()
+            if item.Name == "Movement & Camera" then
+                buildMovement(shell.Content, App, 0)
+            elseif item.Name == "Player ESP" then
+                buildESP(shell.Content, App, 0)
+            else
+                buildUtilities(shell.Content, App, 0)
+            end
+            shell:ResetScroll()
+        end,
+    })
 
     if selector and selector.Select then
         local index = 1
-
-        for itemIndex, item in ipairs(
-            CATEGORIES
-        ) do
+        for itemIndex, item in ipairs(CATEGORIES) do
             if item.Name == selected then
                 index = itemIndex
                 break
             end
         end
-
         selector.Select(index)
     end
 end
 
 return PlayersPage
+]====],
+        [ [====[Modules/Players/Enhancements.lua]====] ] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// Enhancements.lua
+--//========================================================--
+
+local Enhancements = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function Enhancements:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- Enhancement Card
+	----------------------------------------------------------
+
+	local Card = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,340)
+
+	)
+
+	Card.LayoutOrder = 1
+
+	Components:CreateTitle(
+
+		Card,
+		Theme,
+		"✨ Player Enhancements"
+
+	)
+
+	local Holder = Instance.new("Frame")
+
+	Holder.BackgroundTransparency = 1
+
+	Holder.Position = UDim2.fromOffset(20,55)
+
+	Holder.Size = UDim2.new(1,-40,1,-75)
+
+	Holder.Parent = Card
+
+	local HolderLayout = Instance.new("UIListLayout")
+
+	HolderLayout.Padding = UDim.new(0,12)
+
+	HolderLayout.Parent = Holder
+
+  	----------------------------------------------------------
+	-- Walk Speed
+	----------------------------------------------------------
+
+	local _, WalkSpeed =
+		Components:CreateSlider(
+
+			Holder,
+			Theme,
+			"Walk Speed",
+			16,
+			100,
+			16
+
+		)
+
+	WalkSpeed:OnChanged(function(Value)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.WalkSpeed then
+
+			App.Features.Player.WalkSpeed:Set(Value)
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Jump Power
+	----------------------------------------------------------
+
+	local _, JumpPower =
+		Components:CreateSlider(
+
+			Holder,
+			Theme,
+			"Jump Power",
+			50,
+			200,
+			50
+
+		)
+
+	JumpPower:OnChanged(function(Value)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.JumpPower then
+
+			App.Features.Player.JumpPower:Set(Value)
+
+		end
+
+	end)
+
+  	----------------------------------------------------------
+	-- Infinite Jump
+	----------------------------------------------------------
+
+	local _, InfiniteJump =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Infinite Jump"
+
+		)
+
+	InfiniteJump:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.InfiniteJump then
+
+			if State then
+				App.Features.Player.InfiniteJump:Enable()
+			else
+				App.Features.Player.InfiniteJump:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Noclip
+	----------------------------------------------------------
+
+	local _, Noclip =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Noclip"
+
+		)
+
+	Noclip:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.Noclip then
+
+			if State then
+				App.Features.Player.Noclip:Enable()
+			else
+				App.Features.Player.Noclip:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Finished
+	----------------------------------------------------------
+
+end
+
+return Enhancements
+]====],
+        [ [====[Modules/Players/ESP.lua]====] ] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// ESP.lua
+--//========================================================--
+
+local ESP = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function ESP:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- ESP Card
+	----------------------------------------------------------
+
+	local Card = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,340)
+
+	)
+
+	Card.LayoutOrder = 1
+
+	Components:CreateTitle(
+
+		Card,
+		Theme,
+		"👁 Role ESP"
+
+	)
+
+	local Holder = Instance.new("Frame")
+
+	Holder.BackgroundTransparency = 1
+
+	Holder.Position = UDim2.fromOffset(20,55)
+
+	Holder.Size = UDim2.new(1,-40,1,-75)
+
+	Holder.Parent = Card
+
+	local HolderLayout = Instance.new("UIListLayout")
+
+	HolderLayout.Padding = UDim.new(0,12)
+
+	HolderLayout.Parent = Holder
+
+  	----------------------------------------------------------
+	-- Player ESP
+	----------------------------------------------------------
+
+	local _, PlayerESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Player ESP"
+
+		)
+
+	PlayerESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.PlayerESP then
+
+			if State then
+				App.Features.Player.PlayerESP:Enable()
+			else
+				App.Features.Player.PlayerESP:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Guard ESP
+	----------------------------------------------------------
+
+	local _, GuardESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Guard ESP"
+
+		)
+
+	GuardESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.GuardESP then
+
+			if State then
+				App.Features.Player.GuardESP:Enable()
+			else
+				App.Features.Player.GuardESP:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Detective ESP
+	----------------------------------------------------------
+
+	local _, DetectiveESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Detective ESP"
+
+		)
+
+	DetectiveESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.DetectiveESP then
+
+			if State then
+				App.Features.Player.DetectiveESP:Enable()
+			else
+				App.Features.Player.DetectiveESP:Disable()
+			end
+
+		end
+
+	end)
+
+  	----------------------------------------------------------
+	-- Frontman ESP
+	----------------------------------------------------------
+
+	local _, FrontmanESP =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Frontman ESP"
+
+		)
+
+	FrontmanESP:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.FrontmanESP then
+
+			if State then
+				App.Features.Player.FrontmanESP:Enable()
+			else
+				App.Features.Player.FrontmanESP:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Finished
+	----------------------------------------------------------
+
+end
+
+----------------------------------------------------------
+-- Return Module
+----------------------------------------------------------
+
+return ESP
+]====],
+        [ [====[Modules/Players/Main.lua]====] ] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// Main.lua
+--//========================================================--
+
+local PlayersMain = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function PlayersMain:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Main Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- Top Navigation Card
+	----------------------------------------------------------
+
+	local NavCard = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,64)
+
+	)
+
+	NavCard.LayoutOrder = 1
+
+	----------------------------------------------------------
+	-- Navigation Container
+	----------------------------------------------------------
+
+	local NavContainer = Instance.new("Frame")
+
+	NavContainer.Name = "Navigation"
+
+	NavContainer.BackgroundTransparency = 1
+
+	NavContainer.Size = UDim2.new(1,-24,1,-16)
+
+	NavContainer.Position = UDim2.fromOffset(12,8)
+
+	NavContainer.Parent = NavCard
+
+	local NavLayout = Instance.new("UIListLayout")
+
+	NavLayout.FillDirection = Enum.FillDirection.Horizontal
+
+	NavLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+
+	NavLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+
+	NavLayout.Padding = UDim.new(0,14)
+
+	NavLayout.Parent = NavContainer
+
+	----------------------------------------------------------
+	-- Content Area
+	----------------------------------------------------------
+
+	local Content = Instance.new("Frame")
+
+	Content.Name = "Content"
+
+	Content.BackgroundTransparency = 1
+
+	Content.Size = UDim2.new(1,0,1,-80)
+
+	Content.AutomaticSize = Enum.AutomaticSize.Y
+
+	Content.LayoutOrder = 2
+
+	Content.Parent = Page
+
+	self.Content = Content
+	self.NavContainer = NavContainer
+
+  	----------------------------------------------------------
+	-- Navigation Buttons
+	----------------------------------------------------------
+
+	local CurrentTab
+
+	local Buttons = {}
+
+	local function CreateTab(Name, Icon)
+
+		local Button = Instance.new("TextButton")
+
+		Button.Name = Name
+
+		Button.Size = UDim2.fromOffset(170,44)
+
+		Button.BackgroundColor3 = Theme.Card
+
+		Button.BorderSizePixel = 0
+
+		Button.AutoButtonColor = false
+
+		Button.Font = Theme.FontBold
+
+		Button.TextSize = 16
+
+		Button.Text = Icon .. "  " .. Name
+
+		Button.TextColor3 = Theme.Text
+
+		Button.Parent = NavContainer
+
+		local Corner = Instance.new("UICorner")
+
+		Corner.CornerRadius = UDim.new(0,12)
+
+		Corner.Parent = Button
+
+		Buttons[Name] = Button
+
+		return Button
+
+	end
+
+	local EnhancementsButton =
+		CreateTab("Enhancements","✨")
+
+	local ESPButton =
+		CreateTab("ESP","👁")
+
+	local UtilitiesButton =
+		CreateTab("Utilities","🛠")
+
+  	----------------------------------------------------------
+	-- Page Loader
+	----------------------------------------------------------
+
+	local CurrentPage
+
+	local function ClearPage()
+
+		if CurrentPage then
+
+			CurrentPage:Destroy()
+
+			CurrentPage = nil
+
+		end
+
+	end
+
+	local function SelectTab(Name)
+
+		CurrentTab = Name
+
+		for TabName, Button in pairs(Buttons) do
+
+			if TabName == Name then
+
+				Button.BackgroundColor3 = Theme.Accent
+				Button.TextColor3 = Theme.Background
+
+			else
+
+				Button.BackgroundColor3 = Theme.Card
+				Button.TextColor3 = Theme.Text
+
+			end
+
+		end
+
+		ClearPage()
+
+		CurrentPage = Instance.new("Frame")
+
+		CurrentPage.Name = Name
+
+		CurrentPage.BackgroundTransparency = 1
+
+		CurrentPage.Size = UDim2.fromScale(1,1)
+
+		CurrentPage.Parent = Content
+
+		if Name == "Enhancements" then
+
+			local Module = loadstring(game:HttpGet(
+
+				App.Config.Repository ..
+				"Modules/Players/Enhancements.lua"
+
+			))()
+
+			Module:Create(CurrentPage, App)
+
+		elseif Name == "ESP" then
+
+			local Module = loadstring(game:HttpGet(
+
+				App.Config.Repository ..
+				"Modules/Players/ESP.lua"
+
+			))()
+
+			Module:Create(CurrentPage, App)
+
+		elseif Name == "Utilities" then
+
+			local Module = loadstring(game:HttpGet(
+
+				App.Config.Repository ..
+				"Modules/Players/Utilities.lua"
+
+			))()
+
+			Module:Create(CurrentPage, App)
+
+		end
+
+  end
+	----------------------------------------------------------
+	-- Navigation Events
+	----------------------------------------------------------
+
+	EnhancementsButton.MouseButton1Click:Connect(function()
+
+		SelectTab("Enhancements")
+
+	end)
+
+	ESPButton.MouseButton1Click:Connect(function()
+
+		SelectTab("ESP")
+
+	end)
+
+	UtilitiesButton.MouseButton1Click:Connect(function()
+
+		SelectTab("Utilities")
+
+	end)
+
+	----------------------------------------------------------
+	-- Default Page
+	----------------------------------------------------------
+
+	SelectTab("Enhancements")
+
+end
+
+----------------------------------------------------------
+-- Return Module
+----------------------------------------------------------
+
+return PlayersMain
+  
+]====],
+        [ [====[Modules/Players/Utilities.lua]====] ] = [====[--//========================================================--
+--// SquidNoMo
+--// 1.1 beta 1
+--// Players
+--// Utilities.lua
+--//========================================================--
+
+local Utilities = {}
+
+----------------------------------------------------------
+-- Create
+----------------------------------------------------------
+
+function Utilities:Create(Page, App)
+
+	local Theme = App.Theme
+	local Components = App.Components
+
+	Page:ClearAllChildren()
+
+	----------------------------------------------------------
+	-- Layout
+	----------------------------------------------------------
+
+	local Layout = Instance.new("UIListLayout")
+
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.Padding = UDim.new(0,16)
+
+	Layout.Parent = Page
+
+	----------------------------------------------------------
+	-- Utilities Card
+	----------------------------------------------------------
+
+	local Card = Components:CreateCard(
+
+		Page,
+		Theme,
+		UDim2.new(1,0,0,340)
+
+	)
+
+	Card.LayoutOrder = 1
+
+	Components:CreateTitle(
+
+		Card,
+		Theme,
+		"🛠 Player Utilities"
+
+	)
+
+	local Holder = Instance.new("Frame")
+
+	Holder.BackgroundTransparency = 1
+
+	Holder.Position = UDim2.fromOffset(20,55)
+
+	Holder.Size = UDim2.new(1,-40,1,-75)
+
+	Holder.Parent = Card
+
+	local HolderLayout = Instance.new("UIListLayout")
+
+	HolderLayout.Padding = UDim.new(0,12)
+
+	HolderLayout.Parent = Holder
+
+  	----------------------------------------------------------
+	-- Anti AFK
+	----------------------------------------------------------
+
+	local _, AntiAFK =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Anti AFK"
+
+		)
+
+	AntiAFK:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.AntiAFK then
+
+			if State then
+				App.Features.Player.AntiAFK:Enable()
+			else
+				App.Features.Player.AntiAFK:Disable()
+			end
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Anti Lag
+	----------------------------------------------------------
+
+	local _, AntiLag =
+		Components:CreateToggle(
+
+			Holder,
+			Theme,
+			"Anti Lag"
+
+		)
+
+	AntiLag:OnChanged(function(State)
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.AntiLag then
+
+			if State then
+				App.Features.Player.AntiLag:Enable()
+			else
+				App.Features.Player.AntiLag:Disable()
+			end
+
+		end
+
+	end)
+
+  	----------------------------------------------------------
+	-- Reset Character
+	----------------------------------------------------------
+
+	local ResetButton =
+		Components:CreateButton(
+
+			Holder,
+			Theme,
+			"🔄 Reset Character"
+
+		)
+
+	ResetButton.MouseButton1Click:Connect(function()
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.Reset then
+
+			App.Features.Player.Reset:Execute()
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Rejoin Server
+	----------------------------------------------------------
+
+	local RejoinButton =
+		Components:CreateButton(
+
+			Holder,
+			Theme,
+			"🌐 Rejoin Server"
+
+		)
+
+	RejoinButton.MouseButton1Click:Connect(function()
+
+		if App.Features
+		and App.Features.Player
+		and App.Features.Player.Rejoin then
+
+			App.Features.Player.Rejoin:Execute()
+
+		end
+
+	end)
+
+	----------------------------------------------------------
+	-- Finished
+	----------------------------------------------------------
+
+end
+
+----------------------------------------------------------
+-- Return Module
+----------------------------------------------------------
+
+return Utilities
 ]====],
         [ [====[Modules/Settings.lua]====] ] = [====[local Settings = {}
 
@@ -29734,6 +30280,227 @@ function Settings:Create(Page, App)
 end
 
 return Settings
+]====],
+        [ [====[Modules/SubpageShell.lua]====] ] = [====[local UserInputService = game:GetService("UserInputService")
+
+local SubpageShell = {}
+
+local function inside(guiObject, position)
+    if not guiObject or not guiObject.Parent then return false end
+    local point = Vector2.new(position.X, position.Y)
+    local minimum = guiObject.AbsolutePosition
+    local maximum = minimum + guiObject.AbsoluteSize
+    return point.X >= minimum.X and point.X <= maximum.X
+        and point.Y >= minimum.Y and point.Y <= maximum.Y
+end
+
+local function installTouchScroller(scroller, owner)
+    if not scroller or scroller:GetAttribute("SquidNoMoDedicatedScroll") then return end
+    scroller:SetAttribute("SquidNoMoDedicatedScroll", true)
+
+    local activeInput = nil
+    local origin = nil
+    local originCanvas = nil
+    local dragging = false
+    local connections = {}
+
+    local function maxCanvasY()
+        local windowHeight = scroller.AbsoluteWindowSize.Y > 0
+            and scroller.AbsoluteWindowSize.Y
+            or scroller.AbsoluteSize.Y
+        local canvasHeight = math.max(
+            scroller.AbsoluteCanvasSize.Y,
+            scroller.CanvasSize.Y.Offset + scroller.CanvasSize.Y.Scale * scroller.AbsoluteSize.Y
+        )
+        return math.max(0, canvasHeight - windowHeight)
+    end
+
+    local function setDragging(state)
+        dragging = state == true
+        scroller:SetAttribute("SquidNoMoTouchDragging", dragging)
+        if owner and owner.Parent then
+            owner:SetAttribute("SquidNoMoTouchDragging", dragging)
+        end
+    end
+
+    table.insert(connections, UserInputService.InputBegan:Connect(function(input)
+        if input.UserInputType ~= Enum.UserInputType.Touch
+            or activeInput
+            or not scroller.Visible
+            or not inside(scroller, input.Position)
+        then
+            return
+        end
+
+        activeInput = input
+        origin = input.Position
+        originCanvas = scroller.CanvasPosition
+        setDragging(false)
+    end))
+
+    table.insert(connections, UserInputService.InputChanged:Connect(function(input)
+        if not activeInput
+            or input.UserInputType ~= Enum.UserInputType.Touch
+            or not scroller.Visible
+        then
+            return
+        end
+
+        -- Some mobile executors surface a replacement Touch InputObject during a
+        -- drag, so once one touch begins inside this scroller we follow the live
+        -- touch position instead of requiring object identity for every change.
+        local delta = input.Position - (origin or input.Position)
+        if not dragging then
+            if math.abs(delta.Y) < 7 then return end
+            if math.abs(delta.Y) <= math.abs(delta.X) * 0.72 then return end
+            setDragging(true)
+            scroller.ScrollingEnabled = false
+        end
+
+        scroller.CanvasPosition = Vector2.new(
+            0,
+            math.clamp(
+                (originCanvas and originCanvas.Y or 0) - delta.Y,
+                0,
+                maxCanvasY()
+            )
+        )
+    end))
+
+    table.insert(connections, UserInputService.InputEnded:Connect(function(input)
+        if not activeInput or input.UserInputType ~= Enum.UserInputType.Touch then return end
+        activeInput = nil
+        origin = nil
+        originCanvas = nil
+        scroller.ScrollingEnabled = true
+        task.delay(0.10, function()
+            if scroller and scroller.Parent then setDragging(false) end
+        end)
+    end))
+
+    scroller.Destroying:Connect(function()
+        for _, connection in ipairs(connections) do
+            pcall(function() connection:Disconnect() end)
+        end
+    end)
+end
+
+function SubpageShell:Create(Page, App, options)
+    options = options or {}
+    Page:ClearAllChildren()
+    Page:SetAttribute("SquidNoMoDedicatedShell", true)
+    Page.AutomaticCanvasSize = Enum.AutomaticSize.None
+    Page.CanvasSize = UDim2.fromOffset(0, 0)
+    Page.CanvasPosition = Vector2.zero
+    Page.ScrollingEnabled = false
+    Page.Active = false
+    Page.ScrollBarThickness = 0
+
+    local pageName = options.PageName or Page.Name or "Page"
+    local padding = tonumber(options.Padding)
+        or App:GetUIStyleValue(pageName, "PagePadding", "MainPage")
+        or (App:IsMobile() and 10 or 14)
+    local headerHeight = tonumber(options.HeaderHeight) or (App:IsMobile() and 104 or 112)
+    local toolbarHeight = tonumber(options.ToolbarHeight) or 0
+    local gap = tonumber(options.Gap) or (App:IsMobile() and 8 or 10)
+
+    local root = Instance.new("Frame")
+    root.Name = pageName .. "SubpageShell"
+    root.Size = UDim2.fromScale(1, 1)
+    root.BackgroundTransparency = 1
+    root.BorderSizePixel = 0
+    root.ClipsDescendants = true
+    root.Parent = Page
+
+    local header = Instance.new("Frame")
+    header.Name = "HeaderHost"
+    header.Position = UDim2.fromOffset(padding, padding)
+    header.Size = UDim2.new(1, -(padding * 2), 0, headerHeight)
+    header.BackgroundTransparency = 1
+    header.BorderSizePixel = 0
+    header.ClipsDescendants = true
+    header.Parent = root
+
+    local toolbar = nil
+    local contentY = padding + headerHeight + gap
+    if toolbarHeight > 0 then
+        toolbar = Instance.new("Frame")
+        toolbar.Name = "ToolbarHost"
+        toolbar.Position = UDim2.fromOffset(padding, contentY)
+        toolbar.Size = UDim2.new(1, -(padding * 2), 0, toolbarHeight)
+        toolbar.BackgroundTransparency = 1
+        toolbar.BorderSizePixel = 0
+        toolbar.ClipsDescendants = true
+        toolbar.Parent = root
+        contentY = contentY + toolbarHeight + gap
+    end
+
+    local content = Instance.new("ScrollingFrame")
+    content.Name = "SubpageScroller"
+    content.Position = UDim2.fromOffset(0, contentY)
+    content.Size = UDim2.new(1, 0, 1, -contentY)
+    content.BackgroundTransparency = 1
+    content.BorderSizePixel = 0
+    content.CanvasSize = UDim2.fromOffset(0, 0)
+    content.AutomaticCanvasSize = Enum.AutomaticSize.None
+    content.ScrollingDirection = Enum.ScrollingDirection.Y
+    content.ScrollingEnabled = true
+    content.Active = true
+    content.Selectable = false
+    content.ClipsDescendants = true
+    content.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+    content.ScrollBarThickness = App:IsMobile() and 10 or 6
+    content.ScrollBarImageTransparency = App:IsMobile() and 0.02 or 0.14
+    content.ScrollBarImageColor3 = App:GetPageAccent(pageName)
+    content.Parent = root
+
+    installTouchScroller(content, Page)
+
+    local shell = {
+        Page = Page,
+        Root = root,
+        Header = header,
+        Toolbar = toolbar,
+        Content = content,
+        Padding = padding,
+        HeaderHeight = headerHeight,
+        ToolbarHeight = toolbarHeight,
+    }
+
+    function shell:ResetScroll()
+        if self.Content and self.Content.Parent then
+            self.Content.CanvasPosition = Vector2.zero
+        end
+    end
+
+    function shell:SetContentHeight(height, bottomPadding)
+        if not self.Content or not self.Content.Parent then return end
+        local viewport = math.max(
+            0,
+            self.Content.AbsoluteWindowSize.Y,
+            self.Content.AbsoluteSize.Y
+        )
+        local total = math.max(
+            tonumber(height) or 0,
+            viewport + 1
+        ) + (tonumber(bottomPadding) or (App:IsMobile() and 34 or 24))
+        self.Content.CanvasSize = UDim2.fromOffset(0, total)
+        self.Content.ScrollingEnabled = true
+    end
+
+    function shell:ClearContent()
+        if not self.Content then return end
+        for _, child in ipairs(self.Content:GetChildren()) do
+            child:Destroy()
+        end
+        self.Content.CanvasPosition = Vector2.zero
+        self.Content.CanvasSize = UDim2.fromOffset(0, 0)
+    end
+
+    return shell
+end
+
+return SubpageShell
 ]====],
         [ [====[Modules/UI.lua]====] ] = [====[local UIPage = {}
 
@@ -30409,6 +31176,11 @@ function UIPage:Create(Page, App)
         )
         return
     end
+
+    local shell = App.Loader.SubpageShell:Create(Page, App, {
+        PageName = 'UI',
+        HeaderHeight = App:IsMobile() and 100 or 106,
+    })
 
     local draft = manager:Clone(App.UIStyleProfile)
     local selectedCategory = App.Session.SelectedUICategory
@@ -31228,7 +32000,7 @@ function UIPage:Create(Page, App)
         contentRoot.Name = 'UICustomizationContent'
         contentRoot.Position = UDim2.fromOffset(
             pagePadding,
-            pagePadding + barHeight + 16
+            pagePadding
         )
         contentRoot.Size = UDim2.new(
             1,
@@ -31238,7 +32010,7 @@ function UIPage:Create(Page, App)
         )
         contentRoot.BackgroundTransparency = 1
         contentRoot.BorderSizePixel = 0
-        contentRoot.Parent = Page
+        contentRoot.Parent = shell.Content
 
         createScopeToolbar(contentRoot, 0)
 
@@ -31258,9 +32030,14 @@ function UIPage:Create(Page, App)
         end
 
         createActionBar(contentRoot, 1168)
+        shell.Content.CanvasPosition = Vector2.zero
+        shell:SetContentHeight(1260 + (pagePadding * 2), App:IsMobile() and 46 or 30)
     end
 
     App.Loader.CategoryStrip:Create(Page, App, {
+        Parent = shell.Header,
+        GestureOwner = Page,
+        ClearParent = false,
         PageName = 'UI',
         SessionKey = 'SelectedUICategory',
         DefaultName = selectedCategory,

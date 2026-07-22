@@ -2968,6 +2968,7 @@ function App:InstallPageTouchScroll(page)
     end
 
     local function beginTouch(input)
+        if page:GetAttribute("SquidNoMoDedicatedShell") then return end
         if input.UserInputType ~= Enum.UserInputType.Touch
             or not page.Visible
             or activeTouch

@@ -11,11 +11,16 @@ function FarmingPage:Create(Page, App)
         end
     end
 
-    -- Farming intentionally uses one continuous toggle page. There is no
-    -- category strip because each controller already selects its own task.
-    App.Loader.FeatureFolder:Render(Page, App, {
+    local shell = App.Loader.SubpageShell:Create(Page, App, {
         PageName = "Farming",
-        TopY = App:IsMobile() and 18 or 22,
+        HeaderHeight = 0,
+        Gap = 0,
+    })
+    shell.Header.Visible = false
+
+    App.Loader.FeatureFolder:Render(shell.Content, App, {
+        PageName = "Farming",
+        TopY = 0,
         Features = features,
     })
 end

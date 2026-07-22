@@ -4,8 +4,8 @@
 local Manifest = {
     Release = "1.1",
     Channel = "beta",
-    BuildNumber = 10,
-    Revision = "rlgl-adaptive-signal-learner-r10",
+    BuildNumber = 11,
+    Revision = "ui-overhaul-demonstration-learning-r11",
     FeatureRuntimeRevision = "adaptive-game-runtime-r10",
     GameRuntimeRevision = "game-modules-rlgl-learner-r10",
     PlayerRuntimeRevision = "player-runtime-r4",
@@ -21,6 +21,7 @@ local Manifest = {
         "Features/Games/GameRuntime.lua",
         "Features/Shared/PlayerRuntime.lua",
         "Features/Shared/RoleService.lua",
+        "Features/Shared/LearningRecorder.lua",
         "Features/Farming/FarmingRuntime.lua",
         "Features/Player/AutoPickUpBaby.lua",
     },
